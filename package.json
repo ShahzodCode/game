@@ -1,24 +1,26 @@
 {
-    "name":  "bot-shooter",
-    "version":  "1.0.0",
-    "description":  "",
-    "main":  "index.js",
-    "keywords":  [
-
-                 ],
-    "author":  "",
-    "license":  "ISC",
-    "dependencies":  {
-                         "three":  "^0.186.1"
-                     },
-    "devDependencies":  {
-                            "@types/three":  "^0.186.0",
-                            "typescript":  "^7.0.2",
-                            "vite":  "^8.3.4"
-                        },
-    "scripts":  {
-                    "dev":  "vite",
-                    "build":  "vite build"
-                },
-    "type":  "module"
+    "name": "bot-shooter",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "three": "^0.186.1"
+    },
+    "devDependencies": {
+        "@gltf-transform/core": "^4.5.1",
+        "@gltf-transform/extensions": "^4.5.1",
+        "@gltf-transform/functions": "^4.5.1",
+        "@types/three": "^0.186.0",
+        "sharp": "^0.35.5",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.4"
+    },
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "type": "module"
 }

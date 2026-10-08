@@ -31,18 +31,20 @@ src/
   entities/botModel.ts     procedural detailed human (face, hair, hands, shoes, per-costume outfit/props), LOOKS table
   entities/wolf.ts         wolves: model (jaw, ears, bent legs, tail, fur gradient), calm/chase/bite behaviour
   entities/meshBuilder.ts  merges many small coloured shapes into ONE mesh (vertex colours) = cheap detailed models
-  weapons/weapons.ts       WEAPONS stat sheet, Weapon runtime state (magazines, ownership), blocky viewmodels
+  weapons/weapons.ts       WEAPONS stat sheet, Weapon runtime state (magazines, ownership), blocky viewmodels (fallback + knife)
+  weapons/models.ts        loads the real .glb viewmodels (pistol/rifle/shotgun), scales/orients them via SPECS, studio env map for metal
   world/world.ts           heightmap terrain, structures, rocks, supply-shop kiosk, bot spawn helpers, indoor/outdoor lighting
   world/rooms.ts           safe room (weapon shop), candle-lit airlock, the two huge sliding Doors, exit light
   shop/shopItems.ts        shop image paths, health potion constants
 public/
+  models/                  pistol.glb, rifle.glb, shotgun.glb (optimized by scripts/optimize-models.mjs; see Conventions)
   audio/weapons/           mp3 files (rifle-burst, rifle-reload, pistol-shot, pistol-reload, shotgun-shot, shotgun-pump)
   images/shop/             SVG pictures for shop items (pistol/rifle magazine, shotgun, shotgun shells, health potion)
 ```
 
 ## Conventions
 - Room geometry (rooms.ts): never overlap two flat faces with different colours (z-fighting flicker). Pieces must only touch (floors end exactly where the next begins, walls stop where gate pillars start). Signs are static boards (`makeSignBoard`), not Sprites (sprites swivel to face the camera).
-- 3D models are procedural (no asset files): build them with `MeshBuilder` and merge per body part (torso/head/arms/legs = one hit-testable mesh each, ~5-8k triangles per character). Small details automatically use fewer polygons. SVG for shop pictures. Physics is hand-rolled AABB.
+- Weapons (pistol/rifle/shotgun) use imported .glb models (weapons/models.ts; the blocky procedural ones show until a model loads and stay as fallback; the knife is still procedural). To add or swap one: run `node scripts/optimize-models.mjs <dir>` (strips Blender camera/light/backdrop nodes, textures -> 1024 px WebP), then add a SPECS entry (rotY so the barrel points -z, length in metres, placement). Characters and wolves: build them with `MeshBuilder` and merge per body part (torso/head/arms/legs = one hit-testable mesh each, ~5-8k triangles per character). Small details automatically use fewer polygons. SVG for shop pictures. Physics is hand-rolled AABB.
 - To add a costume: add an entry to COSTUMES (mannequin.ts), a LOOKS entry + its torso/hat/leg details in botModel.ts.
 - Weapon tuning lives only in `WEAPONS` (weapons/weapons.ts). Bot/wolf tuning at the top of their files.
 - Mutable state lives in `S` (game/state.ts): modules can't assign an imported `let`, so write `S.cash += 5`. Avoid import cycles at module top level (only call cross-module functions inside functions).

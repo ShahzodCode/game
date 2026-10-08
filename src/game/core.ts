@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Weapon, WEAPONS, buildViewModel } from '../weapons/weapons';
+import { initWeaponEnvironment, upgradeViewModel } from '../weapons/models';
 import { buildWorld } from '../world/world';
 
 // Scene, camera, world and the player's body/weapons: created once, shared by every module.
@@ -23,12 +24,14 @@ export const pos = START.clone(); // player feet position
 export const vel = new THREE.Vector3();
 
 // ---------- weapons ----------
+initWeaponEnvironment(renderer);
 export const weapons = WEAPONS.map((s) => new Weapon(s));
 export const viewModels = WEAPONS.map((s) => {
   const g = buildViewModel(s.id);
   g.position.set(0.25, -0.22, -0.5);
   g.visible = false;
   camera.add(g);
+  upgradeViewModel(g, s.id); // swaps in the real model once it has loaded
   return g;
 });
 export const flashLight = new THREE.PointLight(0xffc266, 0, 6);

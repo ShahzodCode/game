@@ -23,7 +23,7 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 ## Ideas / next steps (the user decides priority; ask when unsure)
 1. Playtest and balance: mission targets, rewards, enemy health/damage per level.
 2. ~~Split `src/main.ts` into modules.~~ Done: see `src/game/*` and the layout in `CLAUDE.md`.
-3. More weapons for the weapon shop (it currently sells only the shotgun).
+3. More weapons for the weapon shop (it currently sells only the shotgun). Pistol/rifle/shotgun now use real .glb models (done); the knife and the characters/wolves are still procedural. Licences of the uploaded models are unknown: add credits if they need them.
 4. More enemy types for later levels, possibly bosses.
 5. Remove the test cash button.
 6. Settings (mouse sensitivity, volume), a proper title screen.
