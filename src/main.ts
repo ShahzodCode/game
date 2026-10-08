@@ -84,7 +84,7 @@ function animateViewModel(dt: number) {
   const reloadDip = w.reloading ? Math.sin((1 - w.reloadLeft / w.stats.reloadTime) * Math.PI) : 0;
   const equipDip = S.equipLeft > 0 ? S.equipLeft / w.stats.equipTime : 0;
   vm.position.set(0.25, -0.22 + bob - reloadDip * 0.2 - equipDip * 0.3, -0.5 + S.kick);
-  vm.rotation.set(reloadDip * 0.7 + S.kick * 2, 0, 0);
+  vm.rotation.set(reloadDip * 0.3 + S.kick * 2, 0, reloadDip * 0.25); // gentle tilt: tipping the muzzle up shows the weapon's rear and top
   if (S.swingT > 0) {
     // knife slash: sweeps from the right across the screen and thrusts forward
     S.swingT = Math.max(0, S.swingT - dt);

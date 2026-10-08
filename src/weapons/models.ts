@@ -15,9 +15,11 @@ interface ModelSpec {
   /** Where the model's bounding box ends up inside the viewmodel group: its centre z and its top y. */
   centerZ: number;
   topY: number;
+  /** Flip left/right: the model is only built on one side (the other is hollow), and the player sees its other side. */
+  mirror?: boolean;
 }
 const SPECS: Record<string, ModelSpec> = {
-  pistol: { file: 'pistol.glb', rotY: 90, length: 0.3, centerZ: 0, topY: 0.05 },
+  pistol: { file: 'pistol.glb', rotY: 90, length: 0.3, centerZ: 0, topY: 0.05, mirror: true },
   rifle: { file: 'rifle.glb', rotY: 0, length: 1.0, centerZ: -0.05, topY: 0.07 },
   shotgun: { file: 'shotgun.glb', rotY: -90, length: 1.15, centerZ: -0.12, topY: 0.05 },
 };
@@ -44,7 +46,7 @@ export function upgradeViewModel(group: THREE.Group, id: string) {
       model.updateMatrixWorld(true);
       const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
       const s = spec.length / Math.max(size.x, size.z); // the barrel lies along x or z, whichever is longer
-      model.scale.setScalar(s);
+      model.scale.set(s, s, spec.mirror ? -s : s);
       model.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(model);
       const c = box.getCenter(new THREE.Vector3());
@@ -56,6 +58,11 @@ export function upgradeViewModel(group: THREE.Group, id: string) {
         m.castShadow = false;
         m.frustumCulled = false; // always close to the camera
         const mat = m.material as THREE.MeshStandardMaterial;
+        // the rifle's material is exported as alpha-blended: its parts then sort wrongly and look see-through
+        mat.transparent = false;
+        mat.alphaTest = 0;
+        mat.depthWrite = true;
+        mat.opacity = 1;
         if (envMap) {
           mat.envMap = envMap;
           mat.envMapIntensity = 0.7;
