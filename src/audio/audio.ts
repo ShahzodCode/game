@@ -213,6 +213,34 @@ export function missionSound(big = false) {
 }
 
 /** A shot fired by an enemy: the pistol recording, quieter and a bit lower the further away it is. */
+/** Superman's punch: a rising whoosh for the wind-up, a heavy thud when it connects, a dull whoosh when it misses. */
+export function punchSound(phase: 'wind' | 'hit' | 'miss') {
+  if (!ctx || !master) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  if (phase === 'hit') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110, t);
+    osc.frequency.exponentialRampToValueAtTime(32, t + 0.3);
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  } else {
+    osc.type = 'sawtooth';
+    const lo = phase === 'wind' ? 70 : 200;
+    osc.frequency.setValueAtTime(lo, t);
+    osc.frequency.exponentialRampToValueAtTime(phase === 'wind' ? 240 : 70, t + (phase === 'wind' ? 0.55 : 0.25));
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(phase === 'wind' ? 0.16 : 0.2, t + (phase === 'wind' ? 0.5 : 0.06));
+    g.gain.exponentialRampToValueAtTime(0.001, t + (phase === 'wind' ? 0.6 : 0.3));
+  }
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = phase === 'hit' ? 400 : 700;
+  osc.connect(lp).connect(g).connect(master);
+  osc.start(t);
+  osc.stop(t + 0.65);
+}
 let lastScream = 0;
 /** A scared bot's cry: a short rising-then-falling squeal; quieter with distance, each voice a little different. */
 export function botScream(distance: number) {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildRooms, makeSignBoard, type Rooms } from './rooms';
+import { buildSupplyShopProps } from './shopProps';
 
 export interface World {
   /** Solid boxes used for player collision (structures + big rocks). */
@@ -228,19 +229,8 @@ export function buildWorld(scene: THREE.Scene): World {
   // ---------- ammo shop decorations (no collision) ----------
   const shopGround = heightAt(SHOP_ZONE.x, SHOP_ZONE.z);
   const kioskTop = heightAt(8, 54);
-  const awning = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 0.12, 2.6),
-    new THREE.MeshStandardMaterial({ color: 0xd94a3a, roughness: 0.8 }),
-  );
-  awning.position.set(8, kioskTop + 2.6, 54.2);
-  awning.rotation.x = -0.12;
-  awning.castShadow = true;
-  scene.add(awning);
-  // fixed board facing the arena (-z); a sprite would swivel to follow the player
-  const sign = makeSignBoard('SUPPLY SHOP', 3.2, 0.8);
-  sign.position.set(8, kioskTop + 3.4, 54.4);
-  sign.rotation.y = Math.PI;
-  scene.add(sign);
+  // counter trim, shelves with stock, striped canopy, sign, crates and barrels: see shopProps.ts
+  buildSupplyShopProps(scene, boxes, blockers, heightAt, makeSignBoard);
   const zone = new THREE.Mesh(
     new THREE.CylinderGeometry(SHOP_ZONE.radius, SHOP_ZONE.radius, 0.1, 40),
     new THREE.MeshBasicMaterial({ color: 0x44ff88, transparent: true, opacity: 0.3, depthWrite: false }),

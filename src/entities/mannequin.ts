@@ -19,6 +19,8 @@ export interface BotHooks {
   shotFired: (from: THREE.Vector3, to: THREE.Vector3) => void;
   /** A bot swung a knife. */
   stab: () => void;
+  /** A heavy punch (Superman) wound up / landed: sound only. */
+  punch?: (phase: 'wind' | 'hit' | 'miss') => void;
   lineOfSight: (from: THREE.Vector3, to: THREE.Vector3) => boolean;
   /** A scared bot cried out at this spot (optional: draws nothing, only plays a sound). */
   scream?: (at: THREE.Vector3) => void;
@@ -41,6 +43,8 @@ export interface Costume {
   combat?: 'ranged' | 'melee';
   /** edge = usually spawns and patrols close to the outer walls. */
   zone?: 'edge';
+  /** Never scared by the player, whatever happens (no running away, no retreating). */
+  fearless?: boolean;
   /** First level in which this character can appear (default 1). */
   minLevel?: number;
   /** Stats for `combat: 'melee'` bots. */
@@ -57,9 +61,18 @@ export interface MeleeStats {
   giveUp: number; // stops chasing beyond this distance...
   giveUpTime: number; // ...for this many seconds
   calmCooldown: number; // then ignores the player for this long
+  /** Only fights back once it has been shot (default: attacks on sight within aggroRange). */
+  provoked?: boolean;
+  /** Heavy hitter: seconds of visible wind-up before each blow (the player can step out of range). */
+  windup?: number;
 }
 const KNIFE_CRIMINAL: MeleeStats = { aggroRange: 36, speed: 5.4, attackRange: 1.5, damage: 10, interval: 0.9, giveUp: 52, giveUpTime: 3, calmCooldown: 8 };
 /** Ninja: much faster, strikes twice as often and far harder than a criminal, but is fragile. */
+/**
+ * Superman: only fights once shot. Then he walks up and winds up a punch that hits very hard (45), and afterwards
+ * stands there catching his breath for a long time (interval), which is the player's window to shoot back.
+ */
+const SUPERMAN_PUNCH: MeleeStats = { aggroRange: 0, speed: 6.4, attackRange: 2.1, damage: 45, interval: 4.2, giveUp: 60, giveUpTime: 8, calmCooldown: 5, provoked: true, windup: 0.6 };
 const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 8.4, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
 
 export const COSTUMES: Costume[] = [
@@ -69,11 +82,11 @@ export const COSTUMES: Costume[] = [
   { id: 'sporty', name: 'Sporty', health: 105, points: 130, weight: 2, shirt: 0x3fa35a, pants: 0x222222, accent: 0xffffff, speedMul: 1.7, note: 'Harmless, walks fast, runs away when shot' },
   { id: 'chef', name: 'Chef', health: 95, points: 140, weight: 1.5, shirt: 0xf4f4f0, pants: 0x3a3a3a, accent: 0xffffff, note: 'Harmless, runs away when shot' },
   { id: 'rich', name: 'Rich guy', health: 90, points: 150, weight: 1.5, shirt: 0x2f3b52, pants: 0x20242e, accent: 0xb02a2a, note: 'Harmless, runs away when shot' },
-  { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', note: 'Shoots back when shot, dodges, retreats when badly hurt' },
-  { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, note: 'Harmless, very tough, runs away when shot' },
-  { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, note: 'Harmless, very tough, walks fast, runs away when shot' },
+  { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', fearless: true, note: 'Never flees: shoots back when shot, dodges' },
+  { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, fearless: true, note: 'Harmless, very tough, never flees: stares you down when shot' },
+  { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, combat: 'melee', melee: SUPERMAN_PUNCH, fearless: true, note: 'Harmless until shot, then a huge slow punch (45 dmg) and a long rest: dodge it and shoot back' },
   { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 2, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
-  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 7, note: 'From level 7. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
+  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 7, fearless: true, note: 'From level 7. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
 ];
 
 /** Which costumes may spawn (set per level by main.ts). Null = all. */
@@ -123,6 +136,7 @@ export function pushOutOfBoxes(nav: Nav, p: THREE.Vector3, radius: number): bool
 
 const NO_HOOKS: BotHooks = {
   scream: () => {},
+  punch: () => {},
   hurtPlayer: () => {},
   shotFired: () => {},
   stab: () => {},
@@ -209,6 +223,11 @@ export class Mannequin {
   private probe = new THREE.Vector3();
   private retreatT = 0; // armed bots that are badly hurt run for cover for this long
   private retreated = false;
+  private alertT = 0; // fearless bots that were shot stand and stare at the player for this long
+  private windT = 0; // heavy punch wind-up
+  private windDur = 0.6;
+  private recoverT = 0; // catching breath after a heavy punch
+  private recoverDur = 1;
   private knock = new THREE.Vector3(); // shove away from the player when killed
 
   // idle gestures
@@ -297,7 +316,7 @@ export class Mannequin {
     this.aggravated = false;
     this.farT = this.calmCd = this.attackCd = this.lunge = this.aim = this.kick = this.backT = this.dodgeT = 0;
     this.mode = 'calm';
-    this.modeT = this.fearT = this.wary = this.retreatT = this.flinch = 0;
+    this.modeT = this.fearT = this.wary = this.retreatT = this.flinch = this.alertT = this.windT = this.recoverT = 0;
     this.retreated = false;
     this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
     this.gesture = 0;
@@ -333,7 +352,7 @@ export class Mannequin {
     this.aggravated = true;
     this.farT = 0;
     this.losT = 0;
-    this.attackCd = this.costume.combat === 'ranged' ? rnd(0.45, 0.9) : 0; // takes a moment to draw
+    this.attackCd = this.costume.combat === 'ranged' ? rnd(0.45, 0.9) : this.costume.melee?.provoked ? 0.5 : 0; // takes a moment to draw
   }
 
   /**
@@ -341,7 +360,7 @@ export class Mannequin {
    * `direct` = it was hit itself (scared for longer, and it screams).
    */
   panic(direct: boolean) {
-    if (!this.alive || this.costume.combat) return;
+    if (!this.alive || this.costume.combat || this.costume.fearless) return;
     const brave = 1 - this.bravery * 0.35;
     this.fearT = Math.max(this.fearT, (direct ? rnd(14, 22) : rnd(7, 12)) * brave);
     if (this.mode === 'calm') {
@@ -375,7 +394,7 @@ export class Mannequin {
       this.aggravate(); // cowboys (and criminals) react to being shot
       const ranged = this.costume.combat === 'ranged';
       const low = this.health / this.maxHealth < (ranged ? 0.3 : 0.2);
-      if (!this.retreated && this.aggravated && low && Math.random() < (ranged ? 0.7 : 0.35)) {
+      if (!this.costume.fearless && !this.retreated && this.aggravated && low && Math.random() < (ranged ? 0.7 : 0.35)) {
         this.retreated = true;
         this.retreatT = rnd(3, 5); // runs for cover, then comes back
       }
@@ -383,6 +402,8 @@ export class Mannequin {
         this.dodgeT = 0.35; // jumps sideways when hit
         this.dodgeDir = Math.random() < 0.5 ? -1 : 1;
       }
+    } else if (this.costume.fearless) {
+      this.alertT = 6; // not afraid: turns and stares the shooter down
     } else {
       this.panic(true);
     }
@@ -556,6 +577,11 @@ export class Mannequin {
 
     switch (this.mode) {
       case 'calm': {
+        if (this.alertT > 0) {
+          this.alertT -= dt;
+          this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -9 * dt, 9 * dt);
+          return 0;
+        }
         // jumpy for a while after a scare: the player coming close sets them off again
         if (this.wary > 0) {
           this.wary -= dt;
@@ -630,7 +656,7 @@ export class Mannequin {
     const dist = Math.hypot(dx, dz);
     const playerDead = this.hooks.playerDead();
 
-    if (c.combat === 'melee' && !this.aggravated) {
+    if (c.combat === 'melee' && !this.aggravated && !c.melee?.provoked) {
       // criminals go for the player automatically once he is close enough
       this.calmCd = Math.max(0, this.calmCd - dt);
       if (this.calmCd === 0 && dist < (c.melee ?? KNIFE_CRIMINAL).aggroRange && !playerDead) this.aggravate();
@@ -666,6 +692,27 @@ export class Mannequin {
     this.attackCd -= dt;
     const ninja = this.costume.id === 'ninja';
 
+    // heavy hitter (Superman): wind-up -> blow -> long rest. The rest is the player's window to shoot back.
+    if (this.recoverT > 0) {
+      this.recoverT -= dt;
+      this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -3 * dt, 3 * dt);
+      return 0;
+    }
+    if (this.windT > 0) {
+      this.windT -= dt;
+      this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -6 * dt, 6 * dt);
+      if (this.windT <= 0) {
+        const landed = dist < M.attackRange + 0.7 && Math.abs(this.player.y - this.group.position.y) < 1.8;
+        this.lungeDur = 0.3;
+        this.lunge = 0.3;
+        this.hooks.punch?.(landed ? 'hit' : 'miss');
+        if (landed) this.hooks.hurtPlayer(M.damage);
+        this.recoverDur = M.interval;
+        this.recoverT = M.interval;
+      }
+      return 0;
+    }
+
     // hit and run: step back right after a stab (criminals)
     if (this.backT > 0) {
       this.backT -= dt;
@@ -684,7 +731,11 @@ export class Mannequin {
     this.heading += THREE.MathUtils.clamp(diff, -(M.speed > 7 ? 14 : 8) * dt, (M.speed > 7 ? 14 : 8) * dt);
 
     if (dist < M.attackRange && Math.abs(this.player.y - this.group.position.y) < 1.8) {
-      if (this.attackCd <= 0) {
+      if (this.attackCd <= 0 && M.windup) {
+        this.windDur = M.windup;
+        this.windT = M.windup;
+        this.hooks.punch?.('wind');
+      } else if (this.attackCd <= 0) {
         this.attackCd = M.interval;
         this.lungeDur = Math.min(0.32, M.interval * 0.7);
         this.lunge = this.lungeDur;
@@ -813,13 +864,13 @@ export class Mannequin {
     this.body.rotation.set(0.28 * run + 0.2 * wound, 0, Math.sin(this.phase) * (0.025 + 0.05 * wound) * this.amp);
 
     // head: nods while walking, glances around while standing, follows a nearby player, stares while fighting
-    const calm = this.aggravated || this.mode !== 'calm' ? 0 : idle;
+    const calm = this.aggravated || this.alertT > 0 || this.mode !== 'calm' ? 0 : idle;
     const dx = this.player.x - p.x, dz = this.player.z - p.z;
     const distP = Math.hypot(dx, dz);
     const toPlayer = angleDiff(this.heading, Math.atan2(dx, dz));
     let headTarget = Math.sin(t * 0.7) * (0.4 + (this.wary > 0 ? 0.5 : 0)) * calm + Math.sin(t * 2.3) * 0.05;
     if (this.mode === 'flee') headTarget = Math.sin(t * 3.4) * 0.9; // frantic glances over the shoulder
-    else if (this.mode === 'startle' || this.mode === 'cower' || this.aggravated) headTarget = clamp(toPlayer, -1.2, 1.2);
+    else if (this.mode === 'startle' || this.mode === 'cower' || this.aggravated || this.alertT > 0) headTarget = clamp(toPlayer, -1.2, 1.2);
     else if (distP < 11 && Math.abs(toPlayer) < 2.3) headTarget = clamp(toPlayer, -1.1, 1.1) * 0.9; // curious about the player
     this.headYaw += (headTarget - this.headYaw) * (1 - Math.exp(-7 * dt));
     rig.head.rotation.x = Math.sin(this.phase * 2) * 0.03 * this.amp;
@@ -828,7 +879,7 @@ export class Mannequin {
 
     // idle gestures
     if (this.state === 'idle' && this.gesture > 0 && this.mode === 'calm' && !this.aggravated) this.gestureT += dt;
-    const doing = this.state === 'idle' && this.gesture > 0 && this.gestureT < this.gestureDur && this.mode === 'calm' && !this.aggravated;
+    const doing = this.state === 'idle' && this.gesture > 0 && this.gestureT < this.gestureDur && this.mode === 'calm' && !this.aggravated && this.alertT <= 0;
     this.gestureK += ((doing ? 1 : 0) - this.gestureK) * (1 - Math.exp(-7 * dt));
     const g = this.gestureK;
     if (g > 0.01) {
@@ -903,12 +954,31 @@ export class Mannequin {
       rig.arms[1].rotation.x = THREE.MathUtils.lerp(rig.arms[1].rotation.x, -1.5 - this.kick * 0.25, this.aim);
       rig.arms[1].rotation.z = THREE.MathUtils.lerp(rig.arms[1].rotation.z, 0.02, this.aim);
     }
-    // knife arm: stabs forward when a criminal attacks
+    // heavy punch: the fist is pulled way back during the wind-up, then the whole body snaps forward
+    if (this.windT > 0) {
+      const w = 1 - this.windT / this.windDur;
+      const e = w * w * (3 - 2 * w);
+      rig.arms[1].rotation.x = lerp(rig.arms[1].rotation.x, 1.25, e);
+      rig.arms[1].rotation.z = lerp(rig.arms[1].rotation.z, side[1] * 0.25, e);
+      rig.arms[0].rotation.x = lerp(rig.arms[0].rotation.x, -1.0, e);
+      this.body.rotation.x = lerp(this.body.rotation.x, -0.24, e);
+      this.body.rotation.z += Math.sin(t * 45) * 0.012 * e; // straining
+    }
+    // catching breath after a heavy punch: bent over, heaving
+    if (this.recoverT > 0) {
+      const r = clamp(Math.min((this.recoverDur - this.recoverT) / 0.3, this.recoverT / 0.5), 0, 1);
+      this.body.rotation.x = lerp(this.body.rotation.x, 0.3 + Math.sin(t * 7) * 0.03, r);
+      for (let i = 0; i < 2; i++) rig.arms[i].rotation.x = lerp(rig.arms[i].rotation.x, 0.25 + Math.sin(t * 7 + i) * 0.04, r);
+      rig.head.rotation.x += 0.3 * r;
+    }
+    // knife arm: stabs forward when a criminal attacks (the heavy punch lunges much further)
     if (this.lunge > 0) {
       this.lunge = Math.max(0, this.lunge - dt);
       const k2 = 1 - this.lunge / this.lungeDur; // 0 -> 1
-      rig.arms[1].rotation.x = -0.6 - Math.sin(k2 * Math.PI) * 1.2;
-      this.body.position.z = Math.sin(k2 * Math.PI) * 0.25;
+      const heavy = !!this.costume.melee?.windup;
+      rig.arms[1].rotation.x = heavy ? -1.6 * Math.sin(k2 * Math.PI * 0.8 + 0.3) : -0.6 - Math.sin(k2 * Math.PI) * 1.2;
+      this.body.position.z = Math.sin(k2 * Math.PI) * (heavy ? 0.6 : 0.25);
+      if (heavy) this.body.rotation.x = Math.sin(k2 * Math.PI) * 0.3;
     }
 
     // hit reaction: the body jerks back, arms fly up, head snaps back

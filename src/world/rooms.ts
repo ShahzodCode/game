@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildWeaponShopProps } from './shopProps';
 
 /**
  * The rooms around the arena, laid out along +z behind the arena's south wall:
@@ -306,26 +307,8 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
   const KX = -HX; // wall surface
   solid(KX + 1.2, KX + 2.2, 0, 1.1, 91.5, 96.5, 0x3b6ea8); // counter
   solid(KX, KX + 0.4, 0, 3.0, 91, 97, 0x2f3b52); // back panel
-  const awning = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.12, 6.2), new THREE.MeshStandardMaterial({ color: 0xd94a3a, roughness: 0.8 }));
-  awning.position.set(KX + 1.8, 3.0, 94);
-  awning.rotation.z = 0.12;
-  scene.add(awning);
-  // a fixed board on the wall (NOT a sprite: sprites always turn to face the camera), facing into the room (+x)
-  const sign = makeSignBoard('WEAPON SHOP', 3.4, 0.85);
-  sign.position.set(KX + 0.55, 4.7, 94);
-  sign.rotation.y = Math.PI / 2;
-  scene.add(sign);
-  // guns hanging on the back panel
-  const gunDark = new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.5, metalness: 0.6 });
-  const gunWood = new THREE.MeshStandardMaterial({ color: 0x7a4e28, roughness: 0.8 });
-  for (const [z, y, len] of [[92.4, 1.9, 1.5], [94, 2.3, 1.9], [95.6, 1.8, 1.3]] as [number, number, number][]) {
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, len), gunDark);
-    barrel.position.set(KX + 0.55, y, z);
-    scene.add(barrel);
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, len * 0.4), gunWood);
-    stock.position.set(KX + 0.55, y - 0.03, z - len * 0.55);
-    scene.add(stock);
-  }
+  // awning, sign, gun racks with the real gun models, display case, lamp: see shopProps.ts
+  buildWeaponShopProps(scene, boxes, KX, makeSignBoard);
   const hubShop = { pos: new THREE.Vector3(KX + 4.4, 0, 94), radius: 3.4 };
   const hubSpawn = new THREE.Vector3(0, 0, 98);
 

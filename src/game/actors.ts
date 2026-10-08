@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Mannequin, setSpawnRule, type BotHooks } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
-import { botScream, enemyShot, knifeSwish, wolfGrowl } from '../audio/audio';
+import { botScream, punchSound, enemyShot, knifeSwish, wolfGrowl } from '../audio/audio';
 import { levelConfig } from './missions';
 import { pos, scene, spawnTracer, world } from './core';
 import { damagePlayer } from './player';
@@ -26,6 +26,7 @@ export const botHooks: BotHooks = {
     enemyShot(from.distanceTo(pos));
   },
   stab: () => knifeSwish(),
+  punch: (phase) => punchSound(phase),
   scream: (at) => botScream(at.distanceTo(pos)),
   lineOfSight: hasLineOfSight,
   playerChest: () => playerChestV.set(pos.x, pos.y + S.playerHeight * 0.7, pos.z),

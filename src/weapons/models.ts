@@ -34,29 +34,17 @@ export function initWeaponEnvironment(renderer: THREE.WebGLRenderer) {
   pmrem.dispose();
 }
 
-/** Replace the blocky placeholder inside `group` with the real model (async; does nothing for weapons without one). */
-export function upgradeViewModel(group: THREE.Group, id: string) {
-  const spec = SPECS[id];
-  if (!spec) return;
-  loader.load(
-    import.meta.env.BASE_URL + 'models/' + spec.file,
-    (gltf) => {
-      const model = gltf.scene;
-      model.rotation.y = THREE.MathUtils.degToRad(spec.rotY);
-      model.updateMatrixWorld(true);
-      const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-      const s = spec.length / Math.max(size.x, size.z); // the barrel lies along x or z, whichever is longer
-      model.scale.set(s, s, spec.mirror ? -s : s);
-      model.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(model);
-      const c = box.getCenter(new THREE.Vector3());
-      model.position.set(-c.x, spec.topY - box.max.y, spec.centerZ - c.z);
-
-      model.traverse((o) => {
+const cache = new Map<string, Promise<THREE.Group>>();
+/** Load a weapon file once; viewmodels and shop displays use clones of it (geometry and materials are shared). */
+function loadScene(file: string): Promise<THREE.Group> {
+  let p = cache.get(file);
+  if (!p) {
+    p = loader.loadAsync(import.meta.env.BASE_URL + 'models/' + file).then((gltf) => {
+      gltf.scene.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         m.castShadow = false;
-        m.frustumCulled = false; // always close to the camera
+        m.frustumCulled = false; // viewmodels are always close to the camera
         const mat = m.material as THREE.MeshStandardMaterial;
         // the rifle's material is exported as alpha-blended: its parts then sort wrongly and look see-through
         mat.transparent = false;
@@ -68,6 +56,29 @@ export function upgradeViewModel(group: THREE.Group, id: string) {
           mat.envMapIntensity = 0.7;
         }
       });
+      return gltf.scene;
+    });
+    cache.set(file, p);
+  }
+  return p;
+}
+
+/** Replace the blocky placeholder inside `group` with the real model (async; does nothing for weapons without one). */
+export function upgradeViewModel(group: THREE.Group, id: string) {
+  const spec = SPECS[id];
+  if (!spec) return;
+  loadScene(spec.file).then(
+    (scene) => {
+      const model = scene.clone(true);
+      model.rotation.y = THREE.MathUtils.degToRad(spec.rotY);
+      model.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+      const s = spec.length / Math.max(size.x, size.z); // the barrel lies along x or z, whichever is longer
+      model.scale.set(s, s, spec.mirror ? -s : s);
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const c = box.getCenter(new THREE.Vector3());
+      model.position.set(-c.x, spec.topY - box.max.y, spec.centerZ - c.z);
 
       // swap: hide the placeholder boxes, keep the 'muzzle' marker and move it to the model's muzzle
       for (const child of [...group.children]) if (child.name !== 'muzzle') group.remove(child);
@@ -75,7 +86,33 @@ export function upgradeViewModel(group: THREE.Group, id: string) {
       const muzzle = group.getObjectByName('muzzle');
       if (muzzle) muzzle.position.set(0, spec.topY - 0.02, spec.centerZ - spec.length / 2);
     },
-    undefined,
     (err) => console.warn(`Could not load the ${id} model, keeping the blocky one`, err),
   );
+}
+
+/**
+ * A gun for a shop wall or display case. Returns a group right away that fills in once the model has loaded:
+ * the barrel points to -z, the solid side faces +x (the pistol is hollow on its other side), the gun is centred
+ * on x/z with its underside at y = 0, and it is `length` metres long.
+ */
+export function makeDisplayGun(id: string, length: number): THREE.Group {
+  const holder = new THREE.Group();
+  const spec = SPECS[id];
+  if (!spec) return holder;
+  loadScene(spec.file).then(
+    (scene) => {
+      const model = scene.clone(true);
+      model.rotation.y = THREE.MathUtils.degToRad(spec.rotY);
+      model.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+      model.scale.setScalar(length / Math.max(size.x, size.z));
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const c = box.getCenter(new THREE.Vector3());
+      model.position.set(-c.x, -box.min.y, -c.z);
+      holder.add(model);
+    },
+    (err) => console.warn(`Could not load the ${id} display model`, err),
+  );
+  return holder;
 }
