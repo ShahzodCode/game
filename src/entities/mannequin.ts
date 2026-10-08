@@ -20,6 +20,8 @@ export interface BotHooks {
   /** A bot swung a knife. */
   stab: () => void;
   lineOfSight: (from: THREE.Vector3, to: THREE.Vector3) => boolean;
+  /** A scared bot cried out at this spot (optional: draws nothing, only plays a sound). */
+  scream?: (at: THREE.Vector3) => void;
   /** Where to aim at the player (roughly the chest). */
   playerChest: () => THREE.Vector3;
   playerDead: () => boolean;
@@ -61,17 +63,17 @@ const KNIFE_CRIMINAL: MeleeStats = { aggroRange: 36, speed: 5.4, attackRange: 1.
 const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 8.4, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
 
 export const COSTUMES: Costume[] = [
-  { id: 'regular', name: 'Regular', health: 100, points: 100, weight: 3, shirt: 0xd9d4c7, pants: 0x4a5f82, accent: 0x8c8a85, note: 'Harmless' },
-  { id: 'winter', name: 'Winter', health: 115, points: 110, weight: 2, shirt: 0x8a3a3a, pants: 0x4d4d57, accent: 0xeeeeee, note: 'Harmless' },
-  { id: 'builder', name: 'Builder', health: 140, points: 120, weight: 2, shirt: 0xe7a51c, pants: 0x3b4a63, accent: 0xc7f03a, note: 'Harmless, tough' },
-  { id: 'sporty', name: 'Sporty', health: 105, points: 130, weight: 2, shirt: 0x3fa35a, pants: 0x222222, accent: 0xffffff, speedMul: 1.7, note: 'Harmless, walks fast' },
-  { id: 'chef', name: 'Chef', health: 95, points: 140, weight: 1.5, shirt: 0xf4f4f0, pants: 0x3a3a3a, accent: 0xffffff, note: 'Harmless' },
-  { id: 'rich', name: 'Rich guy', health: 90, points: 150, weight: 1.5, shirt: 0x2f3b52, pants: 0x20242e, accent: 0xb02a2a, note: 'Harmless' },
-  { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', note: 'Shoots back when shot' },
-  { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, note: 'Harmless, very tough' },
-  { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, note: 'Harmless, very tough, walks fast' },
-  { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 2, note: 'Patrols the walls, attacks on sight with a knife' },
-  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 7, note: 'From level 7. Attacks on sight: very fast and deadly, but fragile' },
+  { id: 'regular', name: 'Regular', health: 100, points: 100, weight: 3, shirt: 0xd9d4c7, pants: 0x4a5f82, accent: 0x8c8a85, note: 'Harmless, runs away when shot' },
+  { id: 'winter', name: 'Winter', health: 115, points: 110, weight: 2, shirt: 0x8a3a3a, pants: 0x4d4d57, accent: 0xeeeeee, note: 'Harmless, runs away when shot' },
+  { id: 'builder', name: 'Builder', health: 140, points: 120, weight: 2, shirt: 0xe7a51c, pants: 0x3b4a63, accent: 0xc7f03a, note: 'Harmless, tough, runs away when shot' },
+  { id: 'sporty', name: 'Sporty', health: 105, points: 130, weight: 2, shirt: 0x3fa35a, pants: 0x222222, accent: 0xffffff, speedMul: 1.7, note: 'Harmless, walks fast, runs away when shot' },
+  { id: 'chef', name: 'Chef', health: 95, points: 140, weight: 1.5, shirt: 0xf4f4f0, pants: 0x3a3a3a, accent: 0xffffff, note: 'Harmless, runs away when shot' },
+  { id: 'rich', name: 'Rich guy', health: 90, points: 150, weight: 1.5, shirt: 0x2f3b52, pants: 0x20242e, accent: 0xb02a2a, note: 'Harmless, runs away when shot' },
+  { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', note: 'Shoots back when shot, dodges, retreats when badly hurt' },
+  { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, note: 'Harmless, very tough, runs away when shot' },
+  { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, note: 'Harmless, very tough, walks fast, runs away when shot' },
+  { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 2, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
+  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 7, note: 'From level 7. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
 ];
 
 /** Which costumes may spawn (set per level by main.ts). Null = all. */
@@ -88,6 +90,9 @@ function pickCostume(): Costume {
 }
 
 // ---- combat tunables ----
+// civilians (the harmless bots) panic when shot, when a gun goes off near them, or when someone dies near them
+const FLEE_SPEED = 5.8; // m/s: slower than the player's sprint (9), faster than his walk (6)
+const BRAVERY: Record<string, number> = { soldier: 0.5, builder: 0.3, superman: 0.4, sporty: -0.1, chef: -0.2, rich: -0.2 }; // adds to a random 0..0.5
 const COWBOY = { idealDist: 13, minDist: 6, maxRange: 38, damage: 9, speed: 3.4, interval: [1.0, 1.6], giveUp: 65, giveUpTime: 6 };
 
 const RADIUS = 0.35; // bot collision radius
@@ -117,6 +122,7 @@ export function pushOutOfBoxes(nav: Nav, p: THREE.Vector3, radius: number): bool
 }
 
 const NO_HOOKS: BotHooks = {
+  scream: () => {},
   hurtPlayer: () => {},
   shotFired: () => {},
   stab: () => {},
@@ -125,7 +131,25 @@ const NO_HOOKS: BotHooks = {
   playerDead: () => false,
 };
 
+const clamp = THREE.MathUtils.clamp;
+const lerp = THREE.MathUtils.lerp;
+
+/** How a bot is behaving. Harmless bots use all four; armed bots only use 'calm' (their fight AI is separate). */
+type Mode = 'calm' | 'startle' | 'flee' | 'cower';
+
 export class Mannequin {
+  /** Every bot, so they can keep apart, spread panic and hear each other. */
+  private static crowd: Mannequin[] = [];
+
+  /** A gun went off / a bot died at `origin`: harmless bots within `radius` panic (closer = more likely). */
+  static scareNear(origin: THREE.Vector3, radius: number, except?: Mannequin) {
+    for (const m of Mannequin.crowd) {
+      if (m === except || !m.alive || m.costume.combat) continue;
+      const d = Math.hypot(m.group.position.x - origin.x, m.group.position.z - origin.z);
+      if (d < radius && Math.random() < 1.15 - d / radius) m.panic(false);
+    }
+  }
+
   readonly group = new THREE.Group();
   readonly hitMeshes: THREE.Mesh[] = [];
   maxHealth = 100; // set from the costume in reset()
@@ -152,6 +176,7 @@ export class Mannequin {
 
   private body = new THREE.Group();
   private rig: BotRig | null = null;
+  private armRestZ = [0, 0];
   private barBg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x000000, transparent: true, opacity: 0.6, depthWrite: false }));
   private barFill = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x44dd55, depthWrite: false }));
   private deadTime = 0;
@@ -172,18 +197,49 @@ export class Mannequin {
   private walkT = 0;
   private clock = 0;
 
+  // brain (civilians): fear, running away
+  private mode: Mode = 'calm';
+  private modeT = 0; // time left in 'startle' / 'cower'
+  private fearT = 0; // how much longer this bot stays scared
+  private wary = 0; // after calming down it stays jumpy for a while
+  private waryTick = 0;
+  private bravery = 0;
+  private steerT = 0;
+  private runHeading = 0;
+  private probe = new THREE.Vector3();
+  private retreatT = 0; // armed bots that are badly hurt run for cover for this long
+  private retreated = false;
+  private knock = new THREE.Vector3(); // shove away from the player when killed
+
+  // idle gestures
+  private gesture = 0;
+  private gestureT = 0;
+  private gestureDur = 0;
+  private gestureK = 0;
+
+  // pose blending
+  private pStartle = 0;
+  private pCower = 0;
+  private pPanic = 0;
+  private headYaw = 0;
+  private flinch = 0;
+
   // fighting (cowboys / criminals)
   private farT = 0;
   private calmCd = 0; // criminals ignore the player for a while after giving up
   private attackCd = 0;
   private lunge = 0; // stab animation timer
   private lungeDur = 0.32;
+  private backT = 0; // criminals step back after a stab (hit and run)
   private aim = 0; // 0..1 how far the gun arm is raised
   private kick = 0; // gun recoil animation
   private hasLos = false;
   private losT = 0;
   private strafeDir = 1;
   private strafeT = 0;
+  private strafeSpeed = 1.8;
+  private dodgeT = 0;
+  private dodgeDir = 1;
   private detourT = 0;
   private detourDir = 1;
   private moveSpeedNow = 0;
@@ -195,6 +251,7 @@ export class Mannequin {
     private hooks: BotHooks = NO_HOOKS,
     private respawnDelay = 4,
   ) {
+    this.group.rotation.order = 'YXZ'; // yaw first, then tip over around the bot's own axis
     this.group.add(this.body);
     this.barBg.scale.set(0.7, 0.09, 1);
     this.barFill.scale.set(0.66, 0.055, 1);
@@ -204,6 +261,7 @@ export class Mannequin {
     this.barFill.renderOrder = 11;
     this.group.add(this.barBg, this.barFill);
     this.group.position.copy(start);
+    Mannequin.crowd.push(this);
     this.reset();
   }
 
@@ -215,14 +273,15 @@ export class Mannequin {
     this.baseScale = 0.94 + Math.random() * 0.14;
     this.group.scale.setScalar(this.baseScale);
     this.group.rotation.set(0, 0, 0);
+    this.body.position.set(0, 0, 0);
+    this.body.rotation.set(0, 0, 0);
     this.heading = Math.random() * Math.PI * 2;
     this.group.visible = true;
     this.state = 'idle';
     this.idleT = Math.random() * 1.5;
     this.amp = 0;
-    this.aggravated = false;
-    this.farT = this.calmCd = this.attackCd = this.lunge = this.aim = this.kick = 0;
     this.costume = pickCostume();
+    this.resetBrain();
     // criminals usually start near the outer walls, away from the middle of the map
     if (this.costume.zone === 'edge' && Math.random() < 0.85) {
       this.group.position.copy(this.nav.randomEdgePoint(this.player, 25));
@@ -231,6 +290,19 @@ export class Mannequin {
     this.sinceHit = 0;
     this.updateBar();
     this.build();
+  }
+
+  /** Calm, unhurt state of mind (new life or new costume). */
+  private resetBrain() {
+    this.aggravated = false;
+    this.farT = this.calmCd = this.attackCd = this.lunge = this.aim = this.kick = this.backT = this.dodgeT = 0;
+    this.mode = 'calm';
+    this.modeT = this.fearT = this.wary = this.retreatT = this.flinch = 0;
+    this.retreated = false;
+    this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
+    this.gesture = 0;
+    this.knock.set(0, 0, 0);
+    this.bravery = clamp(Math.random() * 0.5 + (BRAVERY[this.costume.id] ?? 0), 0, 1);
   }
 
   /** Floating health bar, only shown once the bot has taken damage. */
@@ -249,6 +321,7 @@ export class Mannequin {
       this.rig.dispose();
     }
     this.rig = buildBot(this, this.costume);
+    this.armRestZ = this.rig.arms.map((a) => a.rotation.z);
     this.body.add(this.rig.root);
     this.hitMeshes.length = 0;
     this.hitMeshes.push(...this.rig.hitMeshes);
@@ -260,6 +333,26 @@ export class Mannequin {
     this.aggravated = true;
     this.farT = 0;
     this.losT = 0;
+    this.attackCd = this.costume.combat === 'ranged' ? rnd(0.45, 0.9) : 0; // takes a moment to draw
+  }
+
+  /**
+   * A harmless bot gets scared: it freezes for a moment, then runs away from the player.
+   * `direct` = it was hit itself (scared for longer, and it screams).
+   */
+  panic(direct: boolean) {
+    if (!this.alive || this.costume.combat) return;
+    const brave = 1 - this.bravery * 0.35;
+    this.fearT = Math.max(this.fearT, (direct ? rnd(14, 22) : rnd(7, 12)) * brave);
+    if (this.mode === 'calm') {
+      this.mode = 'startle';
+      this.modeT = (direct ? rnd(0.08, 0.25) : rnd(0.25, 0.7)) * (0.5 + this.bravery);
+      this.state = 'idle';
+      this.gesture = 0;
+      if (direct || Math.random() < 0.4) this.hooks.scream?.(this.group.position);
+    } else if (this.mode === 'cower' && direct) {
+      this.modeT = Math.min(this.modeT, 0.3); // shot while hiding: bolt
+    }
   }
 
   /** Apply damage. Returns true if this hit killed it. */
@@ -267,13 +360,31 @@ export class Mannequin {
     if (!this.alive) return false;
     this.health -= amount;
     this.flash = 0.12;
+    this.flinch = 0.35;
     this.sinceHit = 0;
-    this.aggravate(); // cowboys (and criminals) react to being shot
     if (this.health <= 0) {
       this.alive = false;
       this.deadTime = 0;
+      // shoved away from the player as it falls
+      this.knock.set(this.group.position.x - this.player.x, 0, this.group.position.z - this.player.z).setLength(1.6);
       this.updateBar();
+      Mannequin.scareNear(this.group.position, 26, this); // witnesses panic
       return true;
+    }
+    if (this.costume.combat) {
+      this.aggravate(); // cowboys (and criminals) react to being shot
+      const ranged = this.costume.combat === 'ranged';
+      const low = this.health / this.maxHealth < (ranged ? 0.3 : 0.2);
+      if (!this.retreated && this.aggravated && low && Math.random() < (ranged ? 0.7 : 0.35)) {
+        this.retreated = true;
+        this.retreatT = rnd(3, 5); // runs for cover, then comes back
+      }
+      if (ranged && Math.random() < 0.5) {
+        this.dodgeT = 0.35; // jumps sideways when hit
+        this.dodgeDir = Math.random() < 0.5 ? -1 : 1;
+      }
+    } else {
+      this.panic(true);
     }
     this.updateBar();
     return false;
@@ -285,7 +396,7 @@ export class Mannequin {
     if (!c) return;
     this.costume = c;
     this.maxHealth = this.health = c.health;
-    this.aggravated = false;
+    this.resetBrain();
     this.sinceHit = 0;
     if (c.zone === 'edge') this.group.position.copy(this.nav.randomEdgePoint(this.player, 25));
     this.updateBar();
@@ -310,19 +421,35 @@ export class Mannequin {
     this.walkT = 0;
   }
 
+  /** Standing around: sometimes stretch, check a watch, wave at a passer-by, scratch the head... */
+  private startIdle(pause: number) {
+    this.state = 'idle';
+    this.idleT = pause;
+    if (Math.random() < 0.5) {
+      const nearPlayer = Math.hypot(this.player.x - this.group.position.x, this.player.z - this.group.position.z) < 16;
+      // 1 stretch, 2 look at watch, 3 hands on hips, 4 wave (only when the player is around), 5 scratch head
+      this.gesture = nearPlayer ? 1 + Math.floor(Math.random() * 5) : 1 + Math.floor(Math.random() * 3) + (Math.random() < 0.3 ? 4 : 0);
+      this.gestureDur = rnd(1.6, 2.6);
+      this.gestureT = 0;
+      this.idleT = Math.max(pause, this.gestureDur + 0.2);
+    } else this.gesture = 0;
+  }
+
   /** Idle / walk between random spots. Returns the current walking speed (0 when standing). */
   private moveWander(dt: number) {
     const p = this.group.position;
     if (this.state === 'idle') {
       this.idleT -= dt;
-      if (this.idleT <= 0) this.pickTarget();
+      if (this.idleT <= 0) {
+        this.gesture = 0;
+        this.pickTarget();
+      }
     } else {
       this.walkT += dt;
       const dx = this.target.x - p.x, dz = this.target.z - p.z;
       const dist = Math.hypot(dx, dz);
       if (dist < 0.5 || this.walkT > 20) {
-        this.state = 'idle';
-        this.idleT = Math.random() < 0.3 ? 0 : 0.4 + Math.random() * 2.2;
+        this.startIdle(Math.random() < 0.3 ? 0 : 0.4 + Math.random() * 2.2);
       } else {
         // turn toward the goal, walk once roughly facing it
         const want = Math.atan2(dx, dz);
@@ -346,7 +473,7 @@ export class Mannequin {
     return this.state === 'walk' && this.blockedT === 0 ? this.speed : 0;
   }
 
-  // ---------- fighting ----------
+  // ---------- movement helpers ----------
   /** Move in a world direction (not necessarily where the bot faces). True if something blocked it. */
   private moveBy(dirX: number, dirZ: number, speed: number, dt: number) {
     const p = this.group.position;
@@ -359,6 +486,142 @@ export class Mannequin {
     return step > 1e-4 && Math.hypot(p.x - bx, p.z - bz) < step * 0.5;
   }
 
+  /** 0..1: how far a straight run in this direction gets before a crate, rock or wall (probed up to `len` metres). */
+  private clearance(angle: number, len: number) {
+    const p = this.group.position;
+    const sx = Math.sin(angle), sz = Math.cos(angle);
+    for (let k = 1; k <= 4; k++) {
+      const d = (len * k) / 4;
+      this.probe.set(p.x + sx * d, p.y, p.z + sz * d);
+      const bx = this.probe.x, bz = this.probe.z;
+      pushOutOfBoxes(this.nav, this.probe, RADIUS + 0.15);
+      if (Math.hypot(this.probe.x - bx, this.probe.z - bz) > 0.02) return (k - 1) / 4;
+    }
+    return 1;
+  }
+
+  /** Best direction to run: away from the threat, but around obstacles and out of corners. */
+  private pickRunHeading(away: number) {
+    let best = away;
+    let bestScore = -Infinity;
+    for (const o of [0, 0.45, -0.45, 0.9, -0.9, 1.5, -1.5, 2.3]) {
+      const a = away + o;
+      const score = Math.cos(o) * 0.9 + this.clearance(a, 7) * 1.6 + Math.cos(angleDiff(this.heading, a)) * 0.25;
+      if (score > bestScore) {
+        bestScore = score;
+        best = a;
+      }
+    }
+    return best;
+  }
+
+  /** One step of running away from `from`. Returns the speed it actually moved at. */
+  private runFrom(dt: number, from: THREE.Vector3, speed: number) {
+    const p = this.group.position;
+    this.steerT -= dt;
+    if (this.steerT <= 0) {
+      this.steerT = rnd(0.1, 0.18);
+      this.runHeading = this.pickRunHeading(Math.atan2(p.x - from.x, p.z - from.z));
+    }
+    const diff = angleDiff(this.heading, this.runHeading);
+    this.heading += clamp(diff, -10 * dt, 10 * dt);
+    const facing = Math.max(0.35, Math.cos(diff));
+    const blocked = this.moveBy(Math.sin(this.heading), Math.cos(this.heading), speed * facing, dt);
+    this.blockedT = blocked ? this.blockedT + dt : Math.max(0, this.blockedT - dt * 2);
+    return speed * facing;
+  }
+
+  /** Bots are solid: gently push apart so they do not walk through each other. */
+  private separate() {
+    const p = this.group.position;
+    for (const o of Mannequin.crowd) {
+      if (o === this || !o.alive) continue;
+      const dx = p.x - o.group.position.x, dz = p.z - o.group.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.8 && d > 1e-4) {
+        const push = (0.8 - d) * 0.5;
+        p.x += (dx / d) * push;
+        p.z += (dz / d) * push;
+      }
+    }
+  }
+
+  // ---------- civilians (the harmless bots) ----------
+  private civilian(dt: number): number {
+    const p = this.group.position;
+    const dx = this.player.x - p.x, dz = this.player.z - p.z;
+    const dist = Math.hypot(dx, dz);
+    if (this.fearT > 0) this.fearT -= dt;
+    const playerDead = this.hooks.playerDead();
+
+    switch (this.mode) {
+      case 'calm': {
+        // jumpy for a while after a scare: the player coming close sets them off again
+        if (this.wary > 0) {
+          this.wary -= dt;
+          this.waryTick -= dt;
+          if (this.waryTick <= 0) {
+            this.waryTick = 0.4;
+            if (dist < 14 && !playerDead) this.panic(false);
+          }
+        }
+        // personal space: step away from a player who walks right up to them
+        if (dist < 2 && !playerDead) this.moveBy(-dx, -dz, 1.6, dt);
+        return this.moveWander(dt);
+      }
+      case 'startle': {
+        // freeze, turn to look at the danger, then run
+        this.modeT -= dt;
+        this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -12 * dt, 12 * dt);
+        if (this.modeT <= 0) {
+          this.mode = 'flee';
+          this.steerT = 0;
+          this.blockedT = 0;
+        }
+        return 0;
+      }
+      case 'cower': {
+        this.modeT -= dt;
+        if (this.modeT <= 0 || dist > 25) {
+          this.mode = this.fearT > 0 && dist < 25 ? 'flee' : 'calm';
+          this.blockedT = 0;
+          if (this.mode === 'calm') this.startIdle(1);
+        }
+        return 0;
+      }
+      case 'flee': {
+        // calmed down: far enough away and the fear has run out (or the player is gone)
+        if ((this.fearT <= 0 && dist > 20) || dist > 60 || playerDead) {
+          this.mode = 'calm';
+          this.wary = rnd(10, 16);
+          this.startIdle(rnd(0.5, 1.5));
+          return 0;
+        }
+        const hurt = 1 - this.health / this.maxHealth;
+        const speed = FLEE_SPEED * Math.min(this.costume.speedMul ?? 1, 1.3) * (1 - 0.35 * hurt) * (0.92 + this.bravery * 0.1);
+        const moved = this.runFrom(dt, this.player, speed);
+        // trapped against a wall or crate with the player close: curl up
+        if (this.blockedT > 1.2 && dist < 12) {
+          this.mode = 'cower';
+          this.modeT = rnd(2, 3.5);
+          this.blockedT = 0;
+          return 0;
+        }
+        // panic is contagious: calm neighbours who see a running bot get scared too
+        this.waryTick -= dt;
+        if (this.waryTick <= 0) {
+          this.waryTick = 0.5;
+          for (const o of Mannequin.crowd) {
+            if (o !== this && o.alive && o.mode === 'calm' && !o.costume.combat && Math.random() < 0.5 &&
+                Math.hypot(o.group.position.x - p.x, o.group.position.z - p.z) < 9) o.panic(false);
+          }
+        }
+        return moved;
+      }
+    }
+  }
+
+  // ---------- fighting ----------
   /** Cowboys and criminals: aggro rules, then chase / shoot. Returns walking speed. */
   private fight(dt: number): number {
     const c = this.costume;
@@ -372,8 +635,16 @@ export class Mannequin {
       this.calmCd = Math.max(0, this.calmCd - dt);
       if (this.calmCd === 0 && dist < (c.melee ?? KNIFE_CRIMINAL).aggroRange && !playerDead) this.aggravate();
     }
-    this.aim += ((this.aggravated && c.combat === 'ranged' ? 1 : 0) - this.aim) * (1 - Math.exp(-8 * dt));
+    const retreating = this.retreatT > 0;
+    this.aim += ((this.aggravated && c.combat === 'ranged' && !retreating ? 1 : 0) - this.aim) * (1 - Math.exp(-8 * dt));
     if (!this.aggravated) return this.moveWander(dt);
+
+    // badly hurt: run for cover for a few seconds, then come back
+    if (retreating) {
+      this.retreatT -= dt;
+      const base = c.combat === 'melee' ? (c.melee ?? KNIFE_CRIMINAL).speed * 0.9 : 5.2;
+      return this.runFrom(dt, this.player, base);
+    }
 
     // lose interest when the player is too far away for a while (or dead)
     const M = c.melee ?? KNIFE_CRIMINAL;
@@ -393,11 +664,22 @@ export class Mannequin {
   private meleeChase(dt: number, dx: number, dz: number, dist: number) {
     const M = this.costume.melee ?? KNIFE_CRIMINAL;
     this.attackCd -= dt;
+    const ninja = this.costume.id === 'ninja';
+
+    // hit and run: step back right after a stab (criminals)
+    if (this.backT > 0) {
+      this.backT -= dt;
+      this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -8 * dt, 8 * dt);
+      this.moveBy(-dx, -dz, 2.6, dt);
+      return 2.6;
+    }
+
     let want = Math.atan2(dx, dz);
     if (this.detourT > 0) {
       this.detourT -= dt;
       want += this.detourDir * 1.2; // go around whatever is in the way
     }
+    if (ninja && dist > 3.5) want += Math.sin(this.clock * 5 + this.seed) * 0.5; // zig-zags to be hard to hit
     const diff = angleDiff(this.heading, want);
     this.heading += THREE.MathUtils.clamp(diff, -(M.speed > 7 ? 14 : 8) * dt, (M.speed > 7 ? 14 : 8) * dt);
 
@@ -408,6 +690,7 @@ export class Mannequin {
         this.lunge = this.lungeDur;
         this.hooks.stab();
         this.hooks.hurtPlayer(M.damage);
+        if (!ninja && Math.random() < 0.6) this.backT = 0.4;
       }
       return 0;
     }
@@ -445,7 +728,11 @@ export class Mannequin {
     const nx = dx / (dist || 1), nz = dz / (dist || 1);
     let speed = 0;
     let blocked = false;
-    if (!this.hasLos || dist > COWBOY.idealDist + 4) {
+    if (this.dodgeT > 0) {
+      this.dodgeT -= dt; // just got hit: quick sidestep
+      blocked = this.moveBy(-nz * this.dodgeDir, nx * this.dodgeDir, 4.6, dt);
+      speed = 4.6;
+    } else if (!this.hasLos || dist > COWBOY.idealDist + 4) {
       blocked = this.moveBy(nx, nz, COWBOY.speed, dt);
       speed = COWBOY.speed;
     } else if (dist < COWBOY.minDist) {
@@ -455,16 +742,17 @@ export class Mannequin {
       this.strafeT -= dt;
       if (this.strafeT <= 0) {
         this.strafeDir = -this.strafeDir;
-        this.strafeT = rnd(1.5, 3);
+        this.strafeT = rnd(1.2, 2.8);
+        this.strafeSpeed = rnd(1.5, 2.7);
       }
-      blocked = this.moveBy(-nz * this.strafeDir, nx * this.strafeDir, 1.8, dt);
-      speed = 1.8;
+      blocked = this.moveBy(-nz * this.strafeDir, nx * this.strafeDir, this.strafeSpeed, dt);
+      speed = this.strafeSpeed;
     }
     if (blocked) this.strafeDir = -this.strafeDir; // bumped into cover: circle the other way
 
-    // shoot
+    // shoot (sometimes two quick shots in a row)
     if (this.hasLos && dist < COWBOY.maxRange && this.attackCd <= 0 && Math.abs(diff) < 0.35 && !this.hooks.playerDead()) {
-      this.attackCd = rnd(COWBOY.interval[0], COWBOY.interval[1]);
+      this.attackCd = Math.random() < 0.3 ? 0.22 : rnd(COWBOY.interval[0], COWBOY.interval[1]);
       this.fireGun(dist);
     }
     return speed;
@@ -485,6 +773,7 @@ export class Mannequin {
     if (!hit) to.add(new THREE.Vector3(rnd(-1.2, 1.2), rnd(-0.6, 0.8), rnd(-1.2, 1.2)));
     this.kick = 1;
     this.hooks.shotFired(from, to);
+    Mannequin.scareNear(from, 14); // gunfire makes the civilians nearby panic too
     if (hit) this.hooks.hurtPlayer(COWBOY.damage);
   }
 
@@ -492,28 +781,122 @@ export class Mannequin {
   private animate(dt: number, moveSpeed: number) {
     const rig = this.rig;
     if (!rig) return;
+    const p = this.group.position;
     this.clock += dt;
     const walking = moveSpeed > 0.05;
     this.amp += ((walking ? 1 : 0) - this.amp) * (1 - Math.exp(-8 * dt));
-    this.phase += dt * moveSpeed * 4.2 * (walking ? 1 : 0.0) + dt * (walking ? 0 : 1.6);
+    this.phase += dt * moveSpeed * 3.9 * (walking ? 1 : 0.0) + dt * (walking ? 0 : 1.6);
     const s = Math.sin(this.phase) * this.amp;
     const idle = 1 - this.amp;
     const t = this.clock + this.seed;
+    const run = clamp((moveSpeed - 3.4) / 3, 0, 1) * this.amp; // jogging / sprinting
+    const wound = clamp((0.45 - this.health / this.maxHealth) / 0.45, 0, 1); // limp + hunch when badly hurt
+    const k = 1 - Math.exp(-10 * dt);
+    this.pStartle += ((this.mode === 'startle' ? 1 : 0) - this.pStartle) * k;
+    this.pCower += ((this.mode === 'cower' ? 1 : 0) - this.pCower) * k;
+    this.pPanic += ((this.mode === 'flee' ? 1 : 0) - this.pPanic) * k;
+    const rest = this.armRestZ;
+    const side = [Math.sign(rest[0]) || -1, Math.sign(rest[1]) || 1];
 
-    // walk cycle (legs swing, arms counter-swing, body bobs and sways)
-    rig.legs[0].rotation.x = s * 0.7;
-    rig.legs[1].rotation.x = -s * 0.7;
-    rig.arms[0].rotation.x = -s * 0.6 + Math.sin(t * 1.4) * 0.025 * idle;
-    rig.arms[1].rotation.x = s * 0.6 + Math.sin(t * 1.4 + 1.3) * 0.025 * idle;
-    this.body.position.y = Math.abs(Math.cos(this.phase)) * 0.03 * this.amp + Math.sin(t * 1.8) * 0.004 * idle; // bob / breathing
-    this.body.rotation.z = Math.sin(this.phase) * 0.025 * this.amp;
-    this.body.position.z = 0;
+    // walk cycle (legs swing, arms counter-swing, body bobs and sways); bigger and leaning forward when running
+    const legA = 0.7 + 0.5 * run;
+    const armA = 0.6 + 0.55 * run;
+    rig.legs[0].rotation.x = s * legA;
+    rig.legs[1].rotation.x = -s * legA * (1 - 0.4 * wound);
+    rig.arms[0].rotation.x = -s * armA + Math.sin(t * 1.4) * 0.025 * idle;
+    rig.arms[1].rotation.x = s * armA + Math.sin(t * 1.4 + 1.3) * 0.025 * idle;
+    rig.arms[0].rotation.z = rest[0];
+    rig.arms[1].rotation.z = rest[1];
+    rig.legs[0].rotation.z = 0;
+    rig.legs[1].rotation.z = 0;
+    this.body.position.set(0, Math.abs(Math.cos(this.phase)) * (0.03 + 0.04 * run) * this.amp + Math.sin(t * 1.8) * 0.004 * idle, 0);
+    this.body.rotation.set(0.28 * run + 0.2 * wound, 0, Math.sin(this.phase) * (0.025 + 0.05 * wound) * this.amp);
 
-    // head: nods while walking, looks around while standing (stares at the player while fighting)
-    const calm = this.aggravated ? 0 : idle;
+    // head: nods while walking, glances around while standing, follows a nearby player, stares while fighting
+    const calm = this.aggravated || this.mode !== 'calm' ? 0 : idle;
+    const dx = this.player.x - p.x, dz = this.player.z - p.z;
+    const distP = Math.hypot(dx, dz);
+    const toPlayer = angleDiff(this.heading, Math.atan2(dx, dz));
+    let headTarget = Math.sin(t * 0.7) * (0.4 + (this.wary > 0 ? 0.5 : 0)) * calm + Math.sin(t * 2.3) * 0.05;
+    if (this.mode === 'flee') headTarget = Math.sin(t * 3.4) * 0.9; // frantic glances over the shoulder
+    else if (this.mode === 'startle' || this.mode === 'cower' || this.aggravated) headTarget = clamp(toPlayer, -1.2, 1.2);
+    else if (distP < 11 && Math.abs(toPlayer) < 2.3) headTarget = clamp(toPlayer, -1.1, 1.1) * 0.9; // curious about the player
+    this.headYaw += (headTarget - this.headYaw) * (1 - Math.exp(-7 * dt));
     rig.head.rotation.x = Math.sin(this.phase * 2) * 0.03 * this.amp;
-    rig.head.rotation.y = Math.sin(t * 0.7) * 0.4 * calm + Math.sin(t * 2.3) * 0.05;
+    rig.head.rotation.y = this.headYaw;
     rig.head.rotation.z = Math.sin(t * 0.5) * 0.04 * calm;
+
+    // idle gestures
+    if (this.state === 'idle' && this.gesture > 0 && this.mode === 'calm' && !this.aggravated) this.gestureT += dt;
+    const doing = this.state === 'idle' && this.gesture > 0 && this.gestureT < this.gestureDur && this.mode === 'calm' && !this.aggravated;
+    this.gestureK += ((doing ? 1 : 0) - this.gestureK) * (1 - Math.exp(-7 * dt));
+    const g = this.gestureK;
+    if (g > 0.01) {
+      const a = rig.arms;
+      switch (this.gesture) {
+        case 1: // stretch
+          for (let i = 0; i < 2; i++) {
+            a[i].rotation.x = lerp(a[i].rotation.x, -2.9, g);
+            a[i].rotation.z = lerp(a[i].rotation.z, side[i] * 0.35, g);
+          }
+          this.body.rotation.x -= 0.1 * g;
+          rig.head.rotation.x -= 0.25 * g;
+          break;
+        case 2: // look at a watch
+          a[0].rotation.x = lerp(a[0].rotation.x, -1.25, g);
+          a[0].rotation.z = lerp(a[0].rotation.z, -side[0] * 0.45, g);
+          rig.head.rotation.x += 0.35 * g;
+          break;
+        case 3: // hands on hips
+          for (let i = 0; i < 2; i++) {
+            a[i].rotation.x = lerp(a[i].rotation.x, -0.15, g);
+            a[i].rotation.z = lerp(a[i].rotation.z, side[i] * 0.62, g);
+          }
+          break;
+        case 4: // wave
+          a[1].rotation.x = lerp(a[1].rotation.x, -2.7, g);
+          a[1].rotation.z = lerp(a[1].rotation.z, side[1] * (0.45 + Math.sin(t * 9) * 0.35), g);
+          break;
+        case 5: // scratch the head
+          a[0].rotation.x = lerp(a[0].rotation.x, -2.75 + Math.sin(t * 12) * 0.12, g);
+          a[0].rotation.z = lerp(a[0].rotation.z, -side[0] * 0.15, g);
+          rig.head.rotation.z += 0.12 * g;
+          break;
+      }
+    }
+
+    // panic: arms flail while running away
+    if (this.pPanic > 0.01) {
+      for (let i = 0; i < 2; i++) {
+        rig.arms[i].rotation.z += side[i] * (0.3 + 0.25 * Math.sin(this.phase * 2 + i * 2)) * this.pPanic;
+        rig.arms[i].rotation.x -= 0.5 * this.pPanic;
+      }
+    }
+    // startled: throws the hands up and leans back
+    if (this.pStartle > 0.01) {
+      const q = this.pStartle;
+      for (let i = 0; i < 2; i++) {
+        rig.arms[i].rotation.x = lerp(rig.arms[i].rotation.x, -2.35, q);
+        rig.arms[i].rotation.z = lerp(rig.arms[i].rotation.z, side[i] * 0.5, q);
+      }
+      this.body.rotation.x = lerp(this.body.rotation.x, -0.18, q);
+      rig.head.rotation.x -= 0.2 * q;
+    }
+    // cowering: bowed over, hands over the head, trembling
+    if (this.pCower > 0.01) {
+      const q = this.pCower;
+      const bow = 0.85;
+      this.body.rotation.x = lerp(this.body.rotation.x, bow, q);
+      this.body.position.z = lerp(this.body.position.z, -Math.sin(bow) * 0.95, q);
+      this.body.position.y = lerp(this.body.position.y, -0.12, q);
+      rig.legs[0].rotation.x = lerp(rig.legs[0].rotation.x, -bow, q); // keep the legs upright under the bowed body
+      rig.legs[1].rotation.x = lerp(rig.legs[1].rotation.x, -bow, q);
+      for (let i = 0; i < 2; i++) {
+        rig.arms[i].rotation.x = lerp(rig.arms[i].rotation.x, -2.7, q);
+        rig.arms[i].rotation.z = lerp(rig.arms[i].rotation.z, side[i] * 0.2, q);
+      }
+      this.body.rotation.z += Math.sin(t * 38) * 0.03 * q;
+    }
 
     // gun arm: raised and aimed while a cowboy fights, with a little kick per shot
     if (this.aim > 0.01) {
@@ -523,14 +906,25 @@ export class Mannequin {
     // knife arm: stabs forward when a criminal attacks
     if (this.lunge > 0) {
       this.lunge = Math.max(0, this.lunge - dt);
-      const k = 1 - this.lunge / this.lungeDur; // 0 -> 1
-      rig.arms[1].rotation.x = -0.6 - Math.sin(k * Math.PI) * 1.2;
-      this.body.position.z = Math.sin(k * Math.PI) * 0.25;
+      const k2 = 1 - this.lunge / this.lungeDur; // 0 -> 1
+      rig.arms[1].rotation.x = -0.6 - Math.sin(k2 * Math.PI) * 1.2;
+      this.body.position.z = Math.sin(k2 * Math.PI) * 0.25;
+    }
+
+    // hit reaction: the body jerks back, arms fly up, head snaps back
+    if (this.flinch > 0) {
+      this.flinch = Math.max(0, this.flinch - dt);
+      const u = this.flinch / 0.35;
+      const jerk = u * u;
+      this.body.rotation.x -= 0.35 * jerk;
+      rig.arms[0].rotation.x -= 1.0 * jerk;
+      rig.arms[1].rotation.x -= 0.8 * jerk;
+      rig.head.rotation.x -= 0.4 * jerk;
     }
 
     // cape streams behind when moving, flutters when still
     if (rig.cape) {
-      rig.cape.rotation.x = 0.1 + this.amp * 0.32 + Math.sin(this.phase * 1.3) * 0.07 * this.amp + Math.sin(t * 2.2) * 0.03;
+      rig.cape.rotation.x = 0.1 + (this.amp + run * 0.6) * 0.32 + Math.sin(this.phase * 1.3) * 0.07 * this.amp + Math.sin(t * 2.2) * 0.03;
       rig.cape.rotation.z = Math.sin(t * 1.6) * 0.04;
     }
   }
@@ -542,9 +936,11 @@ export class Mannequin {
         this.sinceHit += dt;
         if (this.sinceHit >= BAR_HIDE_AFTER) this.updateBar();
       }
-      const moving = this.costume.combat ? this.fight(dt) : this.moveWander(dt);
+      const moving = this.costume.combat ? this.fight(dt) : this.civilian(dt);
       this.moveSpeedNow = moving;
+      this.separate();
       const p = this.group.position;
+      pushOutOfBoxes(this.nav, p, RADIUS);
       p.y = this.nav.heightAt(p.x, p.z);
       this.group.rotation.y = this.heading;
       this.animate(dt, moving);
@@ -553,11 +949,35 @@ export class Mannequin {
       if (this.rig) for (const m of this.rig.materials) (m as THREE.MeshStandardMaterial).emissive.setScalar(e);
       return;
     }
+    this.dieAnimation(dt);
+  }
+
+  /** Falls over backwards with the arms flung out, lies there for a moment, then shrinks away until it respawns. */
+  private dieAnimation(dt: number) {
     this.deadTime += dt;
-    // shrink-and-tip-over over 0.35s, then hide until respawn
-    const t = Math.min(this.deadTime / 0.35, 1);
+    const rig = this.rig;
+    const f = Math.min(this.deadTime / 0.55, 1);
+    const fall = 1 - Math.pow(1 - f, 3); // eases out
+    this.group.rotation.x = -1.5 * fall;
+    const p = this.group.position;
+    // slides a little away from the player while falling
+    const slide = (1 - f) * dt;
+    p.x += this.knock.x * slide;
+    p.z += this.knock.z * slide;
+    pushOutOfBoxes(this.nav, p, RADIUS);
+    p.y = this.nav.heightAt(p.x, p.z) + 0.1 * fall;
+    if (rig) {
+      const sd = [Math.sign(this.armRestZ[0]) || -1, Math.sign(this.armRestZ[1]) || 1];
+      for (let i = 0; i < 2; i++) {
+        rig.arms[i].rotation.x = lerp(rig.arms[i].rotation.x, -2.4 + i * 0.5, fall * 0.4);
+        rig.arms[i].rotation.z = lerp(rig.arms[i].rotation.z, sd[i] * 0.9, fall * 0.4);
+        rig.legs[i].rotation.z = lerp(rig.legs[i].rotation.z, sd[i] * 0.25, fall * 0.4);
+        rig.legs[i].rotation.x *= 1 - fall * 0.3;
+      }
+    }
+    const shrinkStart = Math.max(0.9, this.respawnDelay - 0.5);
+    const t = clamp((this.deadTime - shrinkStart) / 0.4, 0, 1);
     this.group.scale.setScalar(this.baseScale * (1 - t));
-    this.group.rotation.x = t * 0.8;
     if (t >= 1) this.group.visible = false;
     if (this.deadTime > this.respawnDelay) this.reset(true);
   }

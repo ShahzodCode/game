@@ -213,6 +213,40 @@ export function missionSound(big = false) {
 }
 
 /** A shot fired by an enemy: the pistol recording, quieter and a bit lower the further away it is. */
+let lastScream = 0;
+/** A scared bot's cry: a short rising-then-falling squeal; quieter with distance, each voice a little different. */
+export function botScream(distance: number) {
+  if (!ctx || !master) return;
+  const vol = Math.max(0, 1 - distance / 60);
+  const now = performance.now();
+  if (vol < 0.05 || now - lastScream < 90) return; // a crowd panicking must not turn into noise
+  lastScream = now;
+  const t = ctx.currentTime;
+  const base = 330 + Math.random() * 330;
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(base, t);
+  osc.frequency.exponentialRampToValueAtTime(base * 1.7, t + 0.12);
+  osc.frequency.exponentialRampToValueAtTime(base * 1.15, t + 0.4);
+  const vib = ctx.createOscillator();
+  vib.frequency.value = 9 + Math.random() * 4;
+  const vibGain = ctx.createGain();
+  vibGain.gain.value = base * 0.04;
+  vib.connect(vibGain).connect(osc.frequency);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 1100;
+  bp.Q.value = 1.2;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.22 * vol, t + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+  osc.connect(bp).connect(g).connect(master);
+  osc.start(t);
+  vib.start(t);
+  osc.stop(t + 0.5);
+  vib.stop(t + 0.5);
+}
 export function enemyShot(distance: number) {
   const vol = Math.max(0.12, 1 - distance / 70);
   playClip('pistol-shot', 0.12, 0.7, 1.5 * vol, 0.82);

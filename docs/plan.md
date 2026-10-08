@@ -20,6 +20,8 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 - Esc-to-resume relies on Chromium fullscreen/keyboard lock.
 - Save is per browser and origin.
 
+- Bot AI v2: civilians flee/cower/spread panic, armed bots dodge/retreat, more animation (run, flinch, gestures, death fall). Untested by hand: tune FLEE_SPEED, fear times and radii in `mannequin.ts` after playtesting.
+
 ## Ideas / next steps (the user decides priority; ask when unsure)
 1. Playtest and balance: mission targets, rewards, enemy health/damage per level.
 2. ~~Split `src/main.ts` into modules.~~ Done: see `src/game/*` and the layout in `CLAUDE.md`.

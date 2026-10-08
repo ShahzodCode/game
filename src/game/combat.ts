@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Mannequin } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
 import type { Weapon } from '../weapons/weapons';
 import {
@@ -196,6 +197,7 @@ export function fire() {
   S.yaw += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilYaw * mult);
   S.roll += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilRoll * mult);
   S.recoilOffset += pitchKick;
+  Mannequin.scareNear(tmpV, s.id === 'shotgun' ? 24 : 16); // civilians nearby hear the gunshot and panic
   S.kick = s.viewKick * (0.6 + 0.4 * mult);
   flashLight.intensity = 25;
   shotSound(w);
