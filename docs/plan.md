@@ -19,11 +19,10 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 - The pause menu button `+$100000 (test)` (`#btnCash` in index.html + its handler in src/main.ts) is TEST ONLY. Delete it before release.
 - Esc-to-resume relies on Chromium fullscreen/keyboard lock.
 - Save is per browser and origin.
-- `src/main.ts` is large (~1250 lines). Splitting it (player, shooting, HUD, shops, flow) would help.
 
 ## Ideas / next steps (the user decides priority; ask when unsure)
 1. Playtest and balance: mission targets, rewards, enemy health/damage per level.
-2. Split `src/main.ts` into modules.
+2. ~~Split `src/main.ts` into modules.~~ Done: see `src/game/*` and the layout in `CLAUDE.md`.
 3. More weapons for the weapon shop (it currently sells only the shotgun).
 4. More enemy types for later levels, possibly bosses.
 5. Remove the test cash button.
