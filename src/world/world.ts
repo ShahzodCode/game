@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { buildRooms, makeSignBoard, type Rooms } from './rooms';
 import { buildSupplyShopProps } from './shopProps';
+import { ARCHES, BOULDER_FIELDS, ENTRY, FLATS, HOUSES, MESAS, POND, ROCK_PILES, SPIRES, STONE_CIRCLE, keepClear, pathDistance } from './layout';
+import {
+  HOUSE_STYLES, buildArch, buildBackdrop, buildCamp, buildClouds, buildForest, buildGroundCover, buildHouse, buildPond,
+  buildSpire, buildStoneCircle, makeRocks, type Ctx, type HouseHandle,
+} from './scenery';
 
 export interface World {
   /** Solid boxes used for player collision (structures + big rocks). */
@@ -24,6 +29,8 @@ export interface World {
   setIndoor: (k: number) => void;
   /** Ammo shop buy zone: stand inside `radius` of `pos` to buy. */
   shop: { pos: THREE.Vector3; radius: number };
+  /** Per-frame life: doors that open, campfire, water, clouds. */
+  update: (dt: number, time: number, player: THREE.Vector3) => void;
 }
 
 // ---------- helpers ----------
@@ -45,100 +52,22 @@ const gauss = (x: number, z: number, cx: number, cz: number, sigma: number, amp:
 
 // ---------- layout data ----------
 interface Structure { x: number; z: number; w: number; h: number; d: number; color: number }
-const CRATE = 0x9b6b3a, PILLAR = 0x6f6f78, STEEL = 0x777f8c;
+/** The only free-standing boxes left: the supply shop kiosk (counter + back wall). */
 const STRUCTURES: Structure[] = [
-  { x: -8, z: -6, w: 2, h: 1.2, d: 2, color: CRATE },
-  { x: -5, z: -8, w: 1.5, h: 0.8, d: 1.5, color: CRATE },
-  { x: 7, z: -10, w: 2.5, h: 1.5, d: 2.5, color: CRATE },
-  { x: 10, z: 6, w: 2, h: 1, d: 2, color: CRATE },
-  { x: -12, z: 8, w: 3, h: 1.5, d: 2, color: CRATE },
-  { x: 0, z: 12, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: -18, z: -14, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: 16, z: -2, w: 1, h: 3, d: 1, color: PILLAR },
-  // platform with steps
-  { x: 20, z: 18, w: 8, h: 1.6, d: 6, color: STEEL },
-  { x: 14.5, z: 18, w: 3, h: 0.55, d: 3, color: STEEL },
-  { x: 16.5, z: 18, w: 2, h: 1.1, d: 3, color: STEEL },
-  // long cover wall
-  { x: -4, z: 3, w: 8, h: 1.4, d: 0.6, color: 0x8a5a5a },
-
-  // ---- outer areas (the arena is 120 x 120) ----
-  { x: -35, z: -30, w: 2.5, h: 1.5, d: 2.5, color: CRATE },
-  { x: -38, z: -28, w: 1.5, h: 0.9, d: 1.5, color: CRATE },
-  { x: 35, z: -35, w: 3, h: 1.5, d: 2, color: CRATE },
-  { x: 40, z: 30, w: 2, h: 1.2, d: 2, color: CRATE },
-  { x: -40, z: 25, w: 2.5, h: 1.3, d: 2.5, color: CRATE },
-  { x: -30, z: 45, w: 2, h: 1, d: 2, color: CRATE },
-  { x: 30, z: -8, w: 2, h: 1.2, d: 2, color: CRATE },
-  { x: 48, z: -20, w: 2, h: 1, d: 2, color: CRATE },
-  { x: -48, z: -5, w: 2.5, h: 1.5, d: 2.5, color: CRATE },
-  { x: 22, z: 38, w: 2, h: 1, d: 2, color: CRATE },
-  { x: -22, z: -40, w: 2, h: 1.2, d: 2, color: CRATE },
-  { x: 8, z: -45, w: 3, h: 1.5, d: 2, color: CRATE },
-  { x: -8, z: 35, w: 2, h: 1, d: 2, color: CRATE },
-  { x: -30, z: -10, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: 32, z: 14, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: -36, z: 40, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: 44, z: -42, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: 0, z: -30, w: 1, h: 3, d: 1, color: PILLAR },
-  { x: -45, z: -30, w: 1, h: 3, d: 1, color: PILLAR },
-  // second platform with steps
-  { x: -35, z: -48, w: 8, h: 1.6, d: 6, color: STEEL },
-  { x: -29.5, z: -48, w: 3, h: 0.55, d: 3, color: STEEL },
-  { x: -31.5, z: -48, w: 2, h: 1.1, d: 3, color: STEEL },
-  // bunker walls
-  { x: 45, z: 45, w: 12, h: 2.2, d: 0.8, color: 0x8d8577 },
-  { x: 51, z: 40, w: 0.8, h: 2.2, d: 10, color: 0x8d8577 },
-  // ammo shop kiosk (counter + back wall); the buy zone is in front of it, see SHOP_ZONE
   { x: 8, z: 54, w: 3, h: 1.1, d: 1, color: 0x3b6ea8 },
   { x: 8, z: 55.6, w: 3.4, h: 2.4, d: 0.3, color: 0x2f3b52 },
-  // cover walls
-  { x: 30, z: -22, w: 10, h: 1.4, d: 0.6, color: 0x8a5a5a },
-  { x: -20, z: -30, w: 0.6, h: 1.4, d: 10, color: 0x8a5a5a },
 ];
 
-// gentle hills (+) and pits (-): [x, z, sigma, amplitude]
+// gentle forest hills in the west, big rugged ridges in the east: [x, z, sigma, amplitude]
 const BUMPS: [number, number, number, number][] = [
-  // hills
-  [-20, 4, 6, 3.2],
-  [14, -18, 7, 3.6],
-  [-2, 20, 6.5, 2.4],
-  [24, -6, 5, 2.2],
-  [-42, -18, 8, 3.6],
-  [40, -30, 9, 4.2],
-  [38, 40, 8, 3.2],
-  [-30, 40, 8, 3.0],
-  [5, -48, 8, 3.0],
-  [-5, -20, 6, 2.2],
-  [48, 12, 7, 3.0],
-  [-50, 2, 6, 2.5],
-  // pits
-  [2, -2, 3.2, -1.8],
-  [-14, -18, 3.5, -2.0],
-  [22, 6, 3, -1.6],
-  [8, 18, 2.8, -1.4],
-  [30, 22, 3.5, -1.8],
-  [-40, 10, 3.2, -1.6],
-  [20, -40, 3.5, -2.0],
-  [46, -8, 3, -1.5],
-  [-18, -48, 3.2, -1.7],
-  [14, 36, 3, -1.5],
-];
-
-// rock piles: each forms a little rocky hill (terrain bump + clustered rocks)
-const PILES: [number, number][] = [
-  [-10, -14],
-  [5, -24],
-  [26, 2],
-  [-22, 22],
-  [6, 6],
-  [-42, 40],
-  [30, -50],
-  [50, -24],
-  [-48, -40],
-  [12, -34],
-  [-20, 48],
-  [40, 12],
+  // forest (west): soft, wide
+  [-45, -10, 10, 2.0], [-20, 22, 9, 1.5], [-50, 38, 9, 2.2], [-22, -42, 10, 2.2], [-8, 40, 8, 1.2], [-48, -46, 8, 1.8],
+  [-8, -14, 7, 1.3], [-52, 8, 7, 1.6],
+  // middle
+  [2, -6, 9, 1.2], [4, 26, 8, 1.0],
+  // badlands (east): taller and tighter
+  [30, -8, 5, 3.0], [48, -10, 6, 3.4], [22, -26, 6, 2.6], [52, 34, 6, 2.6], [28, 40, 6, 2.2], [14, 12, 5, 1.9], [42, 4, 4.5, 2.2],
+  [56, -34, 6, 2.8], [10, -46, 7, 2.4],
 ];
 
 const PLAYER_START = new THREE.Vector2(0, 50);
@@ -171,14 +100,18 @@ export function buildWorld(scene: THREE.Scene): World {
   const heightAt = (x: number, z: number) => {
     let h = 0;
     for (const [cx, cz, sg, a] of BUMPS) h += gauss(x, z, cx, cz, sg, a);
-    for (const [cx, cz] of PILES) h += gauss(x, z, cx, cz, 2.6, 1.1);
-    h += 0.12 * Math.sin(x * 0.7) * Math.cos(z * 0.55) + 0.08 * Math.sin(x * 1.9 + z * 1.3); // small bumps
-    // keep ground flat under structures and near the outer walls
+    for (const [cx, cz] of ROCK_PILES) h += gauss(x, z, cx, cz, 2.6, 1.1);
+    for (const m of MESAS) h += m.h * (1 - smooth(m.r, m.r + 7, Math.hypot(x - m.x, z - m.z))); // flat-topped plateaus with ramps
+    h += gauss(x, z, POND.x, POND.z, 5.2, -2.4); // the pond basin
+    const east = smooth(-6, 16, x);
+    h += (0.1 + 0.08 * east) * Math.sin(x * 0.7) * Math.cos(z * 0.55) + 0.07 * Math.sin(x * 1.9 + z * 1.3); // small bumps
+    h += east * 0.8 * Math.abs(Math.sin(x * 0.09 + z * 0.05 + 1)); // long ridges in the badlands
+    // keep ground flat under the houses, camp, entrance and shop, and near the outer walls
     let mask = smooth(1, 6, half - Math.max(Math.abs(x), Math.abs(z)));
-    for (const st of STRUCTURES) {
-      const dx = Math.max(Math.abs(x - st.x) - st.w / 2, 0);
-      const dz = Math.max(Math.abs(z - st.z) - st.d / 2, 0);
-      mask *= smooth(0, 3.5, Math.hypot(dx, dz));
+    for (const f of FLATS) {
+      const dx = Math.max(Math.abs(x - f.x) - f.w / 2, 0);
+      const dz = Math.max(Math.abs(z - f.z) - f.d / 2, 0);
+      mask *= smooth(0, f.margin, Math.hypot(dx, dz));
     }
     return h * mask;
   };
@@ -192,14 +125,19 @@ export function buildWorld(scene: THREE.Scene): World {
   geo.computeVertexNormals();
   const colors = new Float32Array(pos.count * 3);
   const norm = geo.attributes.normal;
-  const grass = new THREE.Color(0x5a8a3f), dry = new THREE.Color(0x8a8f4a);
-  const dirt = new THREE.Color(0x6b5238), stone = new THREE.Color(0x7d7a72);
+  const grassW = new THREE.Color(0x4a8236), grassW2 = new THREE.Color(0x5d9440), sand = new THREE.Color(0xa89b68), dryE = new THREE.Color(0x8d8a52);
+  const dirt = new THREE.Color(0x6b5238), stone = new THREE.Color(0x7d7a72), path = new THREE.Color(0x826646), mud = new THREE.Color(0x4a3b2a);
   const c = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
-    const h = pos.getY(i);
-    c.copy(grass).lerp(dry, smooth(0.3, 2.5, h) * 0.6 + rand() * 0.18);
-    c.lerp(dirt, smooth(-0.3, -1.4, h));
-    c.lerp(stone, smooth(0.93, 0.8, norm.getY(i)) * 0.7);
+    const x = pos.getX(i), z = pos.getZ(i), h = pos.getY(i);
+    const east = smooth(-8, 14, x);
+    const patch = 0.5 + 0.5 * Math.sin(x * 0.21 + 1) * Math.cos(z * 0.17);
+    c.copy(grassW).lerp(grassW2, patch * 0.7 + rand() * 0.2);
+    c.lerp(east > 0.5 ? sand : dryE, east * (0.55 + patch * 0.3 + rand() * 0.12)); // dusty badlands
+    c.lerp(dirt, smooth(-0.3, -1.3, h)); // the shore and the pond bed
+    c.lerp(mud, smooth(-1.0, -1.8, h) * 0.8);
+    c.lerp(stone, smooth(0.93, 0.8, norm.getY(i)) * 0.75); // steep ground is bare rock
+    c.lerp(path, (1 - smooth(1.4, 3.2, pathDistance(x, z))) * 0.85); // dirt paths
     colors.set([c.r, c.g, c.b], i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -248,83 +186,62 @@ export function buildWorld(scene: THREE.Scene): World {
   wall(-half, 0, 1, half * 2);
   wall(half, 0, 1, half * 2);
 
-  // ---------- rocks ----------
-  const hash = (x: number, y: number, z: number) => {
-    const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
-    return v - Math.floor(v);
-  };
-  const rockGeos = [0, 1, 2, 3].map((k) => {
-    const g = new THREE.IcosahedronGeometry(1, 1);
-    const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      // same input -> same offset, so shared vertices stay joined
-      const f = 1 + (hash(x + k, y, z) - 0.5) * 0.5;
-      p.setXYZ(i, x * f, y * f, z * f);
-    }
-    g.computeVertexNormals();
-    return g;
-  });
-  const rockMats = [0x7a7770, 0x6b6963, 0x857f74, 0x5f5d59].map(
-    (col) => new THREE.MeshStandardMaterial({ color: col, roughness: 1, flatShading: true }),
-  );
-
-  const nearStructure = (x: number, z: number, margin: number) =>
-    STRUCTURES.some((st) => Math.abs(x - st.x) < st.w / 2 + margin && Math.abs(z - st.z) < st.d / 2 + margin);
-
-  const addRock = (x: number, z: number, r: number, lift = 0) => {
-    const sx = 0.8 + rand() * 0.5, sy = 0.55 + rand() * 0.4, sz = 0.8 + rand() * 0.5;
-    const m = new THREE.Mesh(
-      rockGeos[Math.floor(rand() * rockGeos.length)],
-      rockMats[Math.floor(rand() * rockMats.length)],
-    );
-    m.scale.set(r * sx, r * sy, r * sz);
-    const y = heightAt(x, z) + r * sy * 0.35 + lift; // partly sunk into the ground
-    m.position.set(x, y, z);
-    m.rotation.set((rand() - 0.5) * 0.4, rand() * Math.PI * 2, (rand() - 0.5) * 0.4);
-    m.castShadow = m.receiveShadow = true;
-    scene.add(m);
-    blockers.push(m);
-    // only bigger rocks block the player; small ones are walked over
-    if (r > 0.45) {
-      const hw = 0.62 * r * ((sx + sz) / 2);
-      boxes.push(
-        new THREE.Box3(
-          new THREE.Vector3(x - hw, y - r * sy, z - hw),
-          new THREE.Vector3(x + hw, y + r * sy * 0.6, z + hw),
-        ),
-      );
-    }
-  };
+  // ---------- scenery: rocks (east), trees (west), landmarks ----------
+  const ctx: Ctx = { scene, boxes, blockers, heightAt, rand, half };
+  const rocks = makeRocks(ctx);
+  const clearOfStart = (x: number, z: number, m = 0) => Math.hypot(x - ENTRY.x, z - ENTRY.z) > 9 + m && !keepClear(x, z, 1 + m);
 
   // rock piles: big rocks in the middle, smaller towards the edge
-  for (const [px, pz] of PILES) {
-    const n = 11 + Math.floor(rand() * 6);
-    const R = 3.2;
+  for (const [px, pz] of ROCK_PILES) {
+    const n = 12 + Math.floor(rand() * 7);
+    const R = 3.4;
     for (let i = 0; i < n; i++) {
       const ang = rand() * Math.PI * 2;
       const d = Math.pow(rand(), 0.8) * R;
       const t = 1 - d / R; // 1 at centre
-      const r = 0.3 + t * (0.5 + rand() * 0.6) + rand() * 0.15;
-      addRock(px + Math.cos(ang) * d, pz + Math.sin(ang) * d, r, t * 0.25);
+      const r = 0.3 + t * (0.5 + rand() * 0.7) + rand() * 0.15;
+      rocks.add(px + Math.cos(ang) * d, pz + Math.sin(ang) * d, r, t * 0.25);
     }
   }
-  // scattered loners, mixed sizes
+  // boulder fields: clusters of big boulders you can hide behind
+  for (const [bx, bz] of BOULDER_FIELDS) {
+    const n = 8 + Math.floor(rand() * 6);
+    for (let i = 0; i < n; i++) {
+      const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * 8;
+      const x = bx + Math.cos(a) * d, z = bz + Math.sin(a) * d;
+      if (Math.abs(x) > half - 5 || Math.abs(z) > half - 5 || !clearOfStart(x, z)) continue;
+      rocks.add(x, z, 1.1 + rand() * 1.4);
+    }
+  }
+  // scattered loners: many in the badlands, a few in the forest
   let placed = 0;
-  for (let tries = 0; placed < 140 && tries < 2000; tries++) {
+  for (let tries = 0; placed < 170 && tries < 4000; tries++) {
     const x = (rand() * 2 - 1) * (half - 4);
     const z = (rand() * 2 - 1) * (half - 4);
-    if (nearStructure(x, z, 1.5)) continue;
-    if (Math.hypot(x - PLAYER_START.x, z - PLAYER_START.y) < 4) continue;
-    if (PILES.some(([px, pz]) => Math.hypot(x - px, z - pz) < 4.5)) continue;
+    if (rand() > 0.2 + 0.8 * smooth(-4, 14, x)) continue;
+    if (!clearOfStart(x, z)) continue;
+    if (ROCK_PILES.some(([px, pz]) => Math.hypot(x - px, z - pz) < 4.5)) continue;
     const big = rand() < 0.15;
-    addRock(x, z, big ? 0.9 + rand() * 0.6 : 0.2 + rand() * 0.55);
+    rocks.add(x, z, big ? 0.9 + rand() * 0.6 : 0.2 + rand() * 0.55);
     placed++;
   }
+  for (const a of ARCHES) buildArch(ctx, rocks, a.x, a.z, a.span, a.rot);
+  for (const [sx, sz, sh] of SPIRES) buildSpire(ctx, rocks, sx, sz, sh);
+  buildStoneCircle(ctx, rocks, STONE_CIRCLE.x, STONE_CIRCLE.z, STONE_CIRCLE.r, STONE_CIRCLE.n);
+
+  buildForest(ctx);
+  buildGroundCover(ctx);
+  const updatePond = buildPond(ctx, rocks);
+  const updateCamp = buildCamp(ctx, rocks);
+  const houseHandles: HouseHandle[] = HOUSES.map((h, i) => buildHouse(ctx, h, HOUSE_STYLES[i % HOUSE_STYLES.length]));
+  buildBackdrop(scene, rand);
+  const updateClouds = buildClouds(scene, rand);
 
   // ---------- walkable spots for bots (y follows the ground) ----------
   const isFree = (x: number, z: number) => {
     const gy = heightAt(x, z);
+    if (gy < POND.level + 0.2) return false; // not in the pond
+    if (houseHandles.some((h) => x > h.rect.x0 && x < h.rect.x1 && z > h.rect.z0 && z < h.rect.z1)) return false; // not in the houses
     return !boxes.some(
       (b) =>
         b.max.y > gy + 0.25 &&
@@ -376,5 +293,12 @@ export function buildWorld(scene: THREE.Scene): World {
     fog.far = 190 + (70 - 190) * k;
   };
 
-  return { boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop };
+  const update = (dt: number, time: number, player: THREE.Vector3) => {
+    for (const h of houseHandles) h.update(dt, player);
+    updateCamp(time);
+    updatePond(time);
+    updateClouds(dt);
+  };
+
+  return { boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update };
 }

@@ -9,6 +9,7 @@ import { camera, flashLight, spawnImpact, spawnTracer, vel, viewModels, weapons,
 import { spawnBolt, spawnCasing, spawnGrenade } from './projectiles';
 import { mannequins, wolves, type Target } from './actors';
 import { addScore } from './flow';
+import { equippedIndices, isEquipped, slotWeaponIndex } from './loadout';
 import { hitmarker, showPopup } from './hud';
 import { POINTS_HEADSHOT_KILL, POINTS_HIT, S } from './state';
 
@@ -20,6 +21,10 @@ export function switchWeapon(i: number) {
     showPopup(`${weapons[i].stats.name} not owned - buy it at the shop`, '#ff9a4a');
     return;
   }
+  if (!isEquipped(i)) {
+    showPopup(`${weapons[i].stats.name} is not in your loadout - change it at the armory terminal`, '#ff9a4a');
+    return;
+  }
   weapons[S.current].reloadLeft = 0;
   stopRifleLoop();
   stopReloadSound();
@@ -29,13 +34,22 @@ export function switchWeapon(i: number) {
   S.equipLeft = weapons[S.current].stats.equipTime;
 }
 
-/** Next / previous weapon that the player actually owns. */
-export function cycleWeapon(dir: number) {
-  const n = weapons.length;
-  for (let k = 1; k < n; k++) {
-    const i = (S.current + dir * k + n * k) % n;
-    if (weapons[i].owned) return switchWeapon(i);
+/** Weapon in a loadout slot (key 1-4). */
+export function switchSlot(n: number) {
+  const i = slotWeaponIndex(n);
+  if (i < 0) {
+    showPopup(n === 2 ? 'No heavy weapon in your loadout - buy one at the weapon shop' : 'Nothing in that slot', '#ff9a4a');
+    return;
   }
+  switchWeapon(i);
+}
+
+/** Next / previous weapon in the loadout. */
+export function cycleWeapon(dir: number) {
+  const list = equippedIndices();
+  if (list.length < 2) return;
+  const at = list.indexOf(S.current);
+  switchWeapon(list[(at + dir + list.length) % list.length]);
 }
 
 /** Start reloading (if possible) and play the weapon's reload sound. */

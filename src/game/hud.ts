@@ -1,5 +1,6 @@
 import { $, weapons } from './core';
 import { MAX_HEALTH, S } from './state';
+import { slotWeaponIndex } from './loadout';
 
 export const hudWeapon = $('weapon');
 const hudAmmo = $('ammo');
@@ -16,11 +17,29 @@ const popup = $('popup');
 export const hitmarker = $('hitmarker');
 export const resumeHint = $('resumeHint');
 export const overlay = $('overlay');
+const slotsEl = $('slots');
+let slotsHtml = '';
 const bannerEl = $('banner');
 
 export const accuracyText = () => (S.shotsFired ? `${Math.round((S.shotsHit / S.shotsFired) * 100)}%` : '--');
 
+/** The loadout strip at the bottom: 1 sidearm, 2 rifle, 3 heavy, 4 knife; the weapon in hand is highlighted. */
+function updateSlots() {
+  const html = [0, 1, 2, 3]
+    .map((n) => {
+      const i = slotWeaponIndex(n);
+      const name = i >= 0 ? weapons[i].stats.name : 'empty';
+      return `<div class="slot${i === S.current ? ' active' : ''}${i < 0 ? ' empty' : ''}"><b>${n + 1}</b>${name}</div>`;
+    })
+    .join('');
+  if (html !== slotsHtml) {
+    slotsHtml = html;
+    slotsEl.innerHTML = html;
+  }
+}
+
 export function updateHud() {
+  updateSlots();
   const w = weapons[S.current];
   hudWeapon.textContent = w.stats.name;
   hudAmmo.innerHTML = w.stats.melee ? '<small>melee</small>' : w.reloading ? 'Reloading...' : `${w.ammo}<small> / ${w.spare.length} ${w.stats.ammoLabel ?? 'mags'}</small>`;

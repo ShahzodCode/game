@@ -104,3 +104,21 @@ button.secondary { background: #4a4e57; }
   .card th, .card td { padding-right: 6px; }
   .keys { font-size: 13px; gap: 3px 10px; }
 }
+
+/* armory terminal window */
+.loadout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px; }
+.lslot { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 10px 8px; }
+.lhead { font-weight: 700; letter-spacing: .1em; color: #7dff9b; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.lhead kbd { margin: 0; }
+.lopt { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 0 8px; padding: 6px 6px; margin-bottom: 6px; border-radius: 6px; border: 1px solid transparent; opacity: .8; }
+.lopt img { grid-row: span 2; width: 48px; height: 48px; object-fit: contain; }
+.lopt .n { font-weight: 600; }
+.lopt em { font-style: normal; font-size: 12px; opacity: .8; }
+.lopt.on { border-color: #7dff9b; background: rgba(125,255,155,.12); opacity: 1; }
+.lopt.on em { color: #7dff9b; opacity: 1; font-weight: 700; }
+.lopt.locked { opacity: .4; }
+#slots { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: none; }
+#slots .slot { min-width: 84px; text-align: center; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.4); color: #cfd6df; font-size: 13px; border: 1px solid rgba(255,255,255,.15); }
+#slots .slot b { color: #ffd84a; margin-right: 4px; }
+#slots .slot.active { background: rgba(125,255,155,.22); border-color: #7dff9b; color: #fff; }
+#slots .slot.empty { opacity: .4; }

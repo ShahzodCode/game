@@ -57,7 +57,7 @@ if (import.meta.env.DEV) {
       const h = r.intersectObjects([...all, ...world.blockers], false)[0];
       return h ? { dist: h.distance, owner: !!h.object.userData.owner, at: h.point.toArray() } : null;
     },
-    S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
+    scene, renderer, S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
   };
 }
 
@@ -176,6 +176,7 @@ function frame() {
   }
   if (S.locked) updateFlow(dt);
   rooms.update(S.locked ? dt : 0, performance.now() / 1000); // doors slide, candles flicker
+  world.update(S.locked ? dt : 0, performance.now() / 1000, pos); // house doors, campfire, water, clouds
   world.setIndoor(THREE.MathUtils.smoothstep(pos.z, 57, 63)); // 0 in the arena, 1 inside the rooms
   updateNametag(dt);
   updateFx(dt);

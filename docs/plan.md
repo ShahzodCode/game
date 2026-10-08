@@ -26,6 +26,8 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 
 - New weapons (SMG, sniper with scope, crossbow, grenade launcher), aim-down-sights, projectile physics (bolts, grenades, explosions, casings, debris), movement physics v2 (steps, slopes, slide, coyote/jump buffer, fall damage), bot knockback. Untested by hand: balance (prices, damage, blast radius, self-damage) and the feel of aiming/sliding.
 
+- Loadout (armory terminal, one weapon per slot), new arena (forest west / rocky east, two houses, pond, campfire, arches, mesas), crates and pillars removed. Untested by hand: frame rate on weaker machines (about 700 draw calls, 600k triangles in view), tree/rock density, house layout.
+
 ## Ideas / next steps (the user decides priority; ask when unsure)
 1. Playtest and balance: mission targets, rewards, enemy health/damage per level.
 2. ~~Split `src/main.ts` into modules.~~ Done: see `src/game/*` and the layout in `CLAUDE.md`.

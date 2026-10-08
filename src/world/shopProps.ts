@@ -292,3 +292,88 @@ export function buildWeaponShopProps(
   mat.box(BRASS, 2.2, 0.021, 0.08, { p: [KX + 3.4, 0.0105, 96.66] });
   addMesh(scene, mat);
 }
+
+// =============================================================================================
+// ARMORY TERMINAL (safe room, right wall x = +13): a machine with a screen showing the current loadout,
+// like the weapon terminals in ULTRAKILL. Customers stand at x < 12 and look toward +x.
+// =============================================================================================
+export function buildArmoryTerminal(
+  scene: THREE.Scene,
+  boxes: THREE.Box3[],
+  blockers: THREE.Object3D[],
+  WX: number, // inner surface of the right wall
+  Z: number,
+  makeSign: (text: string, w: number, h: number) => THREE.Object3D,
+): (lines: string[]) => void {
+  const b = new MeshBuilder();
+  const fx = WX - 1.0; // front face of the cabinet
+  const cx = WX - 0.5;
+  // cabinet, side cheeks, top hood, base
+  b.box(0x2a2f3a, 1.0, 2.5, 2.0, { p: [cx, 1.25, Z] });
+  b.box(0x1b1e26, 1.04, 0.12, 2.1, { p: [cx, 0.06, Z] });
+  b.box(0x1b1e26, 1.06, 0.14, 2.12, { p: [cx, 2.57, Z] });
+  for (const dz of [-1.04, 1.04]) b.box(0x3b4252, 1.0, 2.5, 0.08, { p: [cx, 1.25, Z + dz] });
+  b.box(0x3b4252, 0.06, 2.3, 2.0, { p: [fx - 0.03, 1.3, Z] }); // front plate
+  // screen bezel (the glowing screen is a separate mesh)
+  b.box(0x0f1116, 0.05, 1.2, 1.7, { p: [fx - 0.085, 1.75, Z] });
+  // control shelf, slanted, with three buttons
+  b.box(0x20242d, 0.45, 0.1, 1.9, { p: [fx - 0.2, 1.0, Z], r: [0, 0, -0.35] });
+  const colours = [0x44ff88, 0xffd84a, 0xff6a4a];
+  for (let i = 0; i < 3; i++) {
+    b.cyl(colours[i], 0.1, 0.1, 0.05, { p: [fx - 0.28, 1.06, Z - 0.55 + i * 0.55], r: [0, 0, 1.2] }, 14);
+    b.cyl(0x15171c, 0.14, 0.14, 0.03, { p: [fx - 0.265, 1.05, Z - 0.55 + i * 0.55], r: [0, 0, 1.2] }, 14);
+  }
+  // dispenser slot with a lit tray
+  b.box(0x0f1116, 0.2, 0.34, 1.3, { p: [fx - 0.1, 0.5, Z] });
+  b.box(0x2c3a52, 0.28, 0.04, 1.3, { p: [fx - 0.14, 0.34, Z] });
+  // floor mat
+  b.box(0x3b3f4a, 2.3, 0.02, 2.6, { p: [fx - 1.2, 0.01, Z] });
+  b.box(BRASS, 0.08, 0.021, 2.6, { p: [fx - 2.34, 0.0105, Z] });
+  const m = addMesh(scene, b, blockers);
+  void m;
+  boxes.push(new THREE.Box3(new THREE.Vector3(fx - 0.05, 0, Z - 1.1), new THREE.Vector3(WX, 2.6, Z + 1.1)));
+
+  // glowing screen
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 384;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const draw = (lines: string[]) => {
+    const g = canvas.getContext('2d')!;
+    g.fillStyle = '#04120b';
+    g.fillRect(0, 0, 512, 384);
+    g.strokeStyle = '#44ff88';
+    g.lineWidth = 6;
+    g.strokeRect(8, 8, 496, 368);
+    g.fillStyle = '#44ff88';
+    g.font = 'bold 54px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('ARMORY', 256, 76);
+    g.fillRect(36, 96, 440, 3);
+    g.textAlign = 'left';
+    g.font = 'bold 36px system-ui, sans-serif';
+    lines.forEach((l, i) => {
+      g.fillStyle = l.includes('EMPTY') ? '#ff8a6a' : '#e6fff0';
+      g.fillText(`${i + 1}  ${l}`, 40, 160 + i * 62);
+    });
+    g.font = '24px system-ui, sans-serif';
+    g.fillStyle = '#7ad9a0';
+    g.textAlign = 'center';
+    g.fillText('press E to equip', 256, 352);
+    tex.needsUpdate = true;
+  };
+  draw(['SIDEARM: ...', 'RIFLE: ...', 'HEAVY: ...']);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.1), new THREE.MeshBasicMaterial({ map: tex }));
+  screen.position.set(fx - 0.115, 1.75, Z);
+  screen.rotation.y = -Math.PI / 2;
+  scene.add(screen);
+  const sign = makeSign('ARMORY', 1.9, 0.5);
+  sign.position.set(fx - 0.04, 2.38, Z);
+  sign.rotation.y = -Math.PI / 2;
+  scene.add(sign);
+  const glow = new THREE.PointLight(0x66ffaa, 14, 7, 2);
+  glow.position.set(fx - 0.9, 1.8, Z);
+  scene.add(glow);
+  return draw;
+}

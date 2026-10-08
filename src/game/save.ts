@@ -1,21 +1,24 @@
 import { weapons } from './core';
+import { sanitizeLoadout } from './loadout';
 import { S, START_CASH } from './state';
 
 // Saved progress (browser localStorage).
 // Only the long-term progress is stored: the level the player is on, his money, and his weapons with their ammo.
 // (Health, potions, score and the arena itself start fresh every visit.)
 // If you change the save shape, bump `v` and handle the old version in loadProgress().
-export const SAVE_KEY = 'botshooter.save.v1';
+export const SAVE_KEY = 'botshooter.save.v1'; // the key keeps its name; the data inside carries its own version
 interface SaveData {
-  v: 1;
+  v: 1 | 2; // 2 added the loadout
   level: number;
   cash: number;
+  loadout?: { side?: string | null; rifle?: string | null; heavy?: string | null };
   weapons: { id: string; owned: boolean; ammo: number; spare: number[] }[];
 }
 const snapshot = (): SaveData => ({
-  v: 1,
+  v: 2,
   level: S.level,
   cash: Math.round(S.cash),
+  loadout: { ...S.loadout },
   weapons: weapons.map((w) => ({ id: w.stats.id, owned: w.owned, ammo: w.ammo, spare: [...w.spare] })),
 });
 let lastSaved = '';
@@ -43,7 +46,7 @@ export function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const d = JSON.parse(raw) as Partial<SaveData>;
-    if (d.v !== 1) return;
+    if (d.v !== 1 && d.v !== 2) return;
     const int = (n: unknown, min: number, max: number, fallback: number) =>
       typeof n === 'number' && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.floor(n))) : fallback;
     S.level = int(d.level, 1, 999, 1);
@@ -57,6 +60,13 @@ export function loadProgress() {
       w.ammo = int(sw.ammo, 0, s.magSize, s.magSize);
       if (Array.isArray(sw.spare)) w.spare = sw.spare.slice(0, s.maxMags).map((n) => int(n, 0, s.magSize, 0));
     }
+    if (d.loadout && typeof d.loadout === 'object') {
+      const l = d.loadout;
+      S.loadout.side = typeof l.side === 'string' ? l.side : null;
+      S.loadout.rifle = typeof l.rifle === 'string' ? l.rifle : null;
+      S.loadout.heavy = typeof l.heavy === 'string' ? l.heavy : null;
+    }
+    sanitizeLoadout(); // only owned weapons in the right slots (also fills the heavy slot for an old save that owns the shotgun)
     lastSaved = JSON.stringify(snapshot());
   } catch {
     /* corrupt save: start fresh */

@@ -3,6 +3,7 @@ import { WOLF_INFO } from '../entities/wolf';
 import { WEAPONS } from '../weapons/weapons';
 import { $ } from './core';
 import { overlay } from './hud';
+import { SLOTS, SLOT_NAMES, SLOT_OPTIONS } from './loadout';
 
 // Rules window (tables are generated from the real game data).
 const WEAPON_NOTES: Record<string, string> = {
@@ -15,14 +16,18 @@ const WEAPON_NOTES: Record<string, string> = {
   launcher: 'Bouncing grenades, big blast and knockback (hurts you too), 3 per drum',
   knife: `Melee, ${WEAPONS.find((w) => w.id === 'knife')?.range} m reach, silent`,
 };
+const slotLabel = (id: string) => {
+  const slot = SLOTS.find((k) => SLOT_OPTIONS[k].includes(id));
+  return slot ? SLOT_NAMES[slot] : 'MELEE';
+};
 $('weaponTable').innerHTML =
   '<tr><th>Weapon</th><th>Damage</th><th>Magazine</th><th>Mag price</th><th>Unlock</th><th>Notes</th></tr>' +
-  WEAPONS.map((s, i) => {
+  WEAPONS.map((s) => {
     const dmg = s.pellets > 1 ? `${s.damage} × ${s.pellets}` : `${s.damage}`;
     const unlock = s.unlockPrice ? `<b class="gold">$${s.unlockPrice}</b> at the weapon shop` : 'owned';
     const mag = s.melee ? '—' : `${s.magSize}`;
     const price = s.melee ? '—' : `$${s.magPrice}`;
-    return `<tr><td>${i + 1}. ${s.name}</td><td>${dmg}</td><td>${mag}</td><td>${price}</td><td>${unlock}</td><td>${WEAPON_NOTES[s.id] ?? ''}</td></tr>`;
+    return `<tr><td>${slotLabel(s.id)} · ${s.name}</td><td>${dmg}</td><td>${mag}</td><td>${price}</td><td>${unlock}</td><td>${WEAPON_NOTES[s.id] ?? ''}</td></tr>`;
   }).join('');
 $('botTable').innerHTML =
   '<tr><th>Target</th><th>Points</th><th>Health</th><th>Behaviour</th></tr>' +

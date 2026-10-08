@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { initAudio, stopRifleLoop, stopReloadSound, setMuted, isMuted } from '../audio/audio';
 import { $, camera, renderer, weapons } from './core';
-import { beginReload, cycleWeapon, switchWeapon } from './combat';
+import { beginReload, cycleWeapon, switchSlot } from './combat';
 import { resumeHint, overlay, showBanner, updateSummary } from './hud';
 import { usePotion } from './player';
 import { rules, closeRules } from './rules';
@@ -82,14 +82,10 @@ addEventListener('keydown', (e) => {
       return;
     }
   }
-  if (e.code === 'Digit1') switchWeapon(0);
-  if (e.code === 'Digit2') switchWeapon(1);
-  if (e.code === 'Digit3') switchWeapon(2);
-  if (e.code === 'Digit4') switchWeapon(3);
-  if (e.code === 'Digit5') switchWeapon(4);
-  if (e.code === 'Digit6') switchWeapon(5);
-  if (e.code === 'Digit7') switchWeapon(6);
-  if (e.code === 'Digit8') switchWeapon(7);
+  if (e.code === 'Digit1') switchSlot(0);
+  if (e.code === 'Digit2') switchSlot(1);
+  if (e.code === 'Digit3') switchSlot(2);
+  if (e.code === 'Digit4') switchSlot(3);
   if (e.code === 'KeyR') beginReload(weapons[S.current]);
   if (e.code === 'KeyH' && !e.repeat) usePotion();
   if (e.code === 'KeyQ') cycleWeapon(1);

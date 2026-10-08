@@ -1,6 +1,7 @@
 import { stopRifleLoop, stopReloadSound } from '../audio/audio';
 import { START, pos, vel, weapons } from './core';
-import { switchWeapon } from './combat';
+import { switchSlot } from './combat';
+import { sanitizeLoadout } from './loadout';
 import { resetFlow } from './flow';
 import { clearProjectiles } from './projectiles';
 import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH } from './state';
@@ -15,10 +16,14 @@ export function resetGame(fresh = false) {
     S.cash = START_CASH;
     S.level = 1;
     for (const w of weapons) w.refill();
+    S.loadout.side = 'pistol';
+    S.loadout.rifle = 'rifle';
+    S.loadout.heavy = null;
   }
+  sanitizeLoadout();
   stopRifleLoop();
   stopReloadSound();
-  if (S.current !== 0) switchWeapon(0);
+  switchSlot(0); // back to the sidearm
   weapons.forEach((w) => ((w.cooldown = 0), (w.bloom = 0), (w.burst = 0), (w.reloadLeft = 0)));
   S.equipLeft = 0;
   S.aiming = false;

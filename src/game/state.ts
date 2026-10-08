@@ -58,6 +58,8 @@ export const S = {
   started: false,
 
   // weapons
+  /** What is carried into the arena (one per slot; null = nothing owned for that slot yet). Chosen at the armory terminal. */
+  loadout: { side: 'pistol', rifle: 'rifle', heavy: null } as { side: string | null; rifle: string | null; heavy: string | null },
   current: 0,
   equipLeft: 0,
   kick: 0, // viewmodel kickback

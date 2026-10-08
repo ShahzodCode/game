@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8d939c"/><stop offset=".5" stop-color="#4f545b"/><stop offset="1" stop-color="#34373c"/></linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#44484f"/><stop offset="1" stop-color="#1f2125"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8683a"/><stop offset=".55" stop-color="#7d4824"/><stop offset="1" stop-color="#5e3419"/></linearGradient>
+  </defs>
+  <g transform="translate(0 12)">
+    <rect x="14" y="40" width="88" height="22" rx="5" fill="url(#steel)" stroke="#202225" stroke-width="2.5"/>
+    <rect x="18" y="44" width="40" height="5" rx="2" fill="#1b1d20"/>
+    <rect x="96" y="44" width="10" height="14" rx="2" fill="url(#dark)" stroke="#121315" stroke-width="2"/>
+    <path d="M18 62 H78 V70 H46 V80 H18 Z" fill="url(#dark)" stroke="#121315" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M60 62 L84 62 L92 104 Q92 110 86 110 H74 Q68 110 66 104 Z" fill="url(#wood)" stroke="#3e2210" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M44 66 V74 Q44 80 50 80 H56 Q60 80 60 74 V66" fill="none" stroke="#202225" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

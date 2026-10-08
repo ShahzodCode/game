@@ -5,6 +5,8 @@ export const SHOP_IMAGES = {
   shotgun: '/images/shop/shotgun.svg',
   shotgunShells: '/images/shop/shotgun-shells.svg',
   potion: '/images/shop/health-potion.svg',
+  pistol: '/images/shop/pistol.svg',
+  rifle: '/images/shop/rifle.svg',
   smg: '/images/shop/smg.svg',
   smgMagazine: '/images/shop/smg-magazine.svg',
   sniper: '/images/shop/sniper.svg',
@@ -44,3 +46,17 @@ export const POTION = {
   heal: 50, // health restored per potion
   max: 3, // most potions that can be carried
 };
+
+/** A picture of the gun itself (the armory terminal shows these). */
+export function gunImage(weaponId: string): string {
+  switch (weaponId) {
+    case 'pistol': return SHOP_IMAGES.pistol;
+    case 'rifle': return SHOP_IMAGES.rifle;
+    case 'shotgun': return SHOP_IMAGES.shotgun;
+    case 'smg': return SHOP_IMAGES.smg;
+    case 'sniper': return SHOP_IMAGES.sniper;
+    case 'crossbow': return SHOP_IMAGES.crossbow;
+    case 'launcher': return SHOP_IMAGES.launcher;
+    default: return SHOP_IMAGES.pistol;
+  }
+}
