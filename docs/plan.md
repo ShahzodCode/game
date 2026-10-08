@@ -16,7 +16,7 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 
 ## Known caveats
 - Nothing has been hand-played by the author. It was checked with simulated tests and screenshots, so gameplay feel (balance, difficulty) is untested.
-- The pause menu button `+$100000 (test)` (`#btnCash` in index.html + its handler in src/main.ts) is TEST ONLY. Delete it before release.
+- The pause menu button `+$100000 (test)` (`#btnCash` in index.html + its handler in src/game/input.ts) is TEST ONLY. Delete it before release.
 - Esc-to-resume relies on Chromium fullscreen/keyboard lock.
 - Save is per browser and origin.
 
