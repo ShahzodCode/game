@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="liquid" cx=".38" cy=".32" r=".8">
+      <stop offset="0" stop-color="#ff8f8f"/><stop offset=".55" stop-color="#e02b3a"/><stop offset="1" stop-color="#8f1020"/>
+    </radialGradient>
+    <linearGradient id="cork" x1="0" x2="1">
+      <stop offset="0" stop-color="#8a5a31"/><stop offset=".5" stop-color="#c58d55"/><stop offset="1" stop-color="#7a4d27"/>
+    </linearGradient>
+    <clipPath id="bulb"><circle cx="64" cy="82" r="36"/></clipPath>
+  </defs>
+  <!-- glass neck + bulb -->
+  <path d="M54 30 V52 C 36 58 28 70 28 82 C 28 104 44 118 64 118 C 84 118 100 104 100 82 C 100 70 92 58 74 52 V30 Z" fill="#cfe9f5" fill-opacity=".35" stroke="#e8f6ff" stroke-width="3" stroke-linejoin="round"/>
+  <!-- liquid -->
+  <g clip-path="url(#bulb)">
+    <rect x="28" y="62" width="72" height="60" fill="url(#liquid)"/>
+    <path d="M28 66 Q46 58 64 66 T100 64 V60 H28 Z" fill="#ff7a86" opacity=".55"/>
+  </g>
+  <path d="M54 52 V58 H74 V52" fill="#e02b3a" opacity=".85"/>
+  <!-- cross -->
+  <path d="M58 76 H70 V86 H80 V98 H70 V108 H58 V98 H48 V86 H58 Z" fill="#fff" fill-opacity=".9" transform="translate(0 -6) scale(1 .9) translate(0 8)"/>
+  <!-- cork -->
+  <rect x="51" y="14" width="26" height="18" rx="4" fill="url(#cork)" stroke="#4b2d14" stroke-width="2.5"/>
+  <!-- glass highlight -->
+  <path d="M40 76 C 40 68 46 62 54 60" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="4" stroke-linecap="round"/>
+</svg>

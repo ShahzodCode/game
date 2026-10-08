@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bot Shooter</title>
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div id="crosshair"></div>
+  <div id="hitmarker">&#10005;</div>
+  <div id="score"><div id="scoreValue">Score 0</div><div id="kills">Kills 0</div><div id="accuracy">Accuracy --</div><div id="cash">$0</div></div>
+  <div id="missions"></div>
+  <div id="banner"></div>
+  <div id="nametag"></div>  <div id="shopHint" class="shopbox"></div>
+  <div id="shopWindow" class="shopbox"></div>
+  <div id="popup"></div>
+  <div id="hud"><div id="weapon"></div><div id="ammo"></div></div>
+  <div id="potions"><img src="/images/shop/health-potion.svg" alt="" /><span id="potionText"></span></div>
+  <div id="health"><div id="healthBar"><div id="healthFill"></div></div><span id="healthText">100</span></div>
+  <div id="hurt"></div>
+  <div id="resumeHint">Click or press any key to continue</div>
+
+  <div id="overlay" class="screen">
+    <button id="btnMute" class="secondary" title="Mute / unmute sound" aria-label="Mute sound">
+      <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><g class="waves"><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a8 8 0 0 1 0 11"/></g><path class="slash" d="M16 9l5 6M21 9l-5 6"/></svg>
+    </button>
+    <h1 id="title">Bot Shooter</h1>
+    <div id="summary"></div>
+    <div class="menu">
+      <button id="btnResume">Play</button>
+      <button id="btnReload" class="secondary">Reload map</button>
+      <button id="btnRules" class="secondary">Rules</button>
+      <button id="btnNew" class="secondary" title="Erase your saved progress and start from level 1">New game</button>
+      <button id="btnCash" class="secondary">+$100000 (test)</button>
+    </div>
+  </div>
+
+  <div id="rules" class="screen rules">
+    <div class="card">
+      <h2>Rules</h2>
+
+      <h3>Controls</h3>
+      <div class="keys">
+        <span>W A S D</span><span>Move</span>
+        <span>Mouse</span><span>Look around / left button shoots</span>
+        <span>Space</span><span>Jump</span>
+        <span>Ctrl (hold)</span><span>Run faster</span>
+        <span>Shift (hold)</span><span>Crouch: slower, lower, smaller target</span>
+        <span>1 / 2 / 3 / 4</span><span>Pistol / Rifle / Shotgun (must be bought at the shop first) / Knife</span>
+        <span>Q or mouse wheel</span><span>Next weapon you own</span>
+        <span>R</span><span>Reload</span>
+        <span>H</span><span>Drink a health potion</span>
+        <span>E</span><span>Open the shop when you stand in its green circle</span>
+        <span>Esc</span><span>Close the shop, then pause. Esc again in the pause menu resumes (the game goes fullscreen on first play so Esc works this way; if your browser doesn't support that, click Resume)</span>
+      </div>
+
+      <h3>How it works</h3>
+      <ul>
+        <li><b>The game is played in levels.</b> You start in a safe room. Walk through the open gate into the candle-lit airlock: the doors seal behind you while the level loads, then the far doors open onto the arena. Every level has <b>5 missions</b>, getting harder one by one; the first is always a score target. Finish any <b>3</b> to complete the level: a bright light appears around the gate and carries you back to safety, ready for the next, harder level. You may stay and finish the other missions first.</li>
+        <li>Tougher bots have more health and are worth more points. A health bar shows over a bot you've hurt and disappears if you leave it alone for 30 seconds. Killed bots respawn somewhere else.</li>
+        <li>You have <b>100 health</b> (bar at the bottom left). <b>It does not heal by itself:</b> buy <b>health potions</b> at the shop (carry up to 3) and press <kbd>H</kbd> to drink one. At zero health you die; use <b>Play again</b> in the menu.</li>
+        <li>Most bots are harmless, but not all. <b>Cowboys</b> shoot back once you shoot one (and so do cowboys near him): get behind cover, they need a clear line of sight. <b>Criminals</b> usually patrol near the outer walls and attack with a knife as soon as you come close; they give up if you get far enough away. <b>Ninjas</b> appear from level 7 and attack on sight: very fast, with quick and lethal strikes, but they have little health. <b>Sporty</b> and <b>Superman</b> bots walk faster than the others. Level 1 has no criminals or wolves; they start appearing from level 2.</li>
+        <li>The <b>knife</b> is always in your pack: no ammo, short reach, silent. Great for finishing bots, risky against anything that bites or shoots.</li>
+        <li><b>Wolves</b> are rare and calm until you shoot one. Then it hunts you and bites, and wolves close to it join in. They run faster than you walk, so sprint (Ctrl), break line of sight, or kill them: they lose interest if you get far enough away.</li>
+        <li>Shooting and killing give <b>score</b>: 10 for every landed shot, the target's own points for a kill, and +50 for a headshot kill. They do <b>not</b> give money. <b class="gold">Money only comes from completing missions</b>, and the later missions pay more. Aim the crosshair at a character to see its name tag.</li>
+        <li>Ammo comes in magazines. You carry up to <b>6 spare magazines</b> per weapon. Reloading swaps in your fullest spare magazine, and the old one stays in your pack, so half-empty magazines aren't wasted.</li>
+        <li>There are two shops. The <b>weapon shop</b> in the safe room sells guns (for now the shotgun, with one spare magazine). The <b>supply shop</b> beside the arena gate sells magazines for the guns you own and health potions. Step into a shop's green circle, press <kbd>E</kbd>, then press the number shown on an item to buy it.</li>
+        <li>The rifle's recoil builds the longer you hold fire, so shoot in bursts. The shotgun fires 8 pellets: devastating up close, nearly useless at range.</li>
+        <li><b>Your progress is saved automatically</b> in your browser: the level you are on, your money, your weapons and their ammo. Updating or reloading the game doesn't lose it. <b>Reload map</b> (and <b>Play again</b> after dying) takes you back to the safe room with that progress kept and a fresh arena. <b>New game</b> erases the save and starts again from level 1.</li>
+      </ul>
+
+      <h3>Weapons</h3>
+      <div class="scroll"><table id="weaponTable"></table></div>
+
+      <h3>Bots</h3>
+      <div class="scroll"><table id="botTable"></table></div>
+
+      <button id="btnBack" class="back secondary">Back</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

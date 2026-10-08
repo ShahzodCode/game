@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8d939c"/><stop offset=".5" stop-color="#4f545b"/><stop offset="1" stop-color="#34373c"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a8683a"/><stop offset=".55" stop-color="#7d4824"/><stop offset="1" stop-color="#5e3419"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#44484f"/><stop offset="1" stop-color="#1f2125"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(0 6)">
+    <!-- stock -->
+    <path d="M100 50 L122 62 C124 70 121 86 117 94 L100 78 Z" fill="url(#wood)" stroke="#3e2210" stroke-width="2" stroke-linejoin="round"/>
+    <!-- barrel + magazine tube -->
+    <rect x="8" y="50" width="76" height="8" rx="4" fill="url(#steel)" stroke="#202225" stroke-width="2"/>
+    <rect x="16" y="60" width="64" height="7" rx="3.5" fill="url(#steel)" stroke="#202225" stroke-width="2"/>
+    <circle cx="10" cy="48.5" r="2.6" fill="#d9a73c"/>
+    <!-- pump forend -->
+    <rect x="34" y="58" width="30" height="14" rx="6" fill="url(#wood)" stroke="#3e2210" stroke-width="2"/>
+    <g stroke="#3e2210" stroke-width="1.6" stroke-linecap="round">
+      <line x1="41" y1="62" x2="41" y2="68"/><line x1="46" y1="62" x2="46" y2="68"/><line x1="51" y1="62" x2="51" y2="68"/><line x1="56" y1="62" x2="56" y2="68"/>
+    </g>
+    <!-- receiver -->
+    <path d="M78 46 H106 Q110 46 110 50 V72 Q110 76 106 76 H82 Q78 76 78 72 Z" fill="url(#dark)" stroke="#121315" stroke-width="2"/>
+    <rect x="86" y="52" width="14" height="6" rx="2" fill="#0f1012"/>
+    <!-- trigger guard + trigger -->
+    <path d="M84 76 V84 Q84 90 90 90 H98 Q102 90 102 84 V76" fill="none" stroke="#202225" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M92 76 V83" stroke="#9aa0a9" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

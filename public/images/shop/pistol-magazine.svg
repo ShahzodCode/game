@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="steel" x1="0" x2="1">
+      <stop offset="0" stop-color="#4c5057"/><stop offset=".45" stop-color="#8d939c"/><stop offset="1" stop-color="#43474e"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" x2="1">
+      <stop offset="0" stop-color="#b8892f"/><stop offset=".5" stop-color="#f4d67d"/><stop offset="1" stop-color="#a97a28"/>
+    </linearGradient>
+    <linearGradient id="copper" x1="0" x2="1">
+      <stop offset="0" stop-color="#8f4f22"/><stop offset=".5" stop-color="#d98a4e"/><stop offset="1" stop-color="#7e441d"/>
+    </linearGradient>
+  </defs>
+  <!-- two rounds peeking out of the feed lips -->
+  <g>
+    <rect x="46" y="22" width="15" height="20" rx="6" fill="url(#copper)"/>
+    <rect x="46" y="32" width="15" height="10" fill="url(#brass)"/>
+    <rect x="66" y="16" width="15" height="24" rx="6" fill="url(#copper)"/>
+    <rect x="66" y="30" width="15" height="10" fill="url(#brass)"/>
+  </g>
+  <!-- magazine body -->
+  <path d="M41 36 H88 L92 114 H37 Z" fill="url(#steel)" stroke="#272a2e" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="38" y="31" width="52" height="9" rx="3" fill="#33363c" stroke="#1f2125" stroke-width="2"/>
+  <!-- ammo-count windows -->
+  <g fill="#1d1f23">
+    <rect x="60" y="52" width="9" height="6" rx="1.5"/><rect x="60" y="64" width="9" height="6" rx="1.5"/>
+    <rect x="60" y="76" width="9" height="6" rx="1.5"/><rect x="60" y="88" width="9" height="6" rx="1.5"/>
+  </g>
+  <g fill="#e8c35f">
+    <rect x="62" y="53.5" width="5" height="3" rx="1"/><rect x="62" y="65.5" width="5" height="3" rx="1"/>
+    <rect x="62" y="77.5" width="5" height="3" rx="1"/>
+  </g>
+  <!-- base plate -->
+  <rect x="31" y="111" width="66" height="12" rx="3" fill="#2a2d32" stroke="#17181b" stroke-width="2"/>
+  <rect x="35" y="114" width="58" height="2.5" rx="1" fill="#5a5f67"/>
+</svg>

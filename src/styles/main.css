@@ -1,0 +1,99 @@
+/* ---------- base ---------- */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: system-ui, sans-serif; }
+canvas { display: block; }
+button { font: inherit; font-size: 18px; font-weight: 600; padding: 12px 28px; border: 0; border-radius: 6px; background: #3fa35a; color: #fff; cursor: pointer; }
+button:hover { filter: brightness(1.15); }
+button.secondary { background: #4a4e57; }
+
+/* ---------- in-game HUD ---------- */
+#crosshair { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #fff; border-radius: 50%; box-shadow: 0 0 3px #000; pointer-events: none; }
+#hitmarker { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 28px; color: #fff; opacity: 0; pointer-events: none; text-shadow: 0 0 3px #000; }
+#hud { position: fixed; right: 24px; bottom: 20px; text-align: right; color: #fff; text-shadow: 0 1px 4px #000; pointer-events: none; }
+#weapon { font-size: 18px; opacity: .85; }
+#ammo { font-size: 36px; font-weight: 700; }
+#ammo small { font-size: 18px; font-weight: 500; opacity: .85; }
+#score { position: fixed; left: 24px; top: 20px; color: #fff; text-shadow: 0 1px 4px #000; pointer-events: none; line-height: 1.4; }
+#scoreValue { font-size: 30px; font-weight: 700; }
+#kills { font-size: 20px; }
+#accuracy { font-size: 15px; opacity: .8; }
+#cash { margin-top: 4px; font-size: 24px; font-weight: 700; color: #7dff9b; }
+#popup { z-index: 6; position: fixed; left: 50%; top: 22%; transform: translateX(-50%); color: #ffd84a; font-size: 26px; font-weight: 700; text-shadow: 0 2px 6px #000; opacity: 0; pointer-events: none; white-space: nowrap; }
+
+/* missions panel, level banner, name tag, loading */
+#missions { position: fixed; right: 20px; top: 18px; width: 300px; background: rgba(8,12,18,.62); border: 1px solid rgba(255,255,255,.22); border-radius: 8px; padding: 10px 14px 8px; color: #fff; text-shadow: 0 1px 3px #000; pointer-events: none; display: none; font-size: 14px; line-height: 1.35; }
+#missions h4 { margin: 0 0 2px; font-size: 15px; letter-spacing: .5px; }
+#missions .sub { opacity: .75; font-size: 12px; margin-bottom: 6px; }
+#missions .m { display: grid; grid-template-columns: 20px 1fr auto; gap: 0 6px; padding: 3px 0; border-top: 1px solid rgba(255,255,255,.1); }
+#missions .m .n { opacity: .6; }
+#missions .m .p { opacity: .8; font-variant-numeric: tabular-nums; }
+#missions .m .r { grid-column: 2 / 4; color: #7dff9b; font-size: 12px; }
+#missions .m.done { opacity: .55; }
+#missions .m.done .t { text-decoration: line-through; }
+#missions .m.done .n { color: #7dff9b; opacity: 1; }
+#missions .m.bonus .n::after { content: '*'; color: #ffd84a; }
+#banner { position: fixed; left: 50%; top: 14%; transform: translateX(-50%); z-index: 7; color: #fff; text-align: center; font-size: 30px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 3px 10px #000; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .35s; }
+#banner small { display: block; font-size: 16px; font-weight: 500; opacity: .85; letter-spacing: 0; margin-top: 4px; }
+#nametag { position: fixed; left: 50%; top: calc(50% + 26px); transform: translateX(-50%); color: #fff; font-size: 16px; font-weight: 700; text-shadow: 0 1px 4px #000, 0 0 2px #000; opacity: 0; pointer-events: none; white-space: nowrap; background: rgba(0,0,0,.35); padding: 2px 10px; border-radius: 6px; }
+#nametag.hostile { color: #ff7a5a; }
+#nametag small { font-weight: 500; opacity: .8; margin-left: 6px; }
+
+/* player health, potions, damage flash */
+#health { position: fixed; left: 24px; bottom: 22px; display: flex; align-items: center; gap: 10px; color: #fff; text-shadow: 0 1px 4px #000; pointer-events: none; font-weight: 700; }
+#healthBar { width: 220px; height: 16px; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.6); border-radius: 4px; overflow: hidden; }
+#healthFill { height: 100%; width: 100%; background: #44dd55; transition: width .15s; }
+#healthText { font-size: 22px; min-width: 40px; }
+#potions { position: fixed; left: 24px; bottom: 56px; display: flex; align-items: center; gap: 6px; color: #fff; text-shadow: 0 1px 4px #000; pointer-events: none; font-weight: 700; }
+#potions img { width: 30px; height: 30px; }
+#potions kbd { background: rgba(255,255,255,.85); color: #111; font-size: 12px; padding: 0 6px; border-radius: 4px; text-shadow: none; }
+#hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(180,0,0,0) 45%, rgba(200,0,0,.75) 100%); }
+#resumeHint { position: fixed; left: 50%; top: 60%; transform: translateX(-50%); display: none; color: #fff; background: rgba(0,0,0,.6); padding: 10px 22px; border-radius: 8px; font-size: 18px; text-shadow: 0 1px 4px #000; pointer-events: none; }
+
+/* ---------- ammo shop: hint near the kiosk, and the window opened with E ---------- */
+.shopbox { z-index: 5; position: fixed; left: 50%; transform: translateX(-50%); display: none; background: rgba(15,25,35,.92); border: 2px solid #44ff88; border-radius: 8px; padding: 12px 20px; color: #fff; text-align: center; line-height: 1.8; pointer-events: none; white-space: nowrap; }
+#shopHint { bottom: 90px; }
+#shopWindow { top: 50%; transform: translate(-50%, -50%); padding: 18px 22px; width: min(600px, 92vw); box-sizing: border-box; white-space: normal; max-height: 92vh; overflow: auto; }
+.shopbox h3 { margin: 0 0 4px; color: #44ff88; font-size: 18px; letter-spacing: 1px; }
+.shopbox .cashline { margin-bottom: 10px; color: #7dff9b; font-weight: 700; }
+.shopbox .foot { margin-top: 12px; opacity: .7; font-size: 14px; }
+.shopbox kbd, .rules kbd { background: #44ff88; color: #0d1a12; font-weight: 700; padding: 1px 8px; border-radius: 4px; margin-right: 8px; }
+.shopgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.shopitem { position: relative; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 12px 8px 10px; line-height: 1.35; }
+.shopitem.off { opacity: .45; }
+.shopitem kbd { position: absolute; top: 6px; left: 6px; margin: 0; }
+.shopitem img { width: 84px; height: 84px; object-fit: contain; display: block; margin: 4px auto 6px; }
+.shopitem .name { font-weight: 700; font-size: 15px; }
+.shopitem .price { color: #ffd84a; font-weight: 700; margin: 2px 0; }
+.shopitem .sub { font-size: 12px; opacity: .75; }
+
+/* ---------- pause menu + rules ---------- */
+.screen { position: fixed; inset: 0; background: rgba(0,0,0,.7); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1.7; }
+#overlay h1 { margin: 0 0 8px; font-size: 40px; }
+#summary { font-size: 18px; margin-bottom: 24px; min-height: 1.5em; opacity: .9; }
+.menu { display: flex; flex-direction: column; gap: 12px; width: 240px; }
+#btnMute { position: absolute; top: 18px; right: 18px; width: 48px; height: 48px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+#btnMute svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#btnMute .slash { display: none; }
+#btnMute.muted .waves { display: none; }
+#btnMute.muted .slash { display: block; stroke: #ff6a6a; }
+
+#rules { display: none; background: rgba(0,0,0,.8); }
+.card { background: #151b24; border-radius: 10px; padding: 22px 28px; width: min(760px, 92vw); max-height: 88vh; overflow-y: auto; text-align: left; box-sizing: border-box; }
+.card h2 { margin: 0 0 12px; text-align: center; font-size: 28px; }
+.card h3 { margin: 18px 0 6px; color: #7dff9b; font-size: 16px; letter-spacing: .5px; text-transform: uppercase; }
+.card ul { margin: 0; padding-left: 20px; }
+.card li { margin: 3px 0; }
+.card table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.card th, .card td { padding: 3px 10px 3px 0; text-align: left; }
+.card th { opacity: .6; font-weight: 600; }
+.card b.gold { color: #ffd84a; }
+.card .back { display: block; margin: 20px auto 0; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 3px 16px; font-size: 15px; }
+.keys span:nth-child(odd) { color: #ffd84a; font-weight: 600; }
+.scroll { overflow-x: auto; }
+
+@media (max-width: 600px) {
+  .card { padding: 16px; }
+  .card table { font-size: 12px; }
+  .card th, .card td { padding-right: 6px; }
+  .keys { font-size: 13px; gap: 3px 10px; }
+}

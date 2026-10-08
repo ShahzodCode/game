@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="steel" x1="0" x2="1">
+      <stop offset="0" stop-color="#3e4248"/><stop offset=".5" stop-color="#6d737c"/><stop offset="1" stop-color="#35383d"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" x2="1">
+      <stop offset="0" stop-color="#b8892f"/><stop offset=".5" stop-color="#f4d67d"/><stop offset="1" stop-color="#a97a28"/>
+    </linearGradient>
+    <linearGradient id="copper" x1="0" x2="1">
+      <stop offset="0" stop-color="#8f4f22"/><stop offset=".5" stop-color="#d98a4e"/><stop offset="1" stop-color="#7e441d"/>
+    </linearGradient>
+  </defs>
+  <!-- rounds at the top, staggered like a real double-stack feed -->
+  <g>
+    <rect x="46" y="12" width="12" height="20" rx="5" fill="url(#copper)"/>
+    <rect x="46" y="24" width="12" height="9" fill="url(#brass)"/>
+    <rect x="62" y="8" width="12" height="22" rx="5" fill="url(#copper)"/>
+    <rect x="62" y="22" width="12" height="9" fill="url(#brass)"/>
+  </g>
+  <!-- curved ("banana") magazine body -->
+  <path d="M40 30 H82 C84 58 92 86 106 112 L66 118 C58 92 48 62 40 30 Z" fill="url(#steel)" stroke="#1f2125" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="38" y="26" width="46" height="9" rx="3" fill="#2d3035" stroke="#1a1b1e" stroke-width="2"/>
+  <!-- ribs following the curve -->
+  <g fill="none" stroke="#25272b" stroke-width="2" stroke-linecap="round">
+    <path d="M45 50 C 56 52 70 52 82 50"/>
+    <path d="M50 66 C 62 70 76 70 87 66"/>
+    <path d="M56 82 C 68 87 82 87 94 82"/>
+    <path d="M63 98 C 75 103 88 102 100 97"/>
+  </g>
+  <path d="M46 32 C 52 60 60 88 68 112" fill="none" stroke="#9aa0a9" stroke-width="2" opacity=".5" stroke-linecap="round"/>
+  <!-- base plate -->
+  <path d="M64 114 L108 108 L110 120 L66 125 Z" fill="#26292d" stroke="#141517" stroke-width="2" stroke-linejoin="round"/>
+</svg>
