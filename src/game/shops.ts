@@ -17,6 +17,13 @@ interface ShopDef {
   cards: () => ShopCard[];
   buy: (i: number) => void;
 }
+/** What the supply shop sells for a weapon, and how it describes one magazine. */
+const AMMO_NAMES: Record<string, string> = {
+  shotgun: 'Shotgun shells', crossbow: 'Crossbow bolt', launcher: 'Grenade drum', sniper: 'Sniper magazine',
+};
+const ammoName = (s: { id: string; name: string }) => AMMO_NAMES[s.id] ?? `${s.name} magazine`;
+const rounds = (s: { magSize: number; ammoLabel?: string }) =>
+  s.ammoLabel === 'bolts' ? (s.magSize === 1 ? '1 bolt' : `${s.magSize} bolts`) : s.ammoLabel === 'grenades' ? `${s.magSize} grenades` : `${s.magSize} rounds`;
 const shopHint = $('shopHint');
 const shopWindow = $('shopWindow');
 
@@ -33,8 +40,8 @@ const shops: ShopDef[] = [
       lockedGuns().map((i) => {
         const w = weapons[i];
         const s = w.stats;
-        if (w.owned) return { image: weaponShopImage(s.id, false), name: s.name, price: 'OWNED', sub: 'Buy shells at the supply shop by the arena gate', off: true };
-        return { image: weaponShopImage(s.id, false), name: s.name, price: `$${s.unlockPrice}`, sub: `Includes ${s.magSize} rounds + 1 spare magazine`, off: S.cash < s.unlockPrice };
+        if (w.owned) return { image: weaponShopImage(s.id, false), name: s.name, price: 'OWNED', sub: 'Buy ammo at the supply shop by the arena gate', off: true };
+        return { image: weaponShopImage(s.id, false), name: s.name, price: `$${s.unlockPrice}`, sub: `Includes ${rounds(s)} + 1 spare`, off: S.cash < s.unlockPrice };
       }),
     buy: (n) => {
       const i = lockedGuns()[n];
@@ -59,9 +66,9 @@ const shops: ShopDef[] = [
         const full = !w.canBuyMag;
         return {
           image: weaponShopImage(s.id, true),
-          name: s.id === 'shotgun' ? 'Shotgun shells' : `${s.name} magazine`,
+          name: ammoName(s),
           price: full ? 'FULL' : `$${s.magPrice}`,
-          sub: `${s.magSize} rounds · carrying ${w.spare.length}/${s.maxMags}`,
+          sub: `${rounds(s)} · carrying ${w.spare.length}/${s.maxMags}`,
           off: full || S.cash < s.magPrice,
         };
       });

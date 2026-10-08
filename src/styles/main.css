@@ -7,6 +7,13 @@ button.secondary { background: #4a4e57; }
 
 /* ---------- in-game HUD ---------- */
 #crosshair { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #fff; border-radius: 50%; box-shadow: 0 0 3px #000; pointer-events: none; }
+#scope { position: fixed; inset: 0; opacity: 0; pointer-events: none; transition: opacity .08s;
+  background:
+    linear-gradient(#000, #000) center / 2px 70vh no-repeat,
+    linear-gradient(#000, #000) center / 70vh 2px no-repeat,
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 0, rgba(0,0,0,0) 37vh, rgba(0,0,0,.55) 37.5vh, #000 40vh);
+}
+#scope::after { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #e33; }
 #hitmarker { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 28px; color: #fff; opacity: 0; pointer-events: none; text-shadow: 0 0 3px #000; }
 #hud { position: fixed; right: 24px; bottom: 20px; text-align: right; color: #fff; text-shadow: 0 1px 4px #000; pointer-events: none; }
 #weapon { font-size: 18px; opacity: .85; }

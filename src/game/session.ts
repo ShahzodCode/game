@@ -2,6 +2,7 @@ import { stopRifleLoop, stopReloadSound } from '../audio/audio';
 import { START, pos, vel, weapons } from './core';
 import { switchWeapon } from './combat';
 import { resetFlow } from './flow';
+import { clearProjectiles } from './projectiles';
 import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH } from './state';
 
 /**
@@ -20,6 +21,10 @@ export function resetGame(fresh = false) {
   if (S.current !== 0) switchWeapon(0);
   weapons.forEach((w) => ((w.cooldown = 0), (w.bloom = 0), (w.burst = 0), (w.reloadLeft = 0)));
   S.equipLeft = 0;
+  S.aiming = false;
+  S.adsK = 0;
+  S.slideT = S.slideCd = S.coyote = S.jumpBuf = S.camDy = S.landDip = S.shake = 0;
+  clearProjectiles();
   S.recoilOffset = 0;
   S.roll = 0;
   pos.copy(START);

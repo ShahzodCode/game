@@ -27,6 +27,9 @@ const SPECS: Record<string, ModelSpec> = {
 let envMap: THREE.Texture | null = null;
 const loader = new GLTFLoader();
 
+/** The shared studio reflection map (null until the renderer exists). */
+export const getWeaponEnvironment = () => envMap;
+
 /** Metal looks black without something to reflect: give the weapon materials a soft studio environment. */
 export function initWeaponEnvironment(renderer: THREE.WebGLRenderer) {
   const pmrem = new THREE.PMREMGenerator(renderer);

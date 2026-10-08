@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8d939c"/><stop offset=".5" stop-color="#4f545b"/><stop offset="1" stop-color="#34373c"/></linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#44484f"/><stop offset="1" stop-color="#1f2125"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8683a"/><stop offset=".55" stop-color="#7d4824"/><stop offset="1" stop-color="#5e3419"/></linearGradient>
+    <linearGradient id="brass" x1="0" x2="1"><stop offset="0" stop-color="#b8892f"/><stop offset=".5" stop-color="#f6da86"/><stop offset="1" stop-color="#a97a28"/></linearGradient>
+    <linearGradient id="olive" x1="0" x2="1"><stop offset="0" stop-color="#4a5530"/><stop offset=".5" stop-color="#7a8a4a"/><stop offset="1" stop-color="#434c2a"/></linearGradient>
+  </defs>
+  <g>
+    <path d="M30 14 H74 V100 Q74 108 66 108 H38 Q30 108 30 100 Z" fill="url(#steel)" stroke="#202225" stroke-width="3" stroke-linejoin="round"/>
+    <g stroke="#202225" stroke-width="2.5" opacity=".6"><line x1="34" y1="30" x2="70" y2="30"/><line x1="34" y1="50" x2="70" y2="50"/><line x1="34" y1="70" x2="70" y2="70"/><line x1="34" y1="90" x2="70" y2="90"/></g>
+    <rect x="34" y="6" width="36" height="12" rx="3" fill="url(#brass)" stroke="#6b4a14" stroke-width="2.5"/>
+    <rect x="80" y="40" width="16" height="64" rx="4" fill="url(#brass)" stroke="#6b4a14" stroke-width="2.5"/>
+    <rect x="100" y="40" width="16" height="64" rx="4" fill="url(#brass)" stroke="#6b4a14" stroke-width="2.5"/>
+  </g>
+</svg>

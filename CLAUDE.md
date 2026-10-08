@@ -14,8 +14,10 @@ src/
   game/state.ts            tunables + ALL mutable game state in one object `S` (health, cash, phase, level, ...) and `keys`
   game/core.ts             renderer, scene, camera, world, player pos/vel, weapons + viewmodels, tracer/impact effects, `$`
   game/actors.ts           bots + wolves, BotHooks (how bots reach the player), Target type
-  game/player.ts           damagePlayer, usePotion, movePlayer (movement + AABB collision)
-  game/combat.ts           switch/cycle/reload weapons, fire(), knife, applyHit (score, alerts, mission stats)
+  game/player.ts           damagePlayer, usePotion, movePlayer (movement physics: steps, slopes, slide, coyote/jump buffer, fall damage, footsteps)
+  game/combat.ts           switch/cycle/reload weapons, fire() (hitscan, piercing, projectiles, ADS spread, casings), knife, applyHit (score, alerts, mission stats, knockback)
+  game/projectiles.ts      physical bodies: crossbow bolts, bouncing grenades, explosions (blast damage, knockback, shake), shell casings, debris
+  game/physics.ts          player vs bots/wolves collision
   game/flow.ts             levels, missions, gate/phase machine (updateFlow), level build queue, resetFlow
   game/shops.ts            weapon + supply shop definitions, updateShop, buying
   game/hud.ts              HUD elements, popup/banner, per-frame HUD timers, pause-menu summary
@@ -31,6 +33,7 @@ src/
   entities/botModel.ts     procedural detailed human (face, hair, hands, shoes, per-costume outfit/props), LOOKS table
   entities/wolf.ts         wolves: model (jaw, ears, bent legs, tail, fur gradient), calm/chase/bite behaviour
   entities/meshBuilder.ts  merges many small coloured shapes into ONE mesh (vertex colours) = cheap detailed models
+  weapons/procModels.ts    procedural viewmodels (MeshBuilder) for SMG, sniper, crossbow, launcher
   weapons/weapons.ts       WEAPONS stat sheet, Weapon runtime state (magazines, ownership), blocky viewmodels (fallback + knife)
   weapons/models.ts        loads the real .glb viewmodels (pistol/rifle/shotgun) + `makeDisplayGun` for shop walls; cached; SPECS, studio env map for metal
   world/world.ts           heightmap terrain, structures, rocks, supply-shop kiosk, bot spawn helpers, indoor/outdoor lighting
@@ -53,7 +56,10 @@ public/
 
 ## Game design notes
 - Terrain: `world.heightAt(x, z)` (hills/pits in `BUMPS`, rock piles in `PILES`; structures flatten the ground). Arena is 120x120 (`half = 60`); 24 wandering bots, 3 wolves.
-- Controls: WASD, Space jump, Ctrl run, Shift crouch, 1/2/3/4 weapons (pistol, rifle, shotgun[bought], knife), Q/wheel cycle owned weapons, R reload, H drink potion, E shop, Esc pause.
+- Controls: WASD, Space jump (hold = higher), Ctrl run, Shift crouch (Ctrl-run then Shift = slide), right mouse = aim down sights, keys 1-8 weapons (1 pistol, 2 rifle, 3 shotgun[bought], 4 knife, 5 SMG, 6 sniper, 7 crossbow, 8 grenade launcher; all but 1/2/4 are bought), Q/wheel cycle owned weapons, R reload, H drink potion, E shop, Esc pause.
+- New weapons (WEAPONS entries use `...BASE` defaults + optional fields: `adsSpreadMult`, `adsMoveMult`, `scope`, `pierce`, `projectile`, `explosion`, `silent`, `ammoLabel`, `shot`): SMG ($2500, auto 900 rpm, 9 dmg, weak past 14 m, hardly punished for moving); Sniper ($5500, bolt 48 rpm, 95 dmg x3 head, pierces 2 extra targets at 60% each, wild from the hip, scoped = pinpoint but sways and moving ruins it); Crossbow ($3500, silent so nobody panics, 70 dmg x3 head, 78 m/s bolts with gravity 7, 1 bolt per reload, spare "mags" = bolts at $120); Grenade Launcher ($8000, 3-chamber drum, 27 m/s bouncing grenades with 2.4 s fuse or contact, 170 dmg blast radius 6 m with falloff^1.3, knockback, hurts the player at 35% and can boost jumps). Prices are meant to sit between 1 and 3 levels of mission income (a level pays ~1100-3000 for 3-5 missions at level 1, scaling +40% per level).
+- Aiming (right mouse, `S.aiming` -> `S.adsK` 0..1 over `adsTime`): FOV narrows to `adsZoom` (tan-based), spread x `adsSpreadMult` (default 0.55), walk speed x `adsMoveMult` (default 0.65), mouse sensitivity x `S.fovScale`, viewmodel moves to the centre; `scope` weapons hide the viewmodel and show the `#scope` overlay at adsK>0.9 and sway (`main.ts`). Reloading or switching cancels it.
+- Physics: player (`player.ts`): step-up over ledges <= 0.6 m (camera eases via `S.camDy`), uphill slower / downhill faster, slides down slopes steeper than ~40 degrees, coyote time 0.12 s, jump buffer 0.12 s, variable jump height (release early = short hop), heavier falling (x1.25), landing dip + thud, fall damage above 17.5 m/s impact (5 per m/s, max 70), crouch-slide (0.85 s, boosted, no steering), footsteps. Bots (`Mannequin.impulse/physics`): knockback velocity `kv` + `air` height, stun suspends the AI, dead bodies keep flying; hits push bots by `impactImpulse * 0.06` m/s (shotgun blasts throw people back), explosions much more. `projectiles.ts` bodies collide with the height field and `world.boxes` (restitution, friction). Characters are solid for the player (`physics.ts`).
 - Knife (`melee: true` in WEAPONS, always owned): no ammo/reload/shop entry (the shop lists only `shopWeapons` = non-melee), 2.4 m reach, 3 rays over a +-11 degree arc, 40 dmg (x2 head), swish sound, slash animation (`swingT`).
 - Bot combat (costume fields `combat`, `zone`, `speedMul` in COSTUMES): Cowboy (`ranged`) is harmless until shot (nearby cowboys join in via `alertPack`), then keeps ~13 m away, circles, needs line of sight (`hooks.lineOfSight` raycasts world.blockers) and shoots (9 dmg, accuracy drops with distance). Criminal (`melee`, `zone: 'edge'`) spawns/patrols in the band 5-14 m from the walls (`world.randomEdgePoint`), attacks automatically within 36 m, stabs for 10 dmg, gives up after 3 s beyond 52 m, then ignores the player for 8 s. Sporty x1.7 and Superman x1.9 walking speed. `BotHooks` (mannequin.ts) is how bots reach the player (damage, tracers, sounds).
 - Fearless costumes (`fearless: true`: cowboy, soldier, ninja, superman) are never scared: no flee, no retreat, immune to panic. A shot soldier (harmless) turns and stares at the player for 6 s (`alertT`). Superman (`combat: 'melee'`, `SUPERMAN_PUNCH`, `provoked: true`): calm until shot, then walks up (6.4 m/s), winds up 0.6 s (arm pulled back; the blow only lands if the player is still within ~2.8 m), hits for 45, then rests `interval` = 4.2 s (bent over, heaving) before the next punch: the player's window to shoot back. Only criminals (not fearless) retreat when badly hurt.

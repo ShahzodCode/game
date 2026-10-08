@@ -330,7 +330,10 @@ export function reloadSound(id: string) {
   fadeOut(reload);
   if (id === 'pistol') reload = playClip('pistol-reload', 0.15, 1.1, 0.9);
   else if (id === 'rifle') reload = playClip('rifle-reload', 0.25, 2.45, 1.5);
-  else reload = null;
+  else {
+    reload = null;
+    synthReload(id);
+  }
 }
 
 /** Cut the reload / pump sounds (weapon switched or game paused). */
@@ -338,6 +341,7 @@ export function stopReloadSound() {
   fadeOut(reload);
   fadeOut(pump);
   reload = pump = null;
+  cutSynthReload();
 }
 
 let loop: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
@@ -370,4 +374,136 @@ export function stopRifleLoop() {
   gain.gain.linearRampToValueAtTime(0, t + 0.06);
   src.stop(t + 0.07);
   loop = null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Synthesized sounds for the newer weapons, the explosion, and the player's footsteps / landings.
+// ---------------------------------------------------------------------------------------------
+let noiseBuf: AudioBuffer | null = null;
+function noise(): AudioBuffer {
+  if (!noiseBuf) {
+    noiseBuf = ctx!.createBuffer(1, ctx!.sampleRate, ctx!.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuf;
+}
+/** A burst of filtered noise: `type` filter at `freq`, `peak` volume, `dur` seconds, starting `delay` from now. */
+function noiseBurst(type: BiquadFilterType, freq: number, peak: number, dur: number, delay = 0, q = 0.7, sweepTo?: number): GainNode | null {
+  if (!ctx || !master) return null;
+  const t = ctx.currentTime + delay;
+  const src = ctx.createBufferSource();
+  src.buffer = noise();
+  src.loop = true;
+  const f = ctx.createBiquadFilter();
+  f.type = type;
+  f.frequency.setValueAtTime(freq, t);
+  if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+  f.Q.value = q;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + Math.min(0.01, dur / 4));
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  src.connect(f).connect(g).connect(master);
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + dur + 0.05);
+  return g;
+}
+/** A pitched thump / tone that glides from f0 to f1. */
+function tone(type: OscillatorType, f0: number, f1: number, peak: number, dur: number, delay = 0): GainNode | null {
+  if (!ctx || !master) return null;
+  const t = ctx.currentTime + delay;
+  const o = ctx.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + dur + 0.03);
+  return g;
+}
+
+/** Gunshots of the newer weapons. */
+export function synthShot(kind: 'smg' | 'sniper' | 'crossbow' | 'launcher') {
+  if (!ctx || !master) return;
+  if (kind === 'smg') {
+    noiseBurst('highpass', 1800 + Math.random() * 600, 0.5, 0.07);
+    noiseBurst('bandpass', 900, 0.5, 0.09, 0, 0.8);
+    tone('sine', 190, 70, 0.55, 0.08);
+  } else if (kind === 'sniper') {
+    noiseBurst('highpass', 2500, 0.9, 0.05);
+    noiseBurst('lowpass', 2200, 0.7, 0.9, 0, 0.7, 120); // the long rolling echo
+    tone('sine', 110, 28, 0.9, 0.55);
+    // bolt action: lift, pull back, push, lock
+    for (const [d, f] of [[0.6, 2600], [0.82, 1800], [1.0, 2100], [1.14, 3000]] as const) {
+      noiseBurst('bandpass', f, 0.18, 0.04, d, 6);
+      tone('square', f / 5, f / 7, 0.05, 0.03, d);
+    }
+  } else if (kind === 'crossbow') {
+    tone('triangle', 520, 150, 0.5, 0.2); // string twang
+    tone('sine', 260, 110, 0.35, 0.28);
+    noiseBurst('bandpass', 3200, 0.22, 0.05, 0, 3);
+  } else {
+    noiseBurst('lowpass', 900, 0.8, 0.16, 0, 0.7, 200); // "thunk" of the launching charge
+    tone('sine', 150, 40, 0.8, 0.3);
+    noiseBurst('highpass', 3000, 0.25, 0.04);
+  }
+}
+
+/** Boom of a grenade. Quieter and duller with distance. */
+export function explosionSound(distance: number) {
+  if (!ctx || !master) return;
+  const vol = Math.max(0.1, 1 - distance / 120);
+  noiseBurst('lowpass', 1800, 1.0 * vol, 1.1, 0, 0.7, 70);
+  noiseBurst('highpass', 1500, 0.5 * vol, 0.12);
+  tone('sine', 85, 24, 1.0 * vol, 0.9);
+  tone('sawtooth', 60, 20, 0.35 * vol, 0.6);
+}
+
+let synthReloadGains: GainNode[] = [];
+/** Mechanical clicks for the reload of a weapon that has no recording (spread over its reload time). */
+function synthReload(id: string) {
+  if (!ctx || !master) return;
+  const plan: Record<string, [number, number][]> = {
+    smg: [[0.15, 1800], [0.55, 2400], [1.05, 1500], [1.4, 2800]], // mag out, mag in, slap, charge
+    sniper: [[0.3, 2200], [0.9, 1600], [1.7, 2600], [2.1, 1900], [2.6, 2900]], // bolt open, mag, rounds, bolt shut
+    crossbow: [[0.2, 1200], [0.7, 2000], [1.2, 1500], [1.45, 3200]], // crank, crank, bolt placed, latch
+    launcher: [[0.4, 1400], [1.0, 2200], [1.6, 1700], [2.2, 2400], [2.9, 3000]], // open, drum out, drum in, close
+    shotgun: [[0.3, 2000], [0.7, 2200], [1.1, 2000], [1.5, 2200], [1.9, 2800]], // shells going in
+  };
+  for (const [d, f] of plan[id] ?? []) {
+    const a = noiseBurst('bandpass', f, 0.28, 0.05, d, 5);
+    const b = tone('square', f / 6, f / 9, 0.06, 0.04, d);
+    if (a) synthReloadGains.push(a);
+    if (b) synthReloadGains.push(b);
+  }
+}
+function cutSynthReload() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  for (const g of synthReloadGains) {
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0.0001, t);
+  }
+  synthReloadGains = [];
+}
+
+/** Soft footstep (volume 0..1). */
+export function stepSound(vol: number) {
+  noiseBurst('lowpass', 500 + Math.random() * 250, 0.16 * vol, 0.09);
+}
+/** Thud of landing: bigger for harder landings (intensity 0..1). */
+export function landSound(intensity: number) {
+  noiseBurst('lowpass', 420, 0.5 * intensity + 0.1, 0.18);
+  tone('sine', 110, 45, 0.45 * intensity, 0.16);
+}
+/** Sharp click of an arrow / bolt sticking into something. */
+export function boltHitSound(distance: number) {
+  const vol = Math.max(0.1, 1 - distance / 80);
+  noiseBurst('bandpass', 1500, 0.3 * vol, 0.05, 0, 2);
+  tone('square', 220, 90, 0.12 * vol, 0.06);
 }

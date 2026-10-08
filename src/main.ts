@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { COSTUMES } from './entities/mannequin';
 import { rifleLoopActive, stopRifleLoop } from './audio/audio';
-import { EYE_OFFSET, S, keys } from './game/state';
+import { BASE_FOV, EYE_OFFSET, S, keys } from './game/state';
 import { camera, flashLight, pos, renderer, scene, updateFx, vel, viewModels, weapons, world } from './game/core';
 import { botHooks, mannequins, wolves } from './game/actors';
 import { applyHit, fire, switchWeapon } from './game/combat';
@@ -10,6 +10,8 @@ import { updateHud, updateHudTimers, updateSummary } from './game/hud';
 import './game/input';
 import { updateNametag } from './game/nametag';
 import { damagePlayer, movePlayer, usePotion } from './game/player';
+import { collideWithBots } from './game/physics';
+import { clearProjectiles, explode, projectileCount, projectileInfo, spawnGrenade, updateProjectiles } from './game/projectiles';
 import { SAVE_KEY, clearSave, loadProgress, saveProgress, startAutosave } from './game/save';
 import { resetGame } from './game/session';
 import { buyItem, buyMag, updateShop } from './game/shops';
@@ -43,7 +45,19 @@ if (import.meta.env.DEV) {
     pointerChange: () => document.dispatchEvent(new Event('pointerlockchange')),
     look: (y: number, p: number) => ((S.yaw = y), (S.pitch = p)),
     step: (dt: number) => movePlayer(dt),
-    state: () => ({ crouching: S.crouching, playerHeight: S.playerHeight, onGround: S.onGround, y: pos.y }),
+    state: () => ({ crouching: S.crouching, playerHeight: S.playerHeight, onGround: S.onGround, y: pos.y, slideT: S.slideT, camDy: S.camDy, adsK: S.adsK }),
+    firstHit: () => {
+      const r = new THREE.Raycaster();
+      const o = new THREE.Vector3(), d = new THREE.Vector3();
+      camera.getWorldPosition(o);
+      camera.getWorldDirection(d);
+      r.set(o, d);
+      r.far = 400;
+      const all = [...mannequins, ...wolves].filter((m) => m.alive).flatMap((m) => m.hitMeshes);
+      const h = r.intersectObjects([...all, ...world.blockers], false)[0];
+      return h ? { dist: h.distance, owner: !!h.object.userData.owner, at: h.point.toArray() } : null;
+    },
+    S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
   };
 }
 
@@ -75,15 +89,43 @@ function updateWeapon(dt: number) {
   }
 }
 
+const scopeEl = document.getElementById('scope')!;
+const crosshairEl = document.getElementById('crosshair')!;
+const easeIO = (t: number) => t * t * (3 - 2 * t);
+/** Right mouse: aim down the sights. Zooms the view, tightens the spread, slows walking; scopes get an overlay. */
+function updateAim(dt: number) {
+  const w = weapons[S.current];
+  const st = w.stats;
+  const can = S.locked && S.aiming && !st.melee && !w.reloading && S.equipLeft <= 0 && !S.dead && !S.shopOpen;
+  const rate = dt / Math.max(0.08, st.adsTime);
+  S.adsK = THREE.MathUtils.clamp(S.adsK + THREE.MathUtils.clamp((can ? 1 : 0) - S.adsK, -rate, rate), 0, 1);
+  const zoom = THREE.MathUtils.lerp(1, st.adsZoom, easeIO(S.adsK));
+  const fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2) / zoom));
+  if (Math.abs(fov - camera.fov) > 0.01) {
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+  }
+  S.fovScale = fov / BASE_FOV;
+  const scoped = !!st.scope && S.adsK > 0.9;
+  scopeEl.style.opacity = scoped ? '1' : '0';
+  crosshairEl.style.opacity = scoped || (S.adsK > 0.5 && !!st.scope) ? '0' : '1';
+  viewModels[S.current].visible = !(st.scope && S.adsK > 0.8);
+}
+
 /** Bob, reload dip, equip dip, knife slash and muzzle flash of the weapon in the player's hand. */
 function animateViewModel(dt: number) {
   S.kick = Math.max(0, S.kick - dt * 0.6);
   const vm = viewModels[S.current];
   const w = weapons[S.current];
-  const bob = S.onGround ? Math.sin(performance.now() * 0.012) * Math.hypot(vel.x, vel.z) * 0.002 : 0;
+  const ads = easeIO(S.adsK);
+  const bob = S.onGround ? Math.sin(performance.now() * 0.012) * Math.hypot(vel.x, vel.z) * 0.002 * (1 - 0.8 * ads) : 0;
   const reloadDip = w.reloading ? Math.sin((1 - w.reloadLeft / w.stats.reloadTime) * Math.PI) : 0;
   const equipDip = S.equipLeft > 0 ? S.equipLeft / w.stats.equipTime : 0;
-  vm.position.set(0.25, -0.22 + bob - reloadDip * 0.2 - equipDip * 0.3, -0.5 + S.kick);
+  // the weapon swings toward the centre of the screen when aiming
+  const px = THREE.MathUtils.lerp(0.25, 0.0, ads);
+  const py = THREE.MathUtils.lerp(-0.22, -0.145, ads);
+  const pz = THREE.MathUtils.lerp(-0.5, -0.42, ads);
+  vm.position.set(px, py + bob - reloadDip * 0.2 - equipDip * 0.3 - S.landDip * 0.5, pz + S.kick);
   vm.rotation.set(reloadDip * 0.3 + S.kick * 2, 0, reloadDip * 0.25); // gentle tilt: tipping the muzzle up shows the weapon's rear and top
   if (S.swingT > 0) {
     // knife slash: sweeps from the right across the screen and thrusts forward
@@ -106,11 +148,25 @@ function frame() {
 
   if (S.locked) {
     movePlayer(dt);
+    collideWithBots();
+    updateAim(dt);
     updateWeapon(dt);
+    updateProjectiles(dt);
   }
 
-  camera.position.set(pos.x, pos.y + S.playerHeight - EYE_OFFSET, pos.z);
-  camera.rotation.set(S.pitch, S.yaw, S.roll);
+  // camera: the player's eyes, plus sway of a scoped rifle, shake from blasts / heavy guns, ledge and landing offsets
+  const t = performance.now() / 1000;
+  const w = weapons[S.current].stats;
+  let swayP = 0, swayY = 0;
+  if (w.scope && S.adsK > 0.3) {
+    const amp = 0.1 * (S.crouching ? 0.35 : 1) * (1 + Math.hypot(vel.x, vel.z) * 0.4) * S.adsK; // degrees
+    swayP = THREE.MathUtils.degToRad(amp * (Math.sin(t * 1.1) + 0.4 * Math.sin(t * 2.9 + 1)));
+    swayY = THREE.MathUtils.degToRad(amp * (Math.sin(t * 0.8 + 2) + 0.4 * Math.sin(t * 3.3)));
+  }
+  S.shake = Math.max(0, S.shake - dt * 2.4);
+  const sh = S.shake * S.shake;
+  camera.position.set(pos.x, pos.y + S.playerHeight - EYE_OFFSET + S.camDy - S.landDip, pos.z);
+  camera.rotation.set(S.pitch + swayP + Math.sin(t * 63) * 0.03 * sh, S.yaw + swayY + Math.sin(t * 57 + 1) * 0.03 * sh, S.roll + Math.sin(t * 47 + 2) * 0.04 * sh);
   animateViewModel(dt);
 
   // the arena is only alive while the player can reach it (not while he is in the safe room / sealed airlock)

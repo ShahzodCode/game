@@ -13,6 +13,7 @@ export const CROUCH_LERP = 12; // how fast height changes
 export const JUMP_SPEED = 7;
 export const GRAVITY = 20;
 export const MOUSE_SENS = 0.0022;
+export const BASE_FOV = 75;
 export const MAX_HEALTH = 100;
 export const POINTS_HIT = 10;
 export const POINTS_HEADSHOT_KILL = 50; // bonus on top of the costume's own points
@@ -62,6 +63,23 @@ export const S = {
   kick: 0, // viewmodel kickback
   swingT: 0, // knife swing animation
   lastShotTime: 0,
+
+  // aiming (right mouse) and camera feel
+  aiming: false, // right mouse held
+  adsK: 0, // 0 = hip, 1 = fully aimed
+  fovScale: 1, // current FOV relative to normal: mouse look slows down while zoomed
+  shake: 0, // camera shake 0..1 (explosions, heavy guns), decays quickly
+  camDy: 0, // vertical camera offset that eases back to 0 (stepping up a ledge)
+  landDip: 0, // camera dip after a hard landing
+
+  // movement physics
+  coyote: 0, // seconds left in which a jump still works after walking off an edge
+  jumpBuf: 0, // seconds left in which a jump pressed just before landing still counts
+  slideT: 0, // crouch-slide time left
+  slideCd: 0,
+  stepPhase: 0, // footstep timer
+  airTime: 0,
+  fallSpeed: 0, // how fast the player was falling before landing (m/s, for landing impact)
 
   // shops
   shopOpen: false,

@@ -86,6 +86,10 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Digit2') switchWeapon(1);
   if (e.code === 'Digit3') switchWeapon(2);
   if (e.code === 'Digit4') switchWeapon(3);
+  if (e.code === 'Digit5') switchWeapon(4);
+  if (e.code === 'Digit6') switchWeapon(5);
+  if (e.code === 'Digit7') switchWeapon(6);
+  if (e.code === 'Digit8') switchWeapon(7);
   if (e.code === 'KeyR') beginReload(weapons[S.current]);
   if (e.code === 'KeyH' && !e.repeat) usePotion();
   if (e.code === 'KeyQ') cycleWeapon(1);
@@ -100,17 +104,20 @@ addEventListener('mousedown', (e) => {
     S.trigger = true;
     S.triggerPressed = true;
   }
+  if (e.button === 2) S.aiming = true; // aim down the sights
 });
+addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('mouseup', (e) => {
   if (e.button === 0) S.trigger = false;
+  if (e.button === 2) S.aiming = false;
 });
 addEventListener('wheel', (e) => {
   if (S.locked) cycleWeapon(e.deltaY > 0 ? 1 : -1);
 });
 addEventListener('mousemove', (e) => {
   if (!S.locked) return;
-  S.yaw -= e.movementX * MOUSE_SENS;
-  S.pitch -= e.movementY * MOUSE_SENS;
+  S.yaw -= e.movementX * MOUSE_SENS * S.fovScale; // slower look while zoomed in
+  S.pitch -= e.movementY * MOUSE_SENS * S.fovScale;
   S.pitch = THREE.MathUtils.clamp(S.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
 });
 addEventListener('resize', () => {
@@ -176,6 +183,7 @@ document.addEventListener('pointerlockchange', () => {
     return;
   }
   S.trigger = false;
+  S.aiming = false;
   stopRifleLoop();
   stopReloadSound();
   for (const k in keys) keys[k] = false;

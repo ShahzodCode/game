@@ -3,9 +3,10 @@ import { Mannequin } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
 import type { Weapon } from '../weapons/weapons';
 import {
-  pistolShot, shotgunShot, startRifleLoop, stopRifleLoop, reloadSound, stopReloadSound, knifeSwish,
+  pistolShot, shotgunShot, startRifleLoop, stopRifleLoop, reloadSound, stopReloadSound, knifeSwish, synthShot,
 } from '../audio/audio';
 import { camera, flashLight, spawnImpact, spawnTracer, vel, viewModels, weapons, world } from './core';
+import { spawnBolt, spawnCasing, spawnGrenade } from './projectiles';
 import { mannequins, wolves, type Target } from './actors';
 import { addScore } from './flow';
 import { hitmarker, showPopup } from './hud';
@@ -49,6 +50,7 @@ function shotSound(w: Weapon) {
   if (w.stats.id === 'pistol') pistolShot();
   else if (w.stats.id === 'shotgun') shotgunShot();
   else if (w.stats.melee) knifeSwish();
+  else if (w.stats.shot) synthShot(w.stats.shot);
   else startRifleLoop(); // no-op if already running
 }
 
@@ -60,10 +62,13 @@ const muzzlePos = new THREE.Vector3();
 function currentSpread(w: Weapon) {
   const s = w.stats;
   const moving = Math.hypot(vel.x, vel.z) > 0.5;
-  let deg = s.spreadBase + w.bloom;
-  if (moving) deg += s.spreadMoving;
-  if (!S.onGround) deg += s.spreadAir;
-  return Math.min(deg, s.spreadMax + (moving ? s.spreadMoving : 0) + (S.onGround ? 0 : s.spreadAir));
+  // aiming down the sights tightens the cone; a scope stays honest about moving and jumping
+  const ads = THREE.MathUtils.lerp(1, s.adsSpreadMult ?? 0.55, S.adsK);
+  const scopeAds = s.scope ? S.adsK : 0;
+  let deg = (s.spreadBase + w.bloom) * ads;
+  if (moving) deg += s.spreadMoving * THREE.MathUtils.lerp(ads, 0.4, scopeAds);
+  if (!S.onGround) deg += s.spreadAir * THREE.MathUtils.lerp(ads, 0.6, scopeAds);
+  return Math.min(deg, (s.spreadMax + (moving ? s.spreadMoving : 0) + (S.onGround ? 0 : s.spreadAir)) * Math.max(ads, 0.05));
 }
 
 const PACK_ALERT_RADIUS = 12;
@@ -76,8 +81,9 @@ function alertPack(shot: Target) {
 }
 
 /** The player's shot or blade landed on a bot / wolf: damage, alerts, score, hit marker. */
-export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE.Vector3) {
+export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE.Vector3, push?: THREE.Vector3) {
   alertPack(owner);
+  if (push && owner instanceof Mannequin) owner.impulse(push); // shoved by the impact (strong weapons throw people back)
   if (owner.damage(dmg)) {
     S.kills++;
     const { label: name, points } = owner;
@@ -132,6 +138,9 @@ function meleeAttack(w: Weapon) {
   }
 }
 
+const _aim = new THREE.Vector3();
+const _pushV = new THREE.Vector3();
+
 export function fire() {
   const w = weapons[S.current];
   const s = w.stats;
@@ -160,25 +169,43 @@ export function fire() {
     const r = Math.sqrt(Math.random()) * Math.tan(spreadRad);
     const dir = new THREE.Vector3(Math.cos(ang) * r, Math.sin(ang) * r, -1).normalize().applyQuaternion(q);
 
+    if (s.projectile) {
+      // a physical projectile: it leaves the muzzle aimed at what the crosshair is on, then gravity takes over
+      _aim.copy(tmpV).addScaledVector(dir, s.projectile.kind === 'bolt' ? 45 : 22);
+      const launch = muzzlePos.clone();
+      const d = _aim.sub(launch).normalize();
+      if (s.projectile.kind === 'bolt') spawnBolt(launch, d, s);
+      else spawnGrenade(launch, d, s);
+      continue;
+    }
+
     raycaster.set(tmpV, dir);
     raycaster.far = s.range;
-    const hit = raycaster.intersectObjects(all, false)[0];
-    const end = hit ? hit.point.clone() : tmpV.clone().addScaledVector(dir, s.range);
-    spawnTracer(muzzlePos.clone(), end, s.tracerColor);
-
-    if (hit) {
+    const hits = raycaster.intersectObjects(all, false);
+    // the shot normally stops at the first thing it hits; a piercing bullet continues through up to `pierce` more characters
+    let end: THREE.Vector3 | null = null;
+    let through = 0;
+    let lastOwner: Target | undefined;
+    for (const hit of hits) {
       const owner = hit.object.userData.owner as Target | undefined;
-      if (owner) {
-        const head = !!hit.object.userData.head;
-        const falloff = THREE.MathUtils.clamp((hit.distance - s.falloffStart) / (s.range - s.falloffStart), 0, 1);
-        let dmg = s.damage * THREE.MathUtils.lerp(1, s.falloffMinMultiplier, falloff);
-        if (head) dmg *= s.headshotMultiplier;
-        landed = true;
-        applyHit(owner, dmg, head, hit.point);
-      } else {
+      end = hit.point.clone();
+      if (!owner) {
         spawnImpact(hit.point, 0xffee88);
+        break;
       }
+      if (owner === lastOwner) continue; // another body part of the same character
+      lastOwner = owner;
+      const head = !!hit.object.userData.head;
+      const falloff = THREE.MathUtils.clamp((hit.distance - s.falloffStart) / (s.range - s.falloffStart), 0, 1);
+      let dmg = s.damage * THREE.MathUtils.lerp(1, s.falloffMinMultiplier, falloff) * Math.pow(0.6, through);
+      if (head) dmg *= s.headshotMultiplier;
+      landed = true;
+      _pushV.copy(dir).setLength(s.impactImpulse * 0.06 * Math.pow(0.6, through));
+      applyHit(owner, dmg, head, hit.point, _pushV);
+      if (through >= (s.pierce ?? 0)) break;
+      through++;
     }
+    spawnTracer(muzzlePos.clone(), end ?? tmpV.clone().addScaledVector(dir, s.range), s.tracerColor);
   }
 
   if (landed) {
@@ -192,14 +219,19 @@ export function fire() {
   // recoil grows with every consecutive shot (burst), so sustained fire climbs more and more
   const mult = Math.min(1 + s.recoilBuildup * w.burst, s.recoilBuildupMax);
   w.burst++;
-  const pitchKick = s.recoilPitch * mult;
+  const adsRecoil = 1 - 0.25 * S.adsK; // aiming steadies the gun a little
+  const pitchKick = s.recoilPitch * mult * adsRecoil;
   S.pitch += THREE.MathUtils.degToRad(pitchKick);
-  S.yaw += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilYaw * mult);
+  S.yaw += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilYaw * mult * adsRecoil);
   S.roll += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilRoll * mult);
   S.recoilOffset += pitchKick;
-  Mannequin.scareNear(tmpV, s.id === 'shotgun' ? 24 : 16); // civilians nearby hear the gunshot and panic
+  if (!s.silent && !s.explosion) Mannequin.scareNear(tmpV, s.id === 'shotgun' || s.id === 'sniper' ? 24 : 16); // civilians nearby hear the gunshot and panic
+  if (s.explosion) Mannequin.scareNear(tmpV, 18);
+  S.shake = Math.max(S.shake, Math.min(0.5, s.recoilPitch * 0.08));
   S.kick = s.viewKick * (0.6 + 0.4 * mult);
-  flashLight.intensity = 25;
+  flashLight.intensity = s.silent ? 0 : 25;
+  if (s.id === 'pistol' || s.id === 'rifle' || s.id === 'smg') spawnCasing();
+  else if (s.id === 'sniper') spawnCasing(1.8);
   shotSound(w);
   if (w.ammo === 0) beginReload(w);
 }

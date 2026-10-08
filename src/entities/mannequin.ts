@@ -228,7 +228,9 @@ export class Mannequin {
   private windDur = 0.6;
   private recoverT = 0; // catching breath after a heavy punch
   private recoverDur = 1;
-  private knock = new THREE.Vector3(); // shove away from the player when killed
+  private kv = new THREE.Vector3(); // knockback velocity (shoved by hits / explosions); y = upward
+  private air = 0; // height above the ground while thrown into the air
+  private stunT = 0; // knocked about: the AI is suspended for this long
 
   // idle gestures
   private gesture = 0;
@@ -320,7 +322,9 @@ export class Mannequin {
     this.retreated = false;
     this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
     this.gesture = 0;
-    this.knock.set(0, 0, 0);
+    this.kv.set(0, 0, 0);
+    this.air = 0;
+    this.stunT = 0;
     this.bravery = clamp(Math.random() * 0.5 + (BRAVERY[this.costume.id] ?? 0), 0, 1);
   }
 
@@ -385,7 +389,8 @@ export class Mannequin {
       this.alive = false;
       this.deadTime = 0;
       // shoved away from the player as it falls
-      this.knock.set(this.group.position.x - this.player.x, 0, this.group.position.z - this.player.z).setLength(1.6);
+      const away = new THREE.Vector3(this.group.position.x - this.player.x, 0, this.group.position.z - this.player.z).setLength(1.6);
+      this.kv.add(away); // shoved away from the player as it falls
       this.updateBar();
       Mannequin.scareNear(this.group.position, 26, this); // witnesses panic
       return true;
@@ -422,6 +427,51 @@ export class Mannequin {
     if (c.zone === 'edge') this.group.position.copy(this.nav.randomEdgePoint(this.player, 25));
     this.updateBar();
     this.build();
+  }
+
+  /**
+   * Shove this character (hits, explosions): `v` is a velocity change in m/s. Strong shoves throw it off its feet:
+   * it flies through the air and the AI is suspended while it is stunned. Works on dead bodies too.
+   */
+  impulse(v: THREE.Vector3) {
+    this.kv.add(v);
+    const h = Math.hypot(this.kv.x, this.kv.z);
+    if (h > 16) {
+      this.kv.x *= 16 / h;
+      this.kv.z *= 16 / h;
+    }
+    this.kv.y = Math.min(this.kv.y, 11);
+    const strength = this.kv.length(); // the total shove it is under now (a shotgun blast = many small pellets)
+    if (this.alive && strength > 2.5) this.stunT = Math.max(this.stunT, Math.min(1.2, 0.25 + strength * 0.05));
+  }
+
+  /** Knockback physics: slide, fly, fall back to the ground. True while the body is moving by itself. */
+  private physics(dt: number): boolean {
+    const p = this.group.position;
+    const flying = this.air > 0 || this.kv.y > 0;
+    const horiz = Math.hypot(this.kv.x, this.kv.z);
+    if (!flying && horiz < 0.05) {
+      this.kv.set(0, 0, 0);
+      return false;
+    }
+    p.x += this.kv.x * dt;
+    p.z += this.kv.z * dt;
+    pushOutOfBoxes(this.nav, p, RADIUS);
+    const damp = Math.exp(-(flying ? 0.25 : 6) * dt); // little drag in the air, strong friction on the ground
+    this.kv.x *= damp;
+    this.kv.z *= damp;
+    if (flying) {
+      this.kv.y -= 22 * dt;
+      this.air += this.kv.y * dt;
+      if (this.air <= 0) {
+        this.air = 0;
+        if (this.kv.y < -5 && this.alive) this.stunT = Math.max(this.stunT, 0.4); // hard landing
+        this.kv.y = this.kv.y < -6 ? -this.kv.y * 0.25 : 0; // a small bounce on a heavy landing
+        this.kv.x *= 0.6;
+        this.kv.z *= 0.6;
+      }
+    }
+    return true;
   }
 
   // ---------- wandering ----------
@@ -843,7 +893,7 @@ export class Mannequin {
     const run = clamp((moveSpeed - 3.4) / 3, 0, 1) * this.amp; // jogging / sprinting
     const wound = clamp((0.45 - this.health / this.maxHealth) / 0.45, 0, 1); // limp + hunch when badly hurt
     const k = 1 - Math.exp(-10 * dt);
-    this.pStartle += ((this.mode === 'startle' ? 1 : 0) - this.pStartle) * k;
+    this.pStartle += ((this.mode === 'startle' || this.stunT > 0 || this.air > 0.1 ? 1 : 0) - this.pStartle) * k;
     this.pCower += ((this.mode === 'cower' ? 1 : 0) - this.pCower) * k;
     this.pPanic += ((this.mode === 'flee' ? 1 : 0) - this.pPanic) * k;
     const rest = this.armRestZ;
@@ -1006,12 +1056,15 @@ export class Mannequin {
         this.sinceHit += dt;
         if (this.sinceHit >= BAR_HIDE_AFTER) this.updateBar();
       }
-      const moving = this.costume.combat ? this.fight(dt) : this.civilian(dt);
+      this.physics(dt);
+      if (this.stunT > 0) this.stunT -= dt;
+      // knocked about: the AI waits until the character is back on its feet
+      const moving = this.stunT > 0 ? 0 : this.costume.combat ? this.fight(dt) : this.civilian(dt);
       this.moveSpeedNow = moving;
       this.separate();
       const p = this.group.position;
       pushOutOfBoxes(this.nav, p, RADIUS);
-      p.y = this.nav.heightAt(p.x, p.z);
+      p.y = this.nav.heightAt(p.x, p.z) + this.air;
       this.group.rotation.y = this.heading;
       this.animate(dt, moving);
       this.flash = Math.max(0, this.flash - dt);
@@ -1030,12 +1083,8 @@ export class Mannequin {
     const fall = 1 - Math.pow(1 - f, 3); // eases out
     this.group.rotation.x = -1.5 * fall;
     const p = this.group.position;
-    // slides a little away from the player while falling
-    const slide = (1 - f) * dt;
-    p.x += this.knock.x * slide;
-    p.z += this.knock.z * slide;
-    pushOutOfBoxes(this.nav, p, RADIUS);
-    p.y = this.nav.heightAt(p.x, p.z) + 0.1 * fall;
+    this.physics(dt); // slides away from the shot / flies if blown up
+    p.y = this.nav.heightAt(p.x, p.z) + 0.1 * fall + this.air;
     if (rig) {
       const sd = [Math.sign(this.armRestZ[0]) || -1, Math.sign(this.armRestZ[1]) || 1];
       for (let i = 0; i < 2; i++) {

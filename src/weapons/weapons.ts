@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildSmg, buildSniper, buildCrossbow, buildLauncher } from './procModels';
 
 /**
  * Weapon stat sheet. Fields marked [future] are not used by the prototype yet
@@ -55,11 +56,42 @@ export interface WeaponStats {
   // --- melee ---
   melee?: boolean; // swings instead of shooting: no ammo, no reload, hits what is within `range`
   meleeArc?: number; // degrees either side of the crosshair that still count as a hit
+  // --- aiming (right mouse button) ---
+  adsSpreadMult?: number; // spread multiplier while aiming (default 0.55)
+  adsMoveMult?: number; // walking speed multiplier while aiming (default 0.65)
+  scope?: boolean; // full-screen scope overlay (and no viewmodel) while fully aimed
+  // --- special mechanics ---
+  pierce?: number; // extra characters a bullet passes through (each one hits 40% weaker)
+  /** Fires a physical projectile (gravity, bounces) instead of a hitscan ray. */
+  projectile?: { kind: 'bolt' | 'grenade'; speed: number; gravity: number };
+  /** The projectile explodes: damage falls off to 0 at `radius`; `fuse` seconds after launch if it hits nothing. */
+  explosion?: { radius: number; damage: number; push: number; fuse: number; selfMult: number };
+  silent?: boolean; // makes no noise: bystanders do not panic
+  ammoLabel?: string; // what the HUD / shop call one magazine (default 'mags')
+  shot?: 'smg' | 'sniper' | 'crossbow' | 'launcher'; // synthesized sound
   // --- feel ---
   viewKick: number; // viewmodel kickback distance
   soundPitch: number; // base frequency of the synthesized shot
   tracerColor: number;
 }
+
+/** Values shared by the newer weapons (each one overrides what it needs). */
+const BASE = {
+  headshotMultiplier: 1.5,
+  pellets: 1,
+  equipTime: 0.4,
+  adsZoom: 1.3,
+  adsTime: 0.25,
+  muzzleVelocity: 400,
+  bulletMass: 0.01,
+  bulletDrag: 0.002,
+  gravityScale: 1,
+  impactImpulse: 5,
+  penetration: 0.1,
+  weight: 3,
+  soundPitch: 150,
+  tracerColor: 0xffe08a,
+};
 
 export const WEAPONS: WeaponStats[] = [
   {
@@ -244,6 +276,189 @@ export const WEAPONS: WeaponStats[] = [
     soundPitch: 0,
     tracerColor: 0xffffff,
   },
+  // ------------------------------------------------------------------------------------------------
+  // New weapons. Each trades something for its strength:
+  //  - SMG: best on the move and up close, falls off fast, bloom builds quickly.
+  //  - Sniper: aim (right mouse) for a scope and a near-perfect shot that pierces two targets; useless unscoped.
+  //  - Crossbow: silent (nobody panics), heavy bolts with real drop, one bolt per reload.
+  //  - Grenade launcher: bouncing grenades with a big blast and knockback, slow, little ammo, hurts you too.
+  // ------------------------------------------------------------------------------------------------
+  {
+    ...BASE,
+    id: 'smg',
+    name: 'SMG',
+    fireMode: 'auto',
+    rpm: 900,
+    damage: 9,
+    headshotMultiplier: 1.6,
+    range: 90,
+    falloffStart: 14,
+    falloffMinMultiplier: 0.35,
+    magSize: 32,
+    startMags: 2,
+    maxMags: 6,
+    magPrice: 350,
+    unlockPrice: 2500,
+    reloadTime: 1.8,
+    equipTime: 0.3,
+    spreadBase: 0.9,
+    spreadMoving: 0.5, // hardly punished for moving
+    spreadAir: 1.5,
+    spreadPerShot: 0.3,
+    spreadRecovery: 6,
+    spreadMax: 5.5,
+    recoilPitch: 0.45,
+    recoilYaw: 0.55,
+    recoilRecovery: 14,
+    recoilBuildup: 0.05,
+    recoilBuildupMax: 1.8,
+    recoilBuildupDecay: 10,
+    recoilRoll: 0.5,
+    moveSpeedMultiplier: 1.02,
+    adsZoom: 1.3,
+    adsTime: 0.15,
+    adsSpreadMult: 0.6,
+    adsMoveMult: 0.85,
+    impactImpulse: 4,
+    weight: 2.4,
+    viewKick: 0.035,
+    tracerColor: 0xffd27a,
+    shot: 'smg',
+  },
+  {
+    ...BASE,
+    id: 'sniper',
+    name: 'Sniper Rifle',
+    fireMode: 'semi',
+    rpm: 48, // a bolt cycle every 1.25 s
+    damage: 95,
+    headshotMultiplier: 3,
+    range: 400,
+    falloffStart: 400,
+    falloffMinMultiplier: 1,
+    magSize: 5,
+    startMags: 2,
+    maxMags: 5,
+    magPrice: 500,
+    unlockPrice: 5500,
+    reloadTime: 3.2,
+    equipTime: 0.7,
+    spreadBase: 2.6, // hip fire is wild: aim down the scope
+    spreadMoving: 3.0,
+    spreadAir: 5.0,
+    spreadPerShot: 0,
+    spreadRecovery: 3,
+    spreadMax: 2.6,
+    recoilPitch: 3.2,
+    recoilYaw: 0.6,
+    recoilRecovery: 6,
+    recoilBuildup: 0,
+    recoilBuildupMax: 1,
+    recoilBuildupDecay: 1,
+    recoilRoll: 0.8,
+    moveSpeedMultiplier: 0.85,
+    adsZoom: 4.5,
+    adsTime: 0.45,
+    adsSpreadMult: 0.01, // pinpoint when scoped (standing still; sway and movement still matter)
+    adsMoveMult: 0.45,
+    scope: true,
+    pierce: 2,
+    impactImpulse: 40,
+    weight: 5.0,
+    viewKick: 0.12,
+    tracerColor: 0xfff2c0,
+    shot: 'sniper',
+  },
+  {
+    ...BASE,
+    id: 'crossbow',
+    name: 'Crossbow',
+    fireMode: 'semi',
+    rpm: 60,
+    damage: 70,
+    headshotMultiplier: 3,
+    range: 200,
+    falloffStart: 200,
+    falloffMinMultiplier: 1,
+    magSize: 1, // one bolt at a time...
+    startMags: 5, // ...and every spare "magazine" is one bolt
+    maxMags: 10,
+    magPrice: 120,
+    unlockPrice: 3500,
+    reloadTime: 1.7,
+    equipTime: 0.4,
+    spreadBase: 0.4,
+    spreadMoving: 1.2,
+    spreadAir: 2.5,
+    spreadPerShot: 0,
+    spreadRecovery: 4,
+    spreadMax: 0.4,
+    recoilPitch: 1.2,
+    recoilYaw: 0.2,
+    recoilRecovery: 9,
+    recoilBuildup: 0,
+    recoilBuildupMax: 1,
+    recoilBuildupDecay: 1,
+    recoilRoll: 0.3,
+    moveSpeedMultiplier: 0.95,
+    adsZoom: 2,
+    adsTime: 0.25,
+    adsSpreadMult: 0.1,
+    adsMoveMult: 0.7,
+    projectile: { kind: 'bolt', speed: 78, gravity: 7 },
+    silent: true,
+    ammoLabel: 'bolts',
+    impactImpulse: 18,
+    weight: 3.0,
+    viewKick: 0.09,
+    tracerColor: 0xd9d4c7,
+    shot: 'crossbow',
+  },
+  {
+    ...BASE,
+    id: 'launcher',
+    name: 'Grenade Launcher',
+    fireMode: 'semi',
+    rpm: 40,
+    damage: 25, // direct impact (the explosion does the real damage)
+    headshotMultiplier: 1,
+    range: 120,
+    falloffStart: 120,
+    falloffMinMultiplier: 1,
+    magSize: 3, // a three-chamber drum
+    startMags: 1,
+    maxMags: 4,
+    magPrice: 650,
+    unlockPrice: 8000,
+    reloadTime: 3.4,
+    equipTime: 0.6,
+    spreadBase: 0.8,
+    spreadMoving: 1.0,
+    spreadAir: 2.0,
+    spreadPerShot: 0,
+    spreadRecovery: 4,
+    spreadMax: 0.8,
+    recoilPitch: 4.0,
+    recoilYaw: 0.5,
+    recoilRecovery: 7,
+    recoilBuildup: 0,
+    recoilBuildupMax: 1,
+    recoilBuildupDecay: 1,
+    recoilRoll: 1.0,
+    moveSpeedMultiplier: 0.82,
+    adsZoom: 1.4,
+    adsTime: 0.3,
+    adsSpreadMult: 0.5,
+    adsMoveMult: 0.6,
+    projectile: { kind: 'grenade', speed: 27, gravity: 15 },
+    explosion: { radius: 6, damage: 170, push: 15, fuse: 2.4, selfMult: 0.35 },
+    ammoLabel: 'grenades',
+    impactImpulse: 10,
+    weight: 6.0,
+    viewKick: 0.16,
+    tracerColor: 0xffa040,
+    shot: 'launcher',
+  },
 ];
 
 /**
@@ -320,6 +535,11 @@ function box(w: number, h: number, d: number, x: number, y: number, z: number, m
   return mesh;
 }
 
+function finishModel(g: THREE.Group) {
+  g.traverse((o) => ((o as THREE.Mesh).isMesh ? (o.castShadow = false) : 0));
+  return g;
+}
+
 /** Simple blocky first-person model. The 'muzzle' child marks where shots/flash start. */
 export function buildViewModel(id: string): THREE.Group {
   const g = new THREE.Group();
@@ -332,6 +552,14 @@ export function buildViewModel(id: string): THREE.Group {
     g.add(box(0.045, 0.04, 0.45, 0, -0.045, -0.45, dark)); // magazine tube
     g.add(box(0.075, 0.06, 0.2, 0, -0.055, -0.32, wood)); // pump
     g.add(box(0.06, 0.11, 0.26, 0, -0.03, 0.38, wood)); // stock
+  } else if (id === 'smg') {
+    return finishModel(buildSmg());
+  } else if (id === 'sniper') {
+    return finishModel(buildSniper());
+  } else if (id === 'crossbow') {
+    return finishModel(buildCrossbow());
+  } else if (id === 'launcher') {
+    return finishModel(buildLauncher());
   } else if (id === 'knife') {
     const steel = new THREE.MeshStandardMaterial({ color: 0xd6dbe0, roughness: 0.25, metalness: 0.9 });
     g.add(box(0.032, 0.04, 0.13, 0, 0, 0.02, dark)); // handle

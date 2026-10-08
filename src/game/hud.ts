@@ -23,7 +23,7 @@ export const accuracyText = () => (S.shotsFired ? `${Math.round((S.shotsHit / S.
 export function updateHud() {
   const w = weapons[S.current];
   hudWeapon.textContent = w.stats.name;
-  hudAmmo.innerHTML = w.stats.melee ? '<small>melee</small>' : w.reloading ? 'Reloading...' : `${w.ammo}<small> / ${w.spare.length} mags</small>`;
+  hudAmmo.innerHTML = w.stats.melee ? '<small>melee</small>' : w.reloading ? 'Reloading...' : `${w.ammo}<small> / ${w.spare.length} ${w.stats.ammoLabel ?? 'mags'}</small>`;
   hudScore.textContent = `Score ${S.score}`;
   hudCash.textContent = `$${S.cash}`;
   hudKills.textContent = `Kills ${S.kills}` + (S.headshotKills ? ` (${S.headshotKills} headshots)` : '');

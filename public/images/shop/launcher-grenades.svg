@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8d939c"/><stop offset=".5" stop-color="#4f545b"/><stop offset="1" stop-color="#34373c"/></linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#44484f"/><stop offset="1" stop-color="#1f2125"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8683a"/><stop offset=".55" stop-color="#7d4824"/><stop offset="1" stop-color="#5e3419"/></linearGradient>
+    <linearGradient id="brass" x1="0" x2="1"><stop offset="0" stop-color="#b8892f"/><stop offset=".5" stop-color="#f6da86"/><stop offset="1" stop-color="#a97a28"/></linearGradient>
+    <linearGradient id="olive" x1="0" x2="1"><stop offset="0" stop-color="#4a5530"/><stop offset=".5" stop-color="#7a8a4a"/><stop offset="1" stop-color="#434c2a"/></linearGradient>
+  </defs>
+  <g stroke-linejoin="round">
+    <g><ellipse cx="38" cy="64" rx="26" ry="30" fill="url(#olive)" stroke="#2a3118" stroke-width="3"/><rect x="28" y="26" width="20" height="10" rx="2" fill="url(#steel)" stroke="#202225" stroke-width="2.5"/><path d="M24 54 H52 M22 66 H54 M24 78 H52" stroke="#2a3118" stroke-width="2.5" opacity=".7"/></g>
+    <g transform="translate(52 10)"><ellipse cx="38" cy="64" rx="26" ry="30" fill="url(#olive)" stroke="#2a3118" stroke-width="3"/><rect x="28" y="26" width="20" height="10" rx="2" fill="url(#steel)" stroke="#202225" stroke-width="2.5"/><path d="M24 54 H52 M22 66 H54 M24 78 H52" stroke="#2a3118" stroke-width="2.5" opacity=".7"/></g>
+  </g>
+</svg>

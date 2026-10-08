@@ -11,7 +11,7 @@ import { S } from './state';
 
 const playerChestV = new THREE.Vector3();
 const losRay = new THREE.Raycaster();
-function hasLineOfSight(from: THREE.Vector3, to: THREE.Vector3) {
+export function hasLineOfSight(from: THREE.Vector3, to: THREE.Vector3) {
   const d = to.clone().sub(from);
   const dist = d.length();
   losRay.set(from, d.normalize());
