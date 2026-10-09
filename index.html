@@ -61,7 +61,11 @@
       <div class="hintbar"><span><kbd>WASD</kbd> move</span><span><kbd>Mouse</kbd> look / shoot</span><span><kbd>Right mouse</kbd> aim</span><span><kbd>E</kbd> shop</span><span><kbd>Esc</kbd> pause</span></div>
     </div>
     <!-- test helper, kept well away from the real menu; delete before release (and #btnCash handler in game/input.ts) -->
-    <button id="btnCash" class="devbtn" title="Test only: free money for trying out the shops">DEV &middot; +$100000</button>
+    <div class="devbar">
+      <button id="btnCash" class="devbtn" title="Test only: free money for trying out the shops">DEV &middot; +$100,000</button>
+      <button id="btnSkip" class="devbtn" title="Test only: finish the current level (the exit gate opens)">DEV &middot; skip level</button>
+      <button id="btnBoss" class="devbtn" title="Test only: jump to level 20 so the next level is the boss">DEV &middot; next = boss</button>
+    </div>
   </div>
 
   <!-- ---------- settings ---------- -->
@@ -115,7 +119,7 @@
         <li>The <b>knife</b> is always in your pack: no ammo, short reach, silent. Great for finishing bots, risky against anything that bites or shoots.</li>
         <li><b>Wolves</b> are rare and calm until you shoot one. Then it hunts you and bites, and wolves close to it join in. They run faster than you walk, so sprint (Ctrl), break line of sight, or kill them: they lose interest if you get far enough away.</li>
         <li>Shooting and killing give <b>score</b>: 10 for every landed shot, the target's own points for a kill, and +50 for a headshot kill. They do <b>not</b> give money. <b class="gold">Money only comes from completing missions</b>, and the later missions pay more. Aim the crosshair at a character to see its name tag.</li>
-        <li>Ammo comes in magazines. You carry up to <b>6 spare magazines</b> per weapon. Reloading swaps in your fullest spare magazine, and the old one stays in your pack, so half-empty magazines aren't wasted.</li>
+        <li>Ammo comes in magazines. You carry up to <b>6 spare magazines</b> per weapon. Reloading loads a fresh magazine and <b>throws the old one away</b>, whatever is left in it: reload early and you waste bullets, so make every shot count.</li>
         <li>There are two shops. The <b>weapon shop</b> in the safe room sells every gun (each comes loaded with one spare magazine). The <b>armory terminal</b> next to it lets you choose what you carry: one weapon per slot (sidearm, rifle, heavy) plus the knife. The <b>supply shop</b> beside the arena gate sells magazines for the guns in your loadout and health potions. Step into a shop's green circle, press <kbd>E</kbd>, then press the number shown on an item to buy it.</li>
         <li>Hold the right mouse button to aim: you zoom in and shoot more accurately (the sniper rifle gets a real scope). The rifle's recoil builds the longer you hold fire, so shoot in bursts. The shotgun fires 8 pellets: devastating up close, nearly useless at range. Grenades bounce and explode: keep your distance.</li>
         <li><b>Your progress is saved automatically</b> in your browser: the level you are on, your money, your weapons and their ammo. Updating or reloading the game doesn't lose it. <b>Reload map</b> (and <b>Play again</b> after dying) takes you back to the safe room with that progress kept and a fresh arena. <b>New game</b> erases the save and starts again from level 1.</li>

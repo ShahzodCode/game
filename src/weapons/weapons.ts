@@ -463,8 +463,8 @@ export const WEAPONS: WeaponStats[] = [
 
 /**
  * Runtime state for one weapon. Ammo is magazine-based: `ammo` is the loaded magazine,
- * `spare` holds the rounds in each spare magazine. Reloading swaps in the fullest spare;
- * the old magazine goes back to the pack, so partial magazines are not wasted.
+ * `spare` holds the rounds in each spare magazine. Reloading takes the fullest spare and THROWS AWAY the loaded
+ * magazine, whatever is left in it: reloading early wastes bullets, so make them count.
  */
 export class Weapon {
   ammo = 0;
@@ -489,17 +489,15 @@ export class Weapon {
   }
   startReload(): boolean {
     const i = this.fullestSpare();
-    if (this.reloading || this.ammo >= this.stats.magSize || i < 0 || this.spare[i] <= this.ammo) return false;
+    if (this.reloading || this.ammo >= this.stats.magSize || i < 0) return false;
     this.reloadLeft = this.stats.reloadTime;
     return true;
   }
   finishReload() {
     const i = this.fullestSpare();
-    if (i < 0 || this.spare[i] <= this.ammo) return;
-    const old = this.ammo;
-    this.ammo = this.spare[i];
-    if (old > 0) this.spare[i] = old;
-    else this.spare.splice(i, 1);
+    if (i < 0) return;
+    this.ammo = this.spare[i]; // what was left in the old magazine is lost
+    this.spare.splice(i, 1);
   }
   get canBuyMag() {
     return this.spare.length < this.stats.maxMags;

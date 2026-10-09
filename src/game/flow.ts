@@ -64,6 +64,19 @@ export function renderMissions() {
   }
 }
 
+/** TEST ONLY (pause-menu DEV button): count every mission as done, which opens the exit gate. */
+export function devSkipLevel() {
+  if (S.phase !== 'arena') return;
+  for (const m of S.missions) {
+    if (m.done) continue;
+    m.done = true;
+    m.progress = m.target;
+    S.missionsDone++;
+  }
+  levelComplete();
+  renderMissions();
+}
+
 /** Re-measure every mission against the level stats; pay out and announce the ones that just completed. */
 export function checkMissions() {
   for (const m of S.missions) {
