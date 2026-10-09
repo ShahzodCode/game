@@ -8,7 +8,7 @@
  */
 const FILES = [
   'rifle-burst', 'pistol-shot', 'shotgun-shot', 'shotgun-pump', 'pistol-reload', 'rifle-reload',
-  'sniper-shot', 'sniper-reload',
+  'sniper-shot', 'sniper-bolt', 'sniper-reload',
 ] as const;
 type Name = (typeof FILES)[number];
 
@@ -322,9 +322,11 @@ export function pistolShot() {
   playClip('pistol-shot', 0.12, 0.7, 1.9, 0.97 + Math.random() * 0.06); // slight pitch variation
 }
 
-/** Sniper: the recorded shot (its echo tail is trimmed). */
+/** Sniper: the recorded shot (its echo tail is trimmed), then the bolt being worked ~0.45 s later (like the shotgun pump). */
 export function sniperShot() {
   if (!playClip('sniper-shot', 0, 1.3, 1.3)) synthShot('sniper'); // synthesized until the file has loaded
+  fadeOut(pump);
+  pump = playClip('sniper-bolt', 0, 0.47, 1.2, 1, 0.45);
 }
 
 let pump: Voice | null = null;
@@ -341,7 +343,7 @@ export function reloadSound(id: string) {
   fadeOut(reload);
   if (id === 'pistol') reload = playClip('pistol-reload', 0.15, 1.1, 0.9);
   else if (id === 'rifle') reload = playClip('rifle-reload', 0.25, 2.45, 1.5);
-  else if (id === 'sniper') reload = playClip('sniper-reload', 0, 0.47, 1.3, 1, 1.0); // one round pushed in
+  else if (id === 'sniper') reload = playClip('sniper-reload', 0, 3.1, 1.3); // magazine out, in, bolt
   else {
     reload = null;
     synthReload(id);
