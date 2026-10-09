@@ -5,6 +5,8 @@ import { buildBot, type BotRig } from './botModel';
 export interface Nav {
   heightAt: (x: number, z: number) => number;
   boxes: THREE.Box3[];
+  /** Collision boxes near a point (use this in per-frame code instead of scanning `boxes`). */
+  boxesNear: (x: number, z: number, r: number) => THREE.Box3[];
   half: number;
   /** Random walkable spot (not inside walls/crates/big rocks), optionally far from `avoid`. */
   randomFreePoint: (avoid?: THREE.Vector3, minDist?: number) => THREE.Vector3;
@@ -117,7 +119,7 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 export function pushOutOfBoxes(nav: Nav, p: THREE.Vector3, radius: number): boolean {
   let pushed = false;
   const gy = nav.heightAt(p.x, p.z);
-  for (const b of nav.boxes) {
+  for (const b of nav.boxesNear(p.x, p.z, radius + 0.6)) {
     if (b.max.y <= gy + 0.25) continue; // low bumps can be walked over
     const minX = b.min.x - radius, maxX = b.max.x + radius;
     const minZ = b.min.z - radius, maxZ = b.max.z + radius;
@@ -348,6 +350,18 @@ export class Mannequin {
     this.body.add(this.rig.root);
     this.hitMeshes.length = 0;
     this.hitMeshes.push(...this.rig.hitMeshes);
+    this.shadowMeshes = [];
+    this.rig.root.traverse((o) => ((o as THREE.Mesh).isMesh ? this.shadowMeshes.push(o as THREE.Mesh) : 0));
+    this.shadowsOn = true;
+  }
+
+  private shadowMeshes: THREE.Mesh[] = [];
+  private shadowsOn = true;
+  /** Far-away bots do not need to cast shadows (saves a lot in the shadow pass). */
+  setShadows(on: boolean) {
+    if (on === this.shadowsOn) return;
+    this.shadowsOn = on;
+    for (const m of this.shadowMeshes) m.castShadow = on;
   }
 
   /** Start going after the player (cowboys when shot, criminals on sight). */

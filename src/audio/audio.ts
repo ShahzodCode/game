@@ -19,6 +19,7 @@ const BURST_LOOP_LEN = 0.357 * 4;
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null; // everything goes through this so mute is one switch
 let muted = false;
+let volume = 1; // 0..1, the volume slider
 const buffers = {} as Record<Name, AudioBuffer>;
 let loopStartT = BURST_LOOP_START;
 let loopEndT = BURST_LOOP_START + BURST_LOOP_LEN;
@@ -41,7 +42,7 @@ export function initAudio() {
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : 1;
+    master.gain.value = muted ? 0 : volume;
     master.connect(ctx.destination);
   }
   void ctx.resume();
@@ -58,7 +59,11 @@ export function initAudio() {
 
 export function setMuted(m: boolean) {
   muted = m;
-  if (master && ctx) master.gain.setTargetAtTime(m ? 0 : 1, ctx.currentTime, 0.02);
+  if (master && ctx) master.gain.setTargetAtTime(m ? 0 : volume, ctx.currentTime, 0.02);
+}
+export function setVolume(v: number) {
+  volume = Math.min(1, Math.max(0, v));
+  if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : volume, ctx.currentTime, 0.02);
 }
 export const isMuted = () => muted;
 
@@ -506,4 +511,17 @@ export function boltHitSound(distance: number) {
   const vol = Math.max(0.1, 1 - distance / 80);
   noiseBurst('bandpass', 1500, 0.3 * vol, 0.05, 0, 2);
   tone('square', 220, 90, 0.12 * vol, 0.06);
+}
+
+/** Splashing through water (vol 0..1). */
+export function splashSound(vol: number) {
+  noiseBurst('bandpass', 1400, 0.3 * vol + 0.05, 0.22, 0, 0.6, 500);
+  noiseBurst('lowpass', 600, 0.25 * vol, 0.3);
+}
+/** A door creaking as it swings (volume falls with the player's distance). */
+export function doorCreak(distance: number) {
+  const vol = Math.max(0, 1 - distance / 14);
+  if (vol < 0.05 || !ctx || !master) return;
+  tone('sawtooth', 140, 210, 0.07 * vol, 0.5);
+  tone('square', 90, 130, 0.04 * vol, 0.45, 0.05);
 }

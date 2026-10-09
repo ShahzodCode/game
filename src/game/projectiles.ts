@@ -105,7 +105,7 @@ function stepBody(b: Body, dt: number): 'ground' | 'box' | null {
       hit = 'ground';
     }
   }
-  for (const box of world.boxes) {
+  for (const box of world.boxesNear(p.x, p.z, b.r + 0.6)) {
     if (p.x < box.min.x - b.r || p.x > box.max.x + b.r || p.y < box.min.y - b.r || p.y > box.max.y + b.r || p.z < box.min.z - b.r || p.z > box.max.z + b.r) continue;
     // inside the padded box: leave through the nearest face
     const d = [p.x - (box.min.x - b.r), box.max.x + b.r - p.x, p.y - (box.min.y - b.r), box.max.y + b.r - p.y, p.z - (box.min.z - b.r), box.max.z + b.r - p.z];
@@ -243,7 +243,7 @@ export function explode(at: THREE.Vector3, stats: WeaponStats) {
       // dead bodies are thrown around too (they are not damaged again)
       const dp = t.group.position;
       const d = Math.hypot(dp.x - at.x, dp.z - at.z);
-      if (t instanceof Mannequin && d < R) {
+      if (d < R) {
         const k = 1 - d / R;
         t.impulse(_push.set(dp.x - at.x, 0, dp.z - at.z).setLength(ex.push * k).setY(ex.push * 0.5 * k));
       }
@@ -259,8 +259,8 @@ export function explode(at: THREE.Vector3, stats: WeaponStats) {
     any = true;
     const dir = new THREE.Vector3(centre.x - at.x, 0, centre.z - at.z).setLength(ex.push * k);
     dir.y = ex.push * 0.55 * k + 1;
-    applyHit(t, dmg, false, centre, t instanceof Mannequin ? undefined : undefined); // damage, alerts, score
-    if (t instanceof Mannequin) t.impulse(dir);
+    applyHit(t, dmg, false, centre); // damage, alerts, score
+    t.impulse(dir);
   }
   if (any) {
     S.shotsHit++; // one hit bonus per grenade, like a shotgun blast

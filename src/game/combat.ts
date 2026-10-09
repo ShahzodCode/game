@@ -7,6 +7,7 @@ import {
 } from '../audio/audio';
 import { camera, flashLight, spawnImpact, spawnTracer, vel, viewModels, weapons, world } from './core';
 import { spawnBolt, spawnCasing, spawnGrenade } from './projectiles';
+import { castRay } from './raycast';
 import { mannequins, wolves, type Target } from './actors';
 import { addScore } from './flow';
 import { equippedIndices, isEquipped, slotWeaponIndex } from './loadout';
@@ -68,12 +69,11 @@ function shotSound(w: Weapon) {
   else startRifleLoop(); // no-op if already running
 }
 
-const raycaster = new THREE.Raycaster();
 const tmpV = new THREE.Vector3();
 const tmpDir = new THREE.Vector3();
 const muzzlePos = new THREE.Vector3();
 
-function currentSpread(w: Weapon) {
+export function currentSpread(w: Weapon) {
   const s = w.stats;
   const moving = Math.hypot(vel.x, vel.z) > 0.5;
   // aiming down the sights tightens the cone; a scope stays honest about moving and jumping
@@ -97,7 +97,7 @@ function alertPack(shot: Target) {
 /** The player's shot or blade landed on a bot / wolf: damage, alerts, score, hit marker. */
 export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE.Vector3, push?: THREE.Vector3) {
   alertPack(owner);
-  if (push && owner instanceof Mannequin) owner.impulse(push); // shoved by the impact (strong weapons throw people back)
+  if (push && (owner instanceof Mannequin || owner instanceof Wolf)) owner.impulse(push); // shoved by the impact (strong weapons throw people back)
   if (owner.damage(dmg)) {
     S.kills++;
     const { label: name, points } = owner;
@@ -137,9 +137,7 @@ function meleeAttack(w: Weapon) {
   let best: { owner: Target; head: boolean; point: THREE.Vector3; dist: number } | null = null;
   for (const a of [0, -arc, arc]) {
     const dir = tmpDir.clone().applyAxisAngle(up, a);
-    raycaster.set(tmpV, dir);
-    raycaster.far = s.range;
-    const hit = raycaster.intersectObjects(all, false)[0];
+    const hit = castRay(tmpV, dir, s.range, all)[0];
     const owner = hit?.object.userData.owner as Target | undefined;
     if (hit && owner && (!best || hit.distance < best.dist)) {
       best = { owner, head: !!hit.object.userData.head, point: hit.point.clone(), dist: hit.distance };
@@ -193,9 +191,7 @@ export function fire() {
       continue;
     }
 
-    raycaster.set(tmpV, dir);
-    raycaster.far = s.range;
-    const hits = raycaster.intersectObjects(all, false);
+    const hits = castRay(tmpV, dir, s.range, all);
     // the shot normally stops at the first thing it hits; a piercing bullet continues through up to `pierce` more characters
     let end: THREE.Vector3 | null = null;
     let through = 0;

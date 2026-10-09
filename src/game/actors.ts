@@ -5,18 +5,14 @@ import { botScream, punchSound, enemyShot, knifeSwish, wolfGrowl } from '../audi
 import { levelConfig } from './missions';
 import { pos, scene, spawnTracer, world } from './core';
 import { damagePlayer } from './player';
+import { clearBetween } from './raycast';
 import { S } from './state';
 
 // The bots and wolves, plus how they reach the player.
 
 const playerChestV = new THREE.Vector3();
-const losRay = new THREE.Raycaster();
 export function hasLineOfSight(from: THREE.Vector3, to: THREE.Vector3) {
-  const d = to.clone().sub(from);
-  const dist = d.length();
-  losRay.set(from, d.normalize());
-  losRay.far = dist;
-  return losRay.intersectObjects(world.blockers, false).length === 0; // terrain, crates and rocks block sight
+  return clearBetween(from, to, world.blockers); // the ground, trunks, rocks and walls block sight
 }
 /** How fighting bots (shooting cowboys, knife criminals) reach the player. */
 export const botHooks: BotHooks = {

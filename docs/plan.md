@@ -28,6 +28,8 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 
 - Loadout (armory terminal, one weapon per slot), new arena (forest west / rocky east, two houses, pond, campfire, arches, mesas), crates and pillars removed. Untested by hand: frame rate on weaker machines (about 700 draw calls, 600k triangles in view), tree/rock density, house layout.
 
+- Optimization pass (terrain ray-march instead of mesh raycast: a shotgun blast went from 82 ms to 8 ms; instanced rocks; box grid; height grid; HUD diffing; shadow budget; quality setting), UI redesign (HUD, pause menu, settings, rules, dying screen), pond wading, wolf knockback, slide fixes.
+
 ## Ideas / next steps (the user decides priority; ask when unsure)
 1. Playtest and balance: mission targets, rewards, enemy health/damage per level.
 2. ~~Split `src/main.ts` into modules.~~ Done: see `src/game/*` and the layout in `CLAUDE.md`.

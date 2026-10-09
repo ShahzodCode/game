@@ -4,18 +4,22 @@ import { rifleLoopActive, stopRifleLoop } from './audio/audio';
 import { BASE_FOV, EYE_OFFSET, S, keys } from './game/state';
 import { camera, flashLight, pos, renderer, scene, updateFx, vel, viewModels, weapons, world } from './game/core';
 import { botHooks, mannequins, wolves } from './game/actors';
-import { applyHit, fire, switchWeapon } from './game/combat';
+import { applyHit, currentSpread, fire, switchWeapon } from './game/combat';
 import { arenaActive, checkMissions, rooms, runLevelWork, startLevel, updateFlow } from './game/flow';
-import { updateHud, updateHudTimers, updateSummary } from './game/hud';
+import { setCrosshair, setCrosshairVisible, updateHud, updateHudTimers, updateSummary } from './game/hud';
+import { applyQuality, shadowPeriod } from './game/settings';
+import './game/settingsUi';
 import './game/input';
 import { updateNametag } from './game/nametag';
 import { damagePlayer, movePlayer, usePotion } from './game/player';
 import { collideWithBots } from './game/physics';
+import { castRay } from './game/raycast';
 import { clearProjectiles, explode, projectileCount, projectileInfo, spawnGrenade, updateProjectiles } from './game/projectiles';
 import { SAVE_KEY, clearSave, loadProgress, saveProgress, startAutosave } from './game/save';
 import { resetGame } from './game/session';
 import { buyItem, buyMag, updateShop } from './game/shops';
 
+applyQuality(); // graphics quality from the saved settings
 startAutosave();
 loadProgress(); // restore level / money / weapons / ammo from the last visit
 updateSummary();
@@ -47,14 +51,11 @@ if (import.meta.env.DEV) {
     step: (dt: number) => movePlayer(dt),
     state: () => ({ crouching: S.crouching, playerHeight: S.playerHeight, onGround: S.onGround, y: pos.y, slideT: S.slideT, camDy: S.camDy, adsK: S.adsK }),
     firstHit: () => {
-      const r = new THREE.Raycaster();
       const o = new THREE.Vector3(), d = new THREE.Vector3();
       camera.getWorldPosition(o);
       camera.getWorldDirection(d);
-      r.set(o, d);
-      r.far = 400;
       const all = [...mannequins, ...wolves].filter((m) => m.alive).flatMap((m) => m.hitMeshes);
-      const h = r.intersectObjects([...all, ...world.blockers], false)[0];
+      const h = castRay(o, d, 400, [...all, ...world.blockers])[0];
       return h ? { dist: h.distance, owner: !!h.object.userData.owner, at: h.point.toArray() } : null;
     },
     scene, renderer, S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
@@ -90,7 +91,6 @@ function updateWeapon(dt: number) {
 }
 
 const scopeEl = document.getElementById('scope')!;
-const crosshairEl = document.getElementById('crosshair')!;
 const easeIO = (t: number) => t * t * (3 - 2 * t);
 /** Right mouse: aim down the sights. Zooms the view, tightens the spread, slows walking; scopes get an overlay. */
 function updateAim(dt: number) {
@@ -108,7 +108,7 @@ function updateAim(dt: number) {
   S.fovScale = fov / BASE_FOV;
   const scoped = !!st.scope && S.adsK > 0.9;
   scopeEl.style.opacity = scoped ? '1' : '0';
-  crosshairEl.style.opacity = scoped || (S.adsK > 0.5 && !!st.scope) ? '0' : '1';
+  setCrosshairVisible(!(scoped || (S.adsK > 0.5 && !!st.scope)));
   viewModels[S.current].visible = !(st.scope && S.adsK > 0.8);
 }
 
@@ -140,6 +140,27 @@ function animateViewModel(dt: number) {
   flashLight.intensity = Math.max(0, flashLight.intensity - dt * 400);
 }
 
+/** The crosshair ticks open up as the weapon's spread grows (moving, jumping, firing). */
+function updateCrosshair() {
+  const w = weapons[S.current];
+  if (w.stats.melee) return setCrosshair(6, true);
+  const spreadRad = THREE.MathUtils.degToRad(currentSpread(w));
+  const px = (Math.tan(spreadRad) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * (innerHeight / 2);
+  setCrosshair(4 + Math.min(px, 120), false);
+}
+
+/** Shadows: far-away bots do not cast any, and on lower quality the shadow map is redrawn less often. */
+let shadowClock = 0;
+let frameNo = 0;
+function updateShadows(dt: number) {
+  frameNo++;
+  if (frameNo % shadowPeriod() === 0) renderer.shadowMap.needsUpdate = true;
+  shadowClock -= dt;
+  if (shadowClock > 0) return;
+  shadowClock = 0.4;
+  for (const m of mannequins) m.setShadows(m.alive && Math.hypot(m.group.position.x - pos.x, m.group.position.z - pos.z) < 50);
+}
+
 // ---------- main loop ----------
 const clock = new THREE.Clock();
 function frame() {
@@ -168,6 +189,8 @@ function frame() {
   camera.position.set(pos.x, pos.y + S.playerHeight - EYE_OFFSET + S.camDy - S.landDip, pos.z);
   camera.rotation.set(S.pitch + swayP + Math.sin(t * 63) * 0.03 * sh, S.yaw + swayY + Math.sin(t * 57 + 1) * 0.03 * sh, S.roll + Math.sin(t * 47 + 2) * 0.04 * sh);
   animateViewModel(dt);
+  updateCrosshair();
+  updateShadows(dt);
 
   // the arena is only alive while the player can reach it (not while he is in the safe room / sealed airlock)
   if (S.locked && arenaActive()) {

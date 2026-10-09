@@ -117,6 +117,9 @@ export class Wolf {
 
   /** New wolf (new coat and size), calm, optionally somewhere else far from the player. */
   reset(relocate = false) {
+    this.kv.set(0, 0, 0);
+    this.air = 0;
+    this.stunT = 0;
     if (relocate) this.group.position.copy(this.nav.randomFreePoint(this.player, RESPAWN_MIN_DIST));
     this.health = this.maxHealth;
     this.alive = true;
@@ -300,6 +303,48 @@ export class Wolf {
     this.hooks.onAggro();
   }
 
+  // knockback (shotgun blasts, explosions): a push velocity and a height above the ground while thrown
+  private kv = new THREE.Vector3();
+  private air = 0;
+  private stunT = 0;
+  /** Shove this wolf: strong shoves throw it off its feet and stun it for a moment. */
+  impulse(v: THREE.Vector3) {
+    this.kv.add(v);
+    const h = Math.hypot(this.kv.x, this.kv.z);
+    if (h > 14) {
+      this.kv.x *= 14 / h;
+      this.kv.z *= 14 / h;
+    }
+    this.kv.y = Math.min(this.kv.y, 9);
+    const strength = this.kv.length();
+    if (this.alive && strength > 3) this.stunT = Math.max(this.stunT, Math.min(1, 0.2 + strength * 0.05));
+  }
+  private physics(dt: number) {
+    const p = this.group.position;
+    const flying = this.air > 0 || this.kv.y > 0;
+    if (!flying && Math.hypot(this.kv.x, this.kv.z) < 0.05) {
+      this.kv.set(0, 0, 0);
+      return;
+    }
+    p.x += this.kv.x * dt;
+    p.z += this.kv.z * dt;
+    pushOutOfBoxes(this.nav, p, RADIUS);
+    const damp = Math.exp(-(flying ? 0.25 : 6) * dt);
+    this.kv.x *= damp;
+    this.kv.z *= damp;
+    if (flying) {
+      this.kv.y -= 22 * dt;
+      this.air += this.kv.y * dt;
+      if (this.air <= 0) {
+        this.air = 0;
+        if (this.kv.y < -5 && this.alive) this.stunT = Math.max(this.stunT, 0.35);
+        this.kv.y = this.kv.y < -6 ? -this.kv.y * 0.2 : 0;
+        this.kv.x *= 0.6;
+        this.kv.z *= 0.6;
+      }
+    }
+  }
+
   /** Apply damage. Returns true if it killed the wolf. */
   damage(amount: number): boolean {
     if (!this.alive) return false;
@@ -433,15 +478,19 @@ export class Wolf {
       this.flash = Math.max(0, this.flash - dt);
       if (this.material) this.material.emissive.setScalar(this.flash > 0 ? 0.8 : 0);
 
-      const speed = this.aggravated ? this.chase(dt) : this.wander(dt);
+      this.physics(dt);
+      if (this.stunT > 0) this.stunT -= dt;
+      const speed = this.stunT > 0 ? 0 : this.aggravated ? this.chase(dt) : this.wander(dt);
       const p = this.group.position;
-      p.y = this.nav.heightAt(p.x, p.z);
+      p.y = this.nav.heightAt(p.x, p.z) + this.air;
       this.group.rotation.y = this.heading;
       this.animate(dt, speed);
       return;
     }
     // death: tip over and fade away, then respawn far from the player after a long wait
     this.deadTime += dt;
+    this.physics(dt);
+    this.group.position.y = this.nav.heightAt(this.group.position.x, this.group.position.z) + this.air;
     const t = Math.min(this.deadTime / 0.4, 1);
     this.group.scale.setScalar(this.baseScale * (1 - t));
     this.group.rotation.z = t * 1.3;

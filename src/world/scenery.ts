@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MeshBuilder } from '../entities/meshBuilder';
+import { doorCreak } from '../audio/audio';
 import { CAMP, GIANT_OAK, HOUSES, POND, keepClear, pathDistance, type HouseSpec } from './layout';
 
 // Scenery builders for the arena: forest, grass, rocks, houses, campfire, pond, mountains and clouds.
@@ -42,8 +43,14 @@ export interface Rocks {
   /** A rock of radius r on the ground (partly sunk in). Bigger rocks block the player. */
   add: (x: number, z: number, r: number, lift?: number) => void;
   /** A rock with explicit size and height (arches, spires, standing stones). Optional collider. */
-  place: (x: number, y: number, z: number, sx: number, sy: number, sz: number, rotY: number, tint?: number, collide?: boolean) => THREE.Mesh;
+  place: (x: number, y: number, z: number, sx: number, sy: number, sz: number, rotY: number, tint?: number, collide?: boolean) => void;
+  /** Build the instanced meshes (call once, after the last rock was placed). */
+  finish: () => void;
 }
+/**
+ * All rocks share 4 shapes x 6 colours, so they are drawn as instanced meshes (one draw call per shape/colour
+ * instead of one per rock: ~500 rocks became ~24 draw calls, in the main pass and in the shadow pass).
+ */
 export function makeRocks(ctx: Ctx): Rocks {
   const { scene, boxes, blockers, heightAt, rand } = ctx;
   const geos = [0, 1, 2, 3].map((k) => {
@@ -60,19 +67,22 @@ export function makeRocks(ctx: Ctx): Rocks {
   const mats = [0x7a7770, 0x6b6963, 0x857f74, 0x5f5d59, 0x8a7f6a, 0x9a8f78].map(
     (col) => new THREE.MeshStandardMaterial({ color: col, roughness: 1, flatShading: true }),
   );
+  const buckets = new Map<number, THREE.Matrix4[]>();
+  const _e = new THREE.Euler();
+  const _q = new THREE.Quaternion();
   const place: Rocks['place'] = (x, y, z, sx, sy, sz, rotY, tint, collide = false) => {
-    const m = new THREE.Mesh(geos[Math.floor(rand() * geos.length)], tint === undefined ? mats[Math.floor(rand() * mats.length)] : mats[tint % mats.length]);
-    m.scale.set(sx, sy, sz);
-    m.position.set(x, y, z);
-    m.rotation.set((rand() - 0.5) * 0.25, rotY, (rand() - 0.5) * 0.25);
-    m.castShadow = m.receiveShadow = true;
-    scene.add(m);
-    blockers.push(m);
+    const gi = Math.floor(rand() * geos.length);
+    const mi = tint === undefined ? Math.floor(rand() * mats.length) : tint % mats.length;
+    _e.set((rand() - 0.5) * 0.25, rotY, (rand() - 0.5) * 0.25);
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.setFromEuler(_e), new THREE.Vector3(sx, sy, sz));
+    const key = gi * 16 + mi;
+    let list = buckets.get(key);
+    if (!list) buckets.set(key, (list = []));
+    list.push(m);
     if (collide) {
       const hw = 0.62 * Math.max(sx, sz);
       boxes.push(new THREE.Box3(new THREE.Vector3(x - hw, y - sy, z - hw), new THREE.Vector3(x + hw, y + sy * 0.6, z + hw)));
     }
-    return m;
   };
   const add: Rocks['add'] = (x, z, r, lift = 0) => {
     const sx = 0.8 + rand() * 0.5, sy = 0.55 + rand() * 0.4, sz = 0.8 + rand() * 0.5;
@@ -84,7 +94,18 @@ export function makeRocks(ctx: Ctx): Rocks {
       boxes.push(new THREE.Box3(new THREE.Vector3(x - hw, y - r * sy, z - hw), new THREE.Vector3(x + hw, y + r * sy * 0.6, z + hw)));
     }
   };
-  return { add, place };
+  const finish = () => {
+    for (const [key, list] of buckets) {
+      const mesh = new THREE.InstancedMesh(geos[Math.floor(key / 16)], mats[key % 16], list.length);
+      list.forEach((m, i) => mesh.setMatrixAt(i, m));
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.instanceMatrix.needsUpdate = true;
+      scene.add(mesh);
+      blockers.push(mesh); // instanced meshes are ray-tested per instance
+    }
+    buckets.clear();
+  };
+  return { add, place, finish };
 }
 
 /** A rock arch: two stacked-rock pillars and a heavy lintel you can walk under. */
@@ -99,8 +120,7 @@ export function buildArch(ctx: Ctx, rocks: Rocks, x: number, z: number, span: nu
     rocks.place(px - 0.1, g + 3.9, pz + 0.1, 1.35, 1.0, 1.3, ctx.rand() * 6, 2);
     boxes.push(new THREE.Box3(new THREE.Vector3(px - 1.15, g - 0.5, pz - 1.15), new THREE.Vector3(px + 1.15, g + 4.6, pz + 1.15)));
   }
-  const lintel = rocks.place(x, g + 5.0, z, span / 2 + 1.3, 0.95, 1.25, rot, 3);
-  lintel.rotation.y = rot;
+  rocks.place(x, g + 5.0, z, span / 2 + 1.3, 0.95, 1.25, rot, 3);
   boxes.push(new THREE.Box3(new THREE.Vector3(x - span / 2 - 0.6, g + 4.2, z - 1.0), new THREE.Vector3(x + span / 2 + 0.6, g + 6.1, z + 1.0)).expandByScalar(0.05));
 }
 
@@ -549,6 +569,7 @@ export function buildHouse(ctx: Ctx, spec: HouseSpec, style: { wall: number; tri
   boxes.push(doorBox);
 
   let open = 0; // 0 closed .. 1 open
+  let wasCreaking = false;
   let dir = 1; // which way it swings (away from the player who opened it)
   const OPEN_ANGLE = 1.7;
   const update: HouseHandle['update'] = (dt, player) => {
@@ -560,6 +581,9 @@ export function buildHouse(ctx: Ctx, spec: HouseSpec, style: { wall: number; tri
       dir = outside ? 1 : -1; // positive angle = swings inward
     }
     const target = near ? 1 : far ? 0 : open > 0.5 ? 1 : 0;
+    const wasMoving = Math.abs(target - open) > 0.05;
+    if (!wasCreaking && wasMoving && dt > 0) doorCreak(Math.hypot(player.x - doorX, player.z - doorZ));
+    wasCreaking = wasMoving;
     open += (target - open) * (1 - Math.exp(-6 * dt));
     pivot.rotation.y = dir * open * OPEN_ANGLE;
     if (open > 0.45) doorBox.makeEmpty();

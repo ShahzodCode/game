@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { stopRifleLoop, stopReloadSound, hurtSound, potionSound, stepSound, landSound } from '../audio/audio';
+import { stopRifleLoop, stopReloadSound, hurtSound, potionSound, stepSound, landSound, splashSound } from '../audio/audio';
+import { POND } from '../world/layout';
 import { POTION } from '../shop/shopItems';
 import { pos, vel, weapons, world } from './core';
 import { showPopup } from './hud';
@@ -45,7 +46,7 @@ export function damagePlayer(amount: number) {
 
 /** True if nothing solid overhead blocks standing at full height. */
 function canStand() {
-  for (const b of world.boxes) {
+  for (const b of world.boxesNear(pos.x, pos.z, PLAYER_RADIUS + 0.8)) {
     const overX = pos.x > b.min.x - PLAYER_RADIUS && pos.x < b.max.x + PLAYER_RADIUS;
     const overZ = pos.z > b.min.z - PLAYER_RADIUS && pos.z < b.max.z + PLAYER_RADIUS;
     if (overX && overZ && b.min.y >= pos.y + CROUCH_HEIGHT - 0.01 && b.min.y < pos.y + STAND_HEIGHT) return false;
@@ -63,6 +64,14 @@ function slope(out: THREE.Vector2) {
   return out;
 }
 
+/** 0..1: how deep in the pond the player stands (wading slows him down). */
+function waterDepth() {
+  if (Math.hypot(pos.x - POND.x, pos.z - POND.z) > POND.r + 3) return 0;
+  const ground = world.heightAt(pos.x, pos.z);
+  return THREE.MathUtils.clamp((POND.level - ground - 0.1) / 0.9, 0, 1);
+}
+let wasWet = false;
+
 const _grad = new THREE.Vector2();
 let jumpWasDown = false;
 let jumped = false; // the current rise came from a jump (so releasing the key cuts it short)
@@ -75,7 +84,7 @@ export function movePlayer(dt: number) {
   S.slideCd = Math.max(0, S.slideCd - dt);
 
   // ---- crouch, and the crouch-slide (sprint, then press crouch) ----
-  if (shift && !S.crouching && S.slideT <= 0 && S.slideCd <= 0 && S.onGround && ctrl && horiz0 > 6.5) {
+  if (shift && !S.crouching && S.slideT <= 0 && S.slideCd <= 0 && (S.onGround || S.coyote > 0) && ctrl && horiz0 > 6.5) {
     S.slideT = SLIDE_TIME;
     S.slideCd = 1.5;
     const sp = Math.min(11.5, Math.max(horiz0, 8.5) * 1.15);
@@ -84,7 +93,8 @@ export function movePlayer(dt: number) {
   }
   if (S.slideT > 0) {
     S.slideT -= dt;
-    if (!S.onGround || !shift || Math.hypot(vel.x, vel.z) < 3.2) S.slideT = 0;
+    // bumps on uneven ground may lift the player for a frame or two: that must not end the slide
+    if ((!S.onGround && S.coyote <= 0) || !shift || Math.hypot(vel.x, vel.z) < 3.2) S.slideT = 0;
   }
   if (shift) S.crouching = true;
   else if (S.crouching && S.slideT <= 0 && canStand()) S.crouching = false;
@@ -106,6 +116,12 @@ export function movePlayer(dt: number) {
     -Math.cos(S.yaw) * fwd - Math.sin(S.yaw) * strafe,
   );
   const g = slope(_grad);
+  const wet = waterDepth();
+  if (wet > 0.05 !== wasWet) {
+    wasWet = wet > 0.05;
+    if (S.onGround) splashSound(0.7); // wading in or out
+  }
+  speed *= 1 - 0.4 * wet; // water drags
   if (wish.lengthSq() > 0) {
     wish.normalize();
     // uphill is slower, downhill a little faster
@@ -147,7 +163,7 @@ export function movePlayer(dt: number) {
   S.jumpBuf = Math.max(0, S.jumpBuf - dt);
   S.coyote = S.onGround ? COYOTE : Math.max(0, S.coyote - dt);
   if (S.jumpBuf > 0 && S.coyote > 0 && (!S.crouching || S.slideT > 0)) {
-    vel.y = JUMP_SPEED;
+    vel.y = JUMP_SPEED * (1 - 0.3 * wet);
     S.onGround = false;
     S.coyote = 0;
     S.jumpBuf = 0;
@@ -166,7 +182,7 @@ export function movePlayer(dt: number) {
   pos.y += vel.y * dt;
   S.onGround = false;
   let floorY = world.heightAt(pos.x, pos.z);
-  for (const b of world.boxes) {
+  for (const b of world.boxesNear(pos.x, pos.z, PLAYER_RADIUS + 0.8)) {
     const overX = pos.x > b.min.x - PLAYER_RADIUS && pos.x < b.max.x + PLAYER_RADIUS;
     const overZ = pos.z > b.min.z - PLAYER_RADIUS && pos.z < b.max.z + PLAYER_RADIUS;
     if (overX && overZ && prevY >= b.max.y - 0.01 && pos.y <= b.max.y) floorY = Math.max(floorY, b.max.y);
@@ -189,7 +205,7 @@ export function movePlayer(dt: number) {
   // ---- horizontal move: slide along walls, step up small ledges ----
   pos.x += vel.x * dt;
   pos.z += vel.z * dt;
-  for (const b of world.boxes) {
+  for (const b of world.boxesNear(pos.x, pos.z, PLAYER_RADIUS + 0.8)) {
     if (pos.y >= b.max.y - 0.05 || pos.y + S.playerHeight <= b.min.y) continue;
     const minX = b.min.x - PLAYER_RADIUS, maxX = b.max.x + PLAYER_RADIUS;
     const minZ = b.min.z - PLAYER_RADIUS, maxZ = b.max.z + PLAYER_RADIUS;
@@ -222,14 +238,15 @@ export function movePlayer(dt: number) {
     S.stepPhase += hs * dt * (S.crouching ? 0.45 : 0.6);
     if (S.stepPhase >= 1) {
       S.stepPhase -= 1;
-      stepSound(S.crouching ? 0.35 : hs > 7.5 ? 1 : 0.7);
+      if (wet > 0.05) splashSound(0.35 + 0.4 * wet);
+      else stepSound(S.crouching ? 0.35 : hs > 7.5 ? 1 : 0.7);
     }
   }
 }
 
 /** Is there room for the player's body if he stood on a ledge at height y? */
 function roomAbove(y: number) {
-  for (const b of world.boxes) {
+  for (const b of world.boxesNear(pos.x, pos.z, PLAYER_RADIUS + 0.8)) {
     const overX = pos.x > b.min.x - PLAYER_RADIUS && pos.x < b.max.x + PLAYER_RADIUS;
     const overZ = pos.z > b.min.z - PLAYER_RADIUS && pos.z < b.max.z + PLAYER_RADIUS;
     if (overX && overZ && b.min.y > y + 0.01 && b.min.y < y + S.playerHeight) return false;
@@ -240,6 +257,11 @@ function roomAbove(y: number) {
 /** Touching down after a fall: camera dip, thud, and damage from a very high drop. */
 function landed(impact: number) {
   if (impact < 5) return;
+  if (waterDepth() > 0.3) {
+    splashSound(Math.min(1, impact / 12)); // soft landing in the pond: no thud, no damage
+    S.landDip = Math.min(0.12, impact * 0.008);
+    return;
+  }
   S.landDip = Math.min(0.28, (impact - 4) * 0.022);
   S.roll += (Math.random() - 0.5) * 0.02;
   landSound(Math.min(1, (impact - 4) / 14));

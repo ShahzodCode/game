@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildRooms, makeSignBoard, type Rooms } from './rooms';
 import { buildSupplyShopProps } from './shopProps';
+import { BoxGrid } from './boxGrid';
 import { ARCHES, BOULDER_FIELDS, ENTRY, FLATS, HOUSES, MESAS, POND, ROCK_PILES, SPIRES, STONE_CIRCLE, keepClear, pathDistance } from './layout';
 import {
   HOUSE_STYLES, buildArch, buildBackdrop, buildCamp, buildClouds, buildForest, buildGroundCover, buildHouse, buildPond,
@@ -29,6 +30,14 @@ export interface World {
   setIndoor: (k: number) => void;
   /** Ammo shop buy zone: stand inside `radius` of `pos` to buy. */
   shop: { pos: THREE.Vector3; radius: number };
+  /** Distance along a ray to the ground, or -1 (the terrain is not ray-tested as a mesh: see game/raycast.ts). */
+  terrainRay: (ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, far: number) => number;
+  /** Stands in for the ground in hit lists (no owner). */
+  terrainProxy: THREE.Object3D;
+  /** Collision boxes near a point (a fresh array each call). */
+  boxesNear: (x: number, z: number, r: number) => THREE.Box3[];
+  /** Quality knob: sun shadow resolution (0 = shadows off). */
+  setShadowQuality: (mapSize: number) => void;
   /** Per-frame life: doors that open, campfire, water, clouds. */
   update: (dt: number, time: number, player: THREE.Vector3) => void;
 }
@@ -97,7 +106,7 @@ export function buildWorld(scene: THREE.Scene): World {
   scene.add(sun);
 
   // ---------- terrain height function ----------
-  const heightAt = (x: number, z: number) => {
+  const analyticHeight = (x: number, z: number) => {
     let h = 0;
     for (const [cx, cz, sg, a] of BUMPS) h += gauss(x, z, cx, cz, sg, a);
     for (const [cx, cz] of ROCK_PILES) h += gauss(x, z, cx, cz, 2.6, 1.1);
@@ -114,6 +123,44 @@ export function buildWorld(scene: THREE.Scene): World {
       mask *= smooth(0, f.margin, Math.hypot(dx, dz));
     }
     return h * mask;
+  };
+
+  // The height is sampled on a 0.5 m grid with bilinear interpolation: bots, projectiles and the player ask for it
+  // hundreds of times per frame, and the analytic version sums ~40 gaussians each time.
+  const GRID = 0.5;
+  const GN = Math.round((half * 2) / GRID) + 1;
+  const grid = new Float32Array(GN * GN);
+  for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) grid[j * GN + i] = analyticHeight(-half + i * GRID, -half + j * GRID);
+  const heightAt = (x: number, z: number) => {
+    const fx = THREE.MathUtils.clamp((x + half) / GRID, 0, GN - 1.0001);
+    const fz = THREE.MathUtils.clamp((z + half) / GRID, 0, GN - 1.0001);
+    const i = Math.floor(fx), j = Math.floor(fz);
+    const tx = fx - i, tz = fz - j;
+    const k = j * GN + i;
+    return (grid[k] * (1 - tx) + grid[k + 1] * tx) * (1 - tz) + (grid[k + GN] * (1 - tx) + grid[k + GN + 1] * tx) * tz;
+  };
+  /** March a ray over the height field; refine the crossing by bisection. */
+  const terrainRay = (ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, far: number) => {
+    const STEP = 0.6;
+    let tPrev = 0;
+    if (oy - heightAt(ox, oz) < 0) return -1; // starting below the ground: ignore
+    for (let t = STEP; ; t += STEP) {
+      const tt = Math.min(t, far);
+      const x = ox + dx * tt, z = oz + dz * tt;
+      if (Math.abs(x) > half + 1 || Math.abs(z) > half + 1) return -1; // left the arena (the walls stop rays first)
+      const f = oy + dy * tt - heightAt(x, z);
+      if (f < 0) {
+        let lo = tPrev, hi = tt;
+        for (let k = 0; k < 10; k++) {
+          const mid = (lo + hi) / 2;
+          if (oy + dy * mid - heightAt(ox + dx * mid, oz + dz * mid) < 0) hi = mid;
+          else lo = mid;
+        }
+        return hi;
+      }
+      if (tt >= far) return -1;
+      tPrev = tt;
+    }
   };
 
   // ---------- terrain mesh ----------
@@ -143,8 +190,8 @@ export function buildWorld(scene: THREE.Scene): World {
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
   terrain.receiveShadow = true;
-  scene.add(terrain);
-  blockers.push(terrain);
+  scene.add(terrain); // render only: gameplay rays use terrainRay (it is not in `blockers`)
+  const terrainProxy = new THREE.Object3D();
 
   // ---------- structures ----------
   const addBox = (st: Structure) => {
@@ -233,6 +280,7 @@ export function buildWorld(scene: THREE.Scene): World {
   buildGroundCover(ctx);
   const updatePond = buildPond(ctx, rocks);
   const updateCamp = buildCamp(ctx, rocks);
+  rocks.finish(); // every rock is placed now: build the instanced meshes
   const houseHandles: HouseHandle[] = HOUSES.map((h, i) => buildHouse(ctx, h, HOUSE_STYLES[i % HOUSE_STYLES.length]));
   buildBackdrop(scene, rand);
   const updateClouds = buildClouds(scene, rand);
@@ -300,5 +348,18 @@ export function buildWorld(scene: THREE.Scene): World {
     updateClouds(dt);
   };
 
-  return { boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update };
+  const boxGrid = new BoxGrid(boxes); // built last: every collision box exists now
+  const setShadowQuality = (mapSize: number) => {
+    sun.castShadow = mapSize > 0;
+    if (mapSize > 0 && sun.shadow.mapSize.x !== mapSize) {
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+      sun.shadow.mapSize.set(mapSize, mapSize);
+    }
+  };
+
+  return {
+    boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update,
+    terrainRay, terrainProxy, boxesNear: (x, z, r) => boxGrid.near(x, z, r), setShadowQuality,
+  };
 }

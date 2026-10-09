@@ -38,9 +38,12 @@ export function renderMissions() {
   const rows = S.missions
     .map((m, i) => {
       const p = Math.floor(m.progress);
+      const pct = Math.round(Math.min(1, m.progress / m.target) * 100);
       return (
         `<div class="m${m.done ? ' done' : ''}"><span class="n">${m.done ? '✓' : i + 1}</span><span class="t">${m.title}</span>` +
-        `<span class="p">${p}/${m.target}</span><span class="r">${m.done ? 'Paid' : 'Reward'} $${m.reward}</span></div>`
+        `<span class="p">${p}/${m.target}</span>` +
+        (m.done ? '' : `<span class="bar"><i style="width:${pct}%"></i></span>`) +
+        `<span class="r">${m.done ? 'Paid' : 'Reward'} $${m.reward}</span></div>`
       );
     })
     .join('');

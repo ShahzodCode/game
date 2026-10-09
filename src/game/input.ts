@@ -9,6 +9,8 @@ import { buyItem, updateShop } from './shops';
 import { clearSave, saveProgress } from './save';
 import { resetGame } from './session';
 import { MOUSE_SENS, S, keys } from './state';
+import { settings } from './settings';
+import { settingsEl, closeSettings } from './settingsUi';
 
 // Input, pointer lock and the pause menu.
 //
@@ -63,6 +65,7 @@ addEventListener('keydown', (e) => {
   if (!S.locked) {
     if (e.code === 'Escape') {
       if (rules.style.display === 'flex') closeRules();
+      else if (settingsEl.style.display === 'flex') closeSettings();
       else if (!S.dead) startPlaying();
     } else if (S.softPaused && !e.repeat) {
       startPlaying();
@@ -112,8 +115,8 @@ addEventListener('wheel', (e) => {
 });
 addEventListener('mousemove', (e) => {
   if (!S.locked) return;
-  S.yaw -= e.movementX * MOUSE_SENS * S.fovScale; // slower look while zoomed in
-  S.pitch -= e.movementY * MOUSE_SENS * S.fovScale;
+  S.yaw -= e.movementX * MOUSE_SENS * settings.sensitivity * S.fovScale; // slower look while zoomed in
+  S.pitch -= e.movementY * MOUSE_SENS * settings.sensitivity * S.fovScale;
   S.pitch = THREE.MathUtils.clamp(S.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
 });
 addEventListener('resize', () => {
@@ -162,6 +165,7 @@ $('btnCash').addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   S.locked = document.pointerLockElement === renderer.domElement;
   rules.style.display = 'none';
+  settingsEl.style.display = 'none';
   if (S.locked) {
     if (!S.started) {
       showBanner(
@@ -197,9 +201,11 @@ document.addEventListener('pointerlockchange', () => {
   S.softPaused = false;
   resumeHint.style.display = 'none';
   overlay.style.display = 'flex';
+  overlay.classList.toggle('dead', S.dead);
+  document.querySelector('#overlay .kicker')!.textContent = S.dead ? 'YOUR RUN ENDED' : S.started ? 'GAME PAUSED' : 'FIRST-PERSON ARENA SHOOTER';
   $('title').textContent = S.dead ? 'You died' : S.started ? 'Paused' : 'Bot Shooter';
   $('btnResume').style.display = S.dead ? 'none' : '';
-  $('btnResume').textContent = S.started ? 'Resume' : 'Play';
-  $('btnReload').textContent = S.dead ? 'Play again' : 'Reload map';
+  $('btnResume').querySelector('span')!.textContent = S.started ? 'Resume' : 'Play';
+  $('btnReload').querySelector('span')!.textContent = S.dead ? 'Play again' : 'Reload map';
   updateSummary();
 });
