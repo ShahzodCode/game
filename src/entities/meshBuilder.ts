@@ -114,20 +114,22 @@ export class MeshBuilder {
  * can skip every cell outside the view (and outside the sun's shadow box). Use `at(x, z)` to get the builder of a cell.
  */
 export class ChunkedBuilder {
-  private cells = new Map<string, MeshBuilder>();
-  constructor(private cell = 24) {}
+  private cells = new Map<string, { b: MeshBuilder; tag: number }>();
+  /** `tagOf(x, z)` splits the cells further (the arena stage a spot belongs to); the tag comes back from `build`. */
+  constructor(private cell = 24, private tagOf: (x: number, z: number) => number = () => 0) {}
   at(x: number, z: number): MeshBuilder {
-    const key = `${Math.floor(x / this.cell)},${Math.floor(z / this.cell)}`;
-    let b = this.cells.get(key);
-    if (!b) this.cells.set(key, (b = new MeshBuilder()));
-    return b;
+    const tag = this.tagOf(x, z);
+    const key = `${tag}:${Math.floor(x / this.cell)},${Math.floor(z / this.cell)}`;
+    let c = this.cells.get(key);
+    if (!c) this.cells.set(key, (c = { b: new MeshBuilder(), tag }));
+    return c.b;
   }
   /** One mesh per non-empty cell, made by `make` (so the caller picks the material and flags). */
-  build(make: (geo: THREE.BufferGeometry) => THREE.Mesh): THREE.Mesh[] {
+  build(make: (geo: THREE.BufferGeometry, tag: number) => THREE.Mesh): THREE.Mesh[] {
     const out: THREE.Mesh[] = [];
-    for (const b of this.cells.values()) {
+    for (const c of this.cells.values()) {
       try {
-        out.push(make(b.build()));
+        out.push(make(c.b.build(), c.tag));
       } catch {
         /* empty cell */
       }

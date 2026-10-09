@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { ChunkedBuilder, MeshBuilder } from '../entities/meshBuilder';
-import { CAMP, GIANT_OAK, HOUSES, POND, keepClear, pathDistance, type HouseSpec } from './layout';
+import { STAGES, CAMP, GIANT_OAK, HOUSES, POND, keepClear, pathDistance, stageOf, type HouseSpec } from './layout';
 
 // Scenery builders for the arena: forest, grass, rocks, houses, campfire, pond, mountains and clouds.
 // Static detail is merged into a few vertex-coloured meshes (MeshBuilder), so hundreds of trees cost a handful of
 // draw calls. Trunks and rocks are bullet blockers; leaves are not (you can shoot through foliage).
 
 export interface Ctx {
-  scene: THREE.Scene;
+  scene: THREE.Object3D;
+  /** One group per arena stage (layout.ts STAGES): scenery goes into the group of the stage where it first appears. */
+  stageGroups: THREE.Group[];
   boxes: THREE.Box3[];
   blockers: THREE.Object3D[];
   heightAt: (x: number, z: number) => number;
@@ -43,8 +45,8 @@ export interface Rocks {
   add: (x: number, z: number, r: number, lift?: number) => void;
   /** A rock with explicit size and height (arches, spires, standing stones). Optional collider. */
   place: (x: number, y: number, z: number, sx: number, sy: number, sz: number, rotY: number, tint?: number, collide?: boolean) => void;
-  /** Build the instanced meshes (call once, after the last rock was placed). */
-  finish: () => void;
+  /** Build the instanced meshes (call once, after the last rock was placed). `setStage` shows only the rocks of the stages up to s. */
+  finish: () => { setStage: (stage: number) => void };
 }
 /**
  * All rocks share 4 shapes x 6 colours, so they are drawn as instanced meshes (one draw call per shape/colour
@@ -66,7 +68,7 @@ export function makeRocks(ctx: Ctx): Rocks {
   const mats = [0x7a7770, 0x6b6963, 0x857f74, 0x5f5d59, 0x8a7f6a, 0x9a8f78].map(
     (col) => new THREE.MeshStandardMaterial({ color: col, roughness: 1, flatShading: true }),
   );
-  const buckets = new Map<number, THREE.Matrix4[]>();
+  const buckets = new Map<number, { m: THREE.Matrix4; stage: number }[]>();
   const _e = new THREE.Euler();
   const _q = new THREE.Quaternion();
   const place: Rocks['place'] = (x, y, z, sx, sy, sz, rotY, tint, collide = false) => {
@@ -77,7 +79,7 @@ export function makeRocks(ctx: Ctx): Rocks {
     const key = gi * 16 + mi;
     let list = buckets.get(key);
     if (!list) buckets.set(key, (list = []));
-    list.push(m);
+    list.push({ m, stage: stageOf(x, z, 0) });
     if (collide) {
       const hw = 0.62 * Math.max(sx, sz);
       boxes.push(new THREE.Box3(new THREE.Vector3(x - hw, y - sy, z - hw), new THREE.Vector3(x + hw, y + sy * 0.6, z + hw)));
@@ -94,15 +96,24 @@ export function makeRocks(ctx: Ctx): Rocks {
     }
   };
   const finish = () => {
+    const parts: { mesh: THREE.InstancedMesh; upTo: number[] }[] = [];
     for (const [key, list] of buckets) {
+      list.sort((p, q) => p.stage - q.stage); // instances of the early stages first: showing a stage = drawing a prefix
       const mesh = new THREE.InstancedMesh(geos[Math.floor(key / 16)], mats[key % 16], list.length);
-      list.forEach((m, i) => mesh.setMatrixAt(i, m));
+      list.forEach((r, i) => mesh.setMatrixAt(i, r.m));
       mesh.castShadow = mesh.receiveShadow = true;
       mesh.instanceMatrix.needsUpdate = true;
+      mesh.frustumCulled = false;
       scene.add(mesh);
       blockers.push(mesh); // instanced meshes are ray-tested per instance
+      parts.push({ mesh, upTo: STAGES.map((_, s) => list.filter((r) => r.stage <= s).length) });
     }
     buckets.clear();
+    const setStage = (stage: number) => {
+      for (const p of parts) p.mesh.count = p.upTo[stage];
+    };
+    setStage(0);
+    return { setStage };
   };
   return { add, place, finish };
 }
@@ -157,8 +168,8 @@ const BIRCH_LEAF = [0x8bb04a, 0x9bbf55, 0x7da340];
 
 export function buildForest(ctx: Ctx) {
   const { scene, boxes, blockers, heightAt, rand } = ctx;
-  const trunks = new ChunkedBuilder();
-  const leaves = new ChunkedBuilder();
+  const trunks = new ChunkedBuilder(24, stageOf);
+  const leaves = new ChunkedBuilder(24, stageOf);
   const placed: [number, number][] = [];
 
   const treeAt = (x: number, z: number, kind: 'pine' | 'oak' | 'birch' | 'dead', s: number) => {
@@ -235,14 +246,14 @@ export function buildForest(ctx: Ctx) {
     n++;
   }
 
-  for (const m of trunks.build((g) => new THREE.Mesh(g, vcolMat(0.95)))) {
+  for (const m of trunks.build((g, tag) => { const mesh = new THREE.Mesh(g, vcolMat(0.95)); mesh.userData.stage = tag; return mesh; })) {
     m.castShadow = m.receiveShadow = true;
-    scene.add(m);
+    ctx.stageGroups[m.userData.stage].add(m);
     blockers.push(m);
   }
-  for (const m of leaves.build((g) => new THREE.Mesh(g, vcolMat(0.9, true)))) {
+  for (const m of leaves.build((g, tag) => { const mesh = new THREE.Mesh(g, vcolMat(0.9, true)); mesh.userData.stage = tag; return mesh; })) {
     m.castShadow = true;
-    scene.add(m);
+    ctx.stageGroups[m.userData.stage].add(m);
   }
   return { count: placed.length };
 }
@@ -250,7 +261,7 @@ export function buildForest(ctx: Ctx) {
 /** Bushes, grass tufts, flowers, stumps, fallen logs: no collision, just life. */
 export function buildGroundCover(ctx: Ctx) {
   const { scene, heightAt, rand } = ctx;
-  const B = new ChunkedBuilder(30);
+  const B = new ChunkedBuilder(30, stageOf);
   let b = B.at(0, 0);
   const free = (x: number, z: number, margin: number) => !keepClear(x, z, margin) && heightAt(x, z) > -0.3;
 
@@ -312,10 +323,10 @@ export function buildGroundCover(ctx: Ctx) {
     b.cyl(0xc9a36a, 0.27, 0.27, 0.02, { p: [x + Math.sin(a) * len / 2, y + 0.26, z + Math.cos(a) * len / 2], r: [Math.PI / 2, 0, a] }, 8);
     n++;
   }
-  const meshes = B.build((geo) => new THREE.Mesh(geo, vcolMat(1)));
+  const meshes = B.build((geo, tag) => { const mesh = new THREE.Mesh(geo, vcolMat(1)); mesh.userData.stage = tag; return mesh; });
   for (const mesh of meshes) {
     mesh.receiveShadow = true;
-    scene.add(mesh);
+    ctx.stageGroups[mesh.userData.stage].add(mesh);
   }
   return meshes;
 }

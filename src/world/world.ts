@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { buildRooms, makeSignBoard, type Rooms } from './rooms';
 import { buildSupplyShopProps } from './shopProps';
 import { BoxGrid } from './boxGrid';
-import { ARCHES, BOULDER_FIELDS, ENTRY, FLATS, HOUSES, MESAS, POND, ROCK_PILES, SPIRES, STONE_CIRCLE, keepClear, pathDistance } from './layout';
+import { ARCHES, BOULDER_FIELDS, CAMP, ENTRY, FLATS, HOUSES, MESAS, POND, ROCK_PILES, SPIRES, STAGES, STONE_CIRCLE, keepClear, pathDistance, stageOf } from './layout';
 import {
   HOUSE_STYLES, buildArch, buildBackdrop, buildCamp, buildClouds, buildForest, buildGroundCover, buildHouse, buildPond,
   buildSpire, buildStoneCircle, makeRocks, type Ctx, type HouseHandle,
@@ -14,7 +14,11 @@ export interface World {
   /** Meshes that block bullets (terrain, structures, rocks). */
   blockers: THREE.Object3D[];
   spawnPoints: THREE.Vector3[];
-  half: number; // half-size of the arena
+  half: number; // half-size of the biggest arena (the whole map)
+  /** The part of the map that is in play right now (grows with the level, see layout.ts STAGES). Mutated in place. */
+  region: { x0: number; x1: number; z0: number; z1: number };
+  /** Show the arena of stage `i`: move the walls, reveal its scenery. */
+  setStage: (i: number) => number;
   /** Terrain surface height at (x, z). */
   heightAt: (x: number, z: number) => number;
   randomFreePoint: (avoid?: THREE.Vector3, minDist?: number) => THREE.Vector3;
@@ -252,19 +256,43 @@ export function buildWorld(scene: THREE.Scene): World {
   );
   zone.position.set(SHOP_ZONE.x, shopGround + 0.08, SHOP_ZONE.z);
   scene.add(zone);
-  // outer walls
+  // outer walls: rebuilt by setStage() whenever the arena grows
   const wallColor = 0x8d8577;
-  const wall = (x: number, z: number, w: number, d: number) =>
-    addBox({ x, z, w, h: 10, d, color: wallColor });
-  wall(0, -half, half * 2, 1);
-  // the south wall has a 10 m gap: the entrance gate to the airlock (see rooms.ts)
-  wall(-(half + 6.6) / 2, half, half - 6.6, 1); // ends at x = -6.6, where the gate pillar starts
-  wall((half + 6.6) / 2, half, half - 6.6, 1);
-  wall(-half, 0, 1, half * 2);
-  wall(half, 0, 1, half * 2);
+  const region = { x0: STAGES[0].x0, x1: STAGES[0].x1, z0: STAGES[0].z0, z1: STAGES[0].z1 };
+  let wallMeshes: THREE.Mesh[] = [];
+  let wallBoxes: THREE.Box3[] = [];
+  const buildWalls = () => {
+    for (const m of wallMeshes) {
+      scene.remove(m);
+      m.geometry.dispose();
+      const bi = blockers.indexOf(m);
+      if (bi >= 0) blockers.splice(bi, 1);
+    }
+    for (const bx of wallBoxes) boxes.splice(boxes.indexOf(bx), 1);
+    wallMeshes = [];
+    wallBoxes = [];
+    const nb = boxes.length, nm = blockers.length;
+    const wall = (x: number, z: number, w: number, d: number) => addBox({ x, z, w, h: 10, d, color: wallColor });
+    const { x0, x1, z0, z1 } = region;
+    wall((x0 + x1) / 2, z0, x1 - x0, 1);
+    // the south wall has a 10 m gap: the entrance gate to the airlock (see rooms.ts)
+    wall((x0 - 6.6) / 2, z1, -6.6 - x0, 1); // ends at x = -6.6, where the gate pillar starts
+    wall((x1 + 6.6) / 2, z1, x1 - 6.6, 1);
+    wall(x0, (z0 + z1) / 2, 1, z1 - z0);
+    wall(x1, (z0 + z1) / 2, 1, z1 - z0);
+    wallBoxes = boxes.slice(nb);
+    wallMeshes = blockers.slice(nm) as THREE.Mesh[];
+  };
+  buildWalls();
 
   // ---------- scenery: rocks (east), trees (west), landmarks ----------
-  const ctx: Ctx = { scene, boxes, blockers, heightAt, rand, half };
+  const stageGroups = STAGES.map(() => {
+    const g = new THREE.Group();
+    scene.add(g);
+    return g;
+  });
+  const ctx: Ctx = { scene, boxes, blockers, heightAt, rand, half, stageGroups };
+  const ctxAt = (x: number, z: number): Ctx => ({ ...ctx, scene: stageGroups[stageOf(x, z)] }); // a feature appears with the stage it lies in
   const rocks = makeRocks(ctx);
   const clearOfStart = (x: number, z: number, m = 0) => Math.hypot(x - ENTRY.x, z - ENTRY.z) > 9 + m && !keepClear(x, z, 1 + m);
 
@@ -309,10 +337,10 @@ export function buildWorld(scene: THREE.Scene): World {
   buildForest(ctx);
   const cover = buildGroundCover(ctx);
   for (const m of cover) m.geometry.computeBoundingSphere();
-  const updatePond = buildPond(ctx, rocks);
-  const updateCamp = buildCamp(ctx, rocks);
-  rocks.finish(); // every rock is placed now: build the instanced meshes
-  const houseHandles: HouseHandle[] = HOUSES.map((h, i) => buildHouse(ctx, h, HOUSE_STYLES[i % HOUSE_STYLES.length]));
+  const updatePond = buildPond(ctxAt(POND.x, POND.z), rocks);
+  const updateCamp = buildCamp(ctxAt(CAMP.x, CAMP.z), rocks);
+  const rockStages = rocks.finish(); // every rock is placed now: build the instanced meshes
+  const houseHandles: HouseHandle[] = HOUSES.map((h, i) => buildHouse(ctxAt(h.x, h.z), h, HOUSE_STYLES[i % HOUSE_STYLES.length]));
   buildBackdrop(scene, rand);
   const updateClouds = buildClouds(scene, rand);
 
@@ -328,23 +356,28 @@ export function buildWorld(scene: THREE.Scene): World {
     );
   };
   const randomFreePoint = (avoid?: THREE.Vector3, minDist = 0) => {
-    const lim = half - 5; // keep well away from the walls
     for (let i = 0; i < 200; i++) {
-      const x = (Math.random() * 2 - 1) * lim;
-      const z = (Math.random() * 2 - 1) * lim;
+      const x = region.x0 + 5 + Math.random() * (region.x1 - region.x0 - 10); // keep well away from the walls
+      const z = region.z0 + 5 + Math.random() * (region.z1 - region.z0 - 10);
       if (avoid && Math.hypot(x - avoid.x, z - avoid.z) < minDist) continue;
       if (isFree(x, z)) return new THREE.Vector3(x, heightAt(x, z), z);
     }
-    return new THREE.Vector3(0, heightAt(0, 0), 0);
+    for (let i = 0; i < 200; i++) { // too crowded for the distance asked: any free spot will do
+      const x = region.x0 + 5 + Math.random() * (region.x1 - region.x0 - 10);
+      const z = region.z0 + 5 + Math.random() * (region.z1 - region.z0 - 10);
+      if (isFree(x, z)) return new THREE.Vector3(x, heightAt(x, z), z);
+    }
+    const cx = (region.x0 + region.x1) / 2, cz = (region.z0 + region.z1) / 2;
+    return new THREE.Vector3(cx, heightAt(cx, cz), cz);
   };
   /** A walkable spot in the band close to the outer walls (where criminals live). */
   const randomEdgePoint = (avoid?: THREE.Vector3, minDist = 0) => {
     for (let i = 0; i < 300; i++) {
-      const along = (Math.random() * 2 - 1) * (half - 5);
-      const depth = half - 5 - Math.random() * 9; // 5..14 m in from the wall
+      const w = region.x1 - region.x0, d = region.z1 - region.z0;
+      const depth = 5 + Math.random() * Math.min(9, Math.min(w, d) / 4); // 5..14 m in from the wall
       const side = Math.floor(Math.random() * 4);
-      const x = side === 0 ? along : side === 1 ? along : side === 2 ? depth : -depth;
-      const z = side === 0 ? depth : side === 1 ? -depth : along;
+      const x = side < 2 ? region.x0 + 5 + Math.random() * (w - 10) : side === 2 ? region.x0 + depth : region.x1 - depth;
+      const z = side < 2 ? (side === 0 ? region.z0 + depth : region.z1 - depth) : region.z0 + 5 + Math.random() * (d - 10);
       if (avoid && Math.hypot(x - avoid.x, z - avoid.z) < minDist) continue;
       if (isFree(x, z)) return new THREE.Vector3(x, heightAt(x, z), z);
     }
@@ -383,7 +416,7 @@ export function buildWorld(scene: THREE.Scene): World {
     }
   };
 
-  const boxGrid = new BoxGrid(boxes); // built last: every collision box exists now
+  let boxGrid = new BoxGrid(boxes); // rebuilt when the walls move
   const setShadowQuality = (mapSize: number) => {
     sun.castShadow = mapSize > 0;
     if (mapSize > 0 && sun.shadow.mapSize.x !== mapSize) {
@@ -393,8 +426,22 @@ export function buildWorld(scene: THREE.Scene): World {
     }
   };
 
+  let stageNow = -1;
+  const setStage = (i: number) => {
+    const st = STAGES[i];
+    Object.assign(region, { x0: st.x0, x1: st.x1, z0: st.z0, z1: st.z1 });
+    stageGroups.forEach((g, k) => (g.visible = k <= i));
+    rockStages.setStage(i);
+    buildWalls();
+    boxGrid = new BoxGrid(boxes);
+    const grew = i !== stageNow;
+    stageNow = i;
+    return grew ? 1 : 0;
+  };
+  setStage(0);
+
   return {
-    boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update,
+    region, setStage, boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update,
     terrainRay, terrainProxy, boxesNear: (x, z, r) => boxGrid.near(x, z, r), setShadowQuality, followSun,
   };
 }

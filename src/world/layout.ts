@@ -7,7 +7,7 @@ export interface HouseSpec { x: number; z: number; w: number; d: number; door: S
 
 /** Big houses: a floor, walls with an open doorway and some windows, a gable roof and a couch. w = size along x, d = along z. */
 export const HOUSES: HouseSpec[] = [
-  { x: -38, z: -28, w: 17, d: 12, door: 'E' }, // in the forest, door toward the middle of the map
+  { x: -38, z: -8, w: 17, d: 12, door: 'E' }, // in the forest, door toward the middle of the map
   { x: 32, z: 22, w: 16, d: 12, door: 'W' }, // at the edge of the badlands
 ];
 
@@ -33,13 +33,13 @@ export const SPIRES: [number, number, number][] = [
 export const BOULDER_FIELDS: [number, number][] = [[28, -2], [50, -46], [12, -38], [52, 16], [22, 36], [8, -12]];
 export const ROCK_PILES: [number, number][] = [
   [26, 0], [44, -22], [18, -38], [52, -46], [34, 12], [48, 26], [24, 32], [12, -10], [40, 50], [56, 4],
-  [-14, -26], [-38, 22], [-50, -8],
+  [-14, -26], [-38, 22], [-53, -22],
 ];
 export const GIANT_OAK = { x: -22, z: -16 };
 
 /** Dirt paths (polylines) from the gate to the houses and the camp. */
 export const PATHS: [number, number][][] = [
-  [[0, 56], [-4, 46], [-12, 32], [-17, 16], [-16, 4], [-22, -8], [-24, -20], [-26, -28]],
+  [[0, 56], [-4, 46], [-12, 32], [-17, 16], [-16, 4], [-22, -4], [-27, -8]],
   [[4, 56], [12, 46], [18, 30], [21, 22]],
 ];
 
@@ -71,4 +71,33 @@ export function keepClear(x: number, z: number, margin: number): boolean {
   if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 1.5 + margin) return true;
   if (pathDistance(x, z) < 1.8 + margin * 0.5) return true;
   return false;
+}
+
+/**
+ * The arena grows as the levels go on. Each stage is a rectangle (all nested, the south edge z = 60 with the gate is
+ * always the same); everything outside the current stage is hidden and walled off. Scenery belongs to the first
+ * stage whose rectangle contains it, so it appears when the walls move out. Level 25 uses the whole 120 x 120 map.
+ */
+export interface Stage { fromLevel: number; x0: number; x1: number; z0: number; z1: number; bots: number }
+export const STAGES: Stage[] = [
+  { fromLevel: 1, x0: -20, x1: 20, z0: 24, z1: 60, bots: 10 },
+  { fromLevel: 3, x0: -20, x1: 20, z0: -4, z1: 60, bots: 12 },
+  { fromLevel: 6, x0: -20, x1: 52, z0: -14, z1: 60, bots: 16 },
+  { fromLevel: 10, x0: -50, x1: 52, z0: -24, z1: 60, bots: 20 },
+  { fromLevel: 15, x0: -54, x1: 56, z0: -48, z1: 60, bots: 24 },
+  { fromLevel: 20, x0: -58, x1: 59, z0: -56, z1: 60, bots: 24 },
+  { fromLevel: 25, x0: -60, x1: 60, z0: -60, z1: 60, bots: 24 },
+];
+export function stageForLevel(level: number): number {
+  let s = 0;
+  for (let i = 0; i < STAGES.length; i++) if (level >= STAGES[i].fromLevel) s = i;
+  return s;
+}
+/** The first stage that contains the point (with a margin, so things never straddle a wall). */
+export function stageOf(x: number, z: number, margin = 1.5): number {
+  for (let i = 0; i < STAGES.length; i++) {
+    const g = STAGES[i];
+    if (x > g.x0 + margin && x < g.x1 - margin && z > g.z0 + margin && z < g.z1 - margin) return i;
+  }
+  return STAGES.length - 1;
 }

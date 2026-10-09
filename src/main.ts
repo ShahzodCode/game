@@ -166,10 +166,10 @@ function updateShadows(dt: number) {
 
 /** Safety net: whatever the terrain does, the player can never leave the arena over the walls. */
 function keepInArena() {
-  const lim = world.half - 1.0;
-  if (pos.z < world.half - 1) {
-    pos.x = THREE.MathUtils.clamp(pos.x, -lim, lim);
-    pos.z = Math.max(pos.z, -lim);
+  const r = world.region;
+  if (pos.z < r.z1 - 1) {
+    pos.x = THREE.MathUtils.clamp(pos.x, r.x0 + 1.0, r.x1 - 1.0);
+    pos.z = Math.max(pos.z, r.z0 + 1.0);
   }
 }
 

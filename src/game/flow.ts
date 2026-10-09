@@ -5,7 +5,8 @@ import { doorSound, missionSound } from '../audio/audio';
 import {
   MISSIONS_TO_FINISH, MISSIONS_PER_LEVEL, emptyStats, generateMissions, levelConfig,
 } from './missions';
-import { $, pos, world } from './core';
+import { $, camera, pos, renderer, scene, world } from './core';
+import { STAGES, stageForLevel } from '../world/layout';
 import { mannequins, wolves } from './actors';
 import { showBanner } from './hud';
 import { S, type Phase } from './state';
@@ -90,7 +91,8 @@ function levelComplete() {
 }
 
 /** Keep new arrivals away from the arena entrance so the player is never ambushed at the door. */
-function awayFromEntry(group: THREE.Object3D, minDist = 28) {
+function awayFromEntry(group: THREE.Object3D, wanted = 28) {
+  const minDist = Math.min(wanted, Math.max(10, (world.region.z1 - world.region.z0) * 0.5)); // small arenas: less room to keep away
   if (group.position.distanceTo(world.arenaEntry) < minDist) group.position.copy(world.randomFreePoint(world.arenaEntry, minDist));
 }
 
@@ -99,6 +101,8 @@ function awayFromEntry(group: THREE.Object3D, minDist = 28) {
  * of items run per frame while the doors are shut, so there is never one long freeze and no loading screen.
  */
 let levelWork: (() => void)[] = [];
+let shownStage = -1;
+let arenaGrew = false;
 
 /** Queue everything the level needs. */
 export function startLevel() {
@@ -109,13 +113,23 @@ export function startLevel() {
   S.missionsDone = 0;
   missionsHtml = '';
   clearSpawnCooldowns();
+  // the arena grows with the level (layout.ts STAGES): move the walls, reveal the new scenery, fewer people in small arenas
+  const stage = stageForLevel(S.level);
+  world.setStage(stage);
+  renderer.compile(scene, camera); // the lights of the newly revealed houses / camp: compile now, behind the closed doors
+  arenaGrew = stage > shownStage && shownStage >= 0;
+  shownStage = stage;
   levelWork = [];
-  for (const m of mannequins) {
+  mannequins.forEach((m, i) => {
     levelWork.push(() => {
+      if (i >= STAGES[stage].bots) {
+        m.disable();
+        return;
+      }
       m.reset(true);
       awayFromEntry(m.group);
     });
-  }
+  });
   wolves.forEach((w, i) =>
     levelWork.push(() => {
       if (i < cfg.wolves) {
@@ -137,9 +151,10 @@ function ensureMissionCharacters() {
   // a character that is new in this level (criminals in 2, ninjas in 7) is guaranteed to show up, at least twice
   for (const c of COSTUMES) if (c.minLevel && c.minLevel > 1 && c.minLevel === S.level) wanted.set(c.id, Math.max(wanted.get(c.id) ?? 0, 2));
   for (const [id, n] of wanted) {
-    const alive = () => mannequins.filter((m) => m.costume.id === id).length;
+    const alive = () => mannequins.filter((m) => !m.disabled && m.costume.id === id).length;
     const want = Math.min(n, COSTUME_CAP[id] ?? n);
     for (const m of mannequins) {
+      if (m.disabled) continue;
       if (alive() >= want) break;
       if (!wanted.has(m.costume.id)) m.forceCostume(id); // never steal a bot another mission needs
     }
@@ -181,7 +196,7 @@ export function updateFlow(dt: number) {
       if (runLevelWork(2) && S.phaseT > 0.6) {
         rooms.gate2.setOpen(true);
         enterPhase('airlockReady');
-        showBanner(`LEVEL ${S.level}`, `${levelConfig(S.level).note} Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions.`, 5);
+        showBanner(`LEVEL ${S.level}`, `${arenaGrew ? 'The arena has grown! ' : ''}${levelConfig(S.level).note} Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions.`, 5);
       }
       break;
     case 'airlockReady':

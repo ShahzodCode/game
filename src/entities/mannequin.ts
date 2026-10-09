@@ -7,7 +7,8 @@ export interface Nav {
   boxes: THREE.Box3[];
   /** Collision boxes near a point (use this in per-frame code instead of scanning `boxes`). */
   boxesNear: (x: number, z: number, r: number) => THREE.Box3[];
-  half: number;
+  /** The part of the map in play (the walls). */
+  region: { x0: number; x1: number; z0: number; z1: number };
   /** Random walkable spot (not inside walls/crates/big rocks), optionally far from `avoid`. */
   randomFreePoint: (avoid?: THREE.Vector3, minDist?: number) => THREE.Vector3;
   /** Random walkable spot close to the outer walls. */
@@ -145,9 +146,9 @@ export function pushOutOfBoxes(nav: Nav, p: THREE.Vector3, radius: number): bool
     else p.z = p.z - minZ < maxZ - p.z ? minZ : maxZ;
     pushed = true;
   }
-  const lim = nav.half - 1.5; // never leave the arena
-  p.x = THREE.MathUtils.clamp(p.x, -lim, lim);
-  p.z = THREE.MathUtils.clamp(p.z, -lim, lim);
+  const r = nav.region; // never leave the arena
+  p.x = THREE.MathUtils.clamp(p.x, r.x0 + 1.5, r.x1 - 1.5);
+  p.z = THREE.MathUtils.clamp(p.z, r.z0 + 1.5, r.z1 - 1.5);
   return pushed;
 }
 
@@ -304,7 +305,17 @@ export class Mannequin {
   }
 
   /** Fresh bot: random costume, face and build, full health, somewhere new if `relocate`. */
+  /** Switched off for this level (small arenas have fewer people): invisible, not hittable, not simulated until reset(). */
+  disabled = false;
+  disable() {
+    this.disabled = true;
+    this.alive = false;
+    this.group.visible = false;
+    this.updateBar();
+  }
+
   reset(relocate = false) {
+    this.disabled = false;
     if (relocate) this.group.position.copy(this.nav.randomFreePoint(this.player, 20));
     this.alive = true;
     this.deadTime = 0;
@@ -1080,6 +1091,7 @@ export class Mannequin {
   }
 
   update(dt: number) {
+    if (this.disabled) return;
     if (this.alive) {
       // the health bar fades away if you stop shooting this bot for a while
       if (this.barFill.visible) {
