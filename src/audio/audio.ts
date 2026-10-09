@@ -565,12 +565,31 @@ function loadVoices() {
     }
   })());
 }
-interface VoiceNow { src: AudioBufferSourceNode; gain: GainNode; kind: VoiceKind; until: number }
+interface VoiceNow { src: AudioBufferSourceNode; gain: GainNode; kind: VoiceKind; until: number; owner?: object }
 let voicesNow: VoiceNow[] = [];
 let lastHitVoice = 0;
+/** Fade out whatever this character is saying right now. */
+function cutVoicesOf(owner: object) {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  for (const v of voicesNow) {
+    if (v.owner !== owner) continue;
+    v.gain.gain.cancelScheduledValues(t);
+    v.gain.gain.setValueAtTime(v.gain.gain.value, t);
+    v.gain.gain.linearRampToValueAtTime(0, t + 0.05);
+    try {
+      v.src.stop(t + 0.06);
+    } catch {
+      /* already finished */
+    }
+    v.until = 0;
+  }
+  voicesNow = voicesNow.filter((v) => v.owner !== owner);
+}
 /** Speak a random recorded line of a character. Quieter with distance. Returns true if something played. */
-export function voiceLine(id: string, kind: VoiceKind, distance: number): boolean {
+export function voiceLine(id: string, kind: VoiceKind, distance: number, owner?: object): boolean {
   if (!ctx || !master) return false;
+  if (kind === 'death' && owner) cutVoicesOf(owner); // a dying character stops its hit / small-talk line and says its death line instead
   const list = voiceManifest[id]?.[kind];
   if (!list?.length) return false;
   const vol = Math.pow(Math.max(0, 1 - distance / 40), 1.3);
@@ -593,6 +612,6 @@ export function voiceLine(id: string, kind: VoiceKind, distance: number): boolea
   g.gain.value = Math.min(1.6, 1.5 * vol);
   src.connect(g).connect(master);
   src.start();
-  voicesNow.push({ src, gain: g, kind, until: now + buf.duration / src.playbackRate.value });
+  voicesNow.push({ src, gain: g, kind, until: now + buf.duration / src.playbackRate.value, owner });
   return true;
 }

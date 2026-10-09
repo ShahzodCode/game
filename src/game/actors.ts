@@ -46,7 +46,7 @@ export const botHooks: BotHooks = {
     z.spawnAs('zombie', new THREE.Vector3(THREE.MathUtils.clamp(at.x, r.x0 + 2, r.x1 - 2), 0, THREE.MathUtils.clamp(at.z, r.z0 + 2, r.z1 - 2)));
     return true;
   },
-  voice: (id, kind, at) => voiceLine(id, kind, at.distanceTo(pos)),
+  voice: (id, kind, at, owner) => voiceLine(id, kind, at.distanceTo(pos), owner),
   zombiesAlive: () => zombies.filter((q) => !q.disabled && q.alive).length,
 };
 setSpawnRule(levelConfig(1).allowed); // level 1 has no criminals
