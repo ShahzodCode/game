@@ -274,7 +274,6 @@ export function explode(at: THREE.Vector3, stats: WeaponStats) {
   boomLightT = 0.3;
   spawnDebris(at, 16, 7);
   explosionSound(at.distanceTo(camera.position));
-  Mannequin.scareNear(at, 34);
 
   // characters in the blast
   const from = _c.copy(at);
@@ -382,6 +381,7 @@ function updateBolt(b: Body, i: number, dt: number): boolean {
           addScore(POINTS_HIT);
           _push.copy(b.v).setLength(st.impactImpulse * 0.06);
           applyHit(owner, st.damage * (head ? st.headshotMultiplier : 1), head, rh.point, _push);
+          if (owner.alive) owner.crossbowHit(); // frozen for 2 s, loses its target for 5 s
           boltHitSound(rh.point.distanceTo(camera.position));
           return false; // the bolt is spent
         }

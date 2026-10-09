@@ -12,7 +12,7 @@ const WEAPON_NOTES: Record<string, string> = {
   shotgun: '8 pellets: deadly close, weak far away',
   smg: 'Fast and light: best on the move and up close, loses punch at range',
   sniper: 'Aim (right mouse) for a scope and a perfect shot that pierces 2 targets; wild from the hip',
-  crossbow: 'Silent: nobody panics. Bolts drop over distance, one bolt per reload',
+  crossbow: 'Silent. A hit freezes its target for 2 s and makes it lose you for 5 s (the boss only stops throwing boulders for 5 s). Bolts drop over distance, one bolt per reload',
   launcher: 'Bouncing grenades, big blast and knockback (hurts you too), 3 per drum',
   knife: `Melee, ${WEAPONS.find((w) => w.id === 'knife')?.range} m reach, silent`,
 };

@@ -236,8 +236,6 @@ export function fire() {
   S.yaw += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilYaw * mult * adsRecoil);
   S.roll += THREE.MathUtils.degToRad((Math.random() * 2 - 1) * s.recoilRoll * mult);
   S.recoilOffset += pitchKick;
-  if (!s.silent && !s.explosion) Mannequin.scareNear(tmpV, s.id === 'shotgun' || s.id === 'sniper' ? 24 : 16); // civilians nearby hear the gunshot and panic
-  if (s.explosion) Mannequin.scareNear(tmpV, 18);
   S.shake = Math.max(S.shake, Math.min(0.5, s.recoilPitch * 0.08));
   S.kick = s.viewKick * (0.6 + 0.4 * mult);
   flashLight.intensity = s.silent ? 0 : 25;

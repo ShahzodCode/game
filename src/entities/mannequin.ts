@@ -145,6 +145,7 @@ const BRAVERY: Record<string, number> = { soldier: 0.5, builder: 0.3, superman: 
 const COWBOY = { idealDist: 13, minDist: 6, maxRange: 38, damage: 9, speed: 3.4, interval: [1.0, 1.6], giveUp: 65, giveUpTime: 6 };
 
 const RADIUS = 0.35; // bot collision radius
+const WITNESS_RADIUS = 6; // a character that is shot or dies only scares those this close (gunshots alone scare nobody)
 const BAR_HIDE_AFTER = 30; // seconds without being hit before the health bar disappears
 export const angleDiff = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -265,6 +266,7 @@ export class Mannequin {
   private bossSummonT = 4;
   private bossPantCd = 0;
   private bossRockT = 5;
+  private rootT = 0;
   private chatT = 8;
   private hitVoiceT = 0;
   private bossAct: 'summon' | 'throw' = 'summon';
@@ -378,6 +380,7 @@ export class Mannequin {
     this.bossSummonT = 4;
     this.bossPantCd = 0;
     this.bossRockT = 5;
+    this.rootT = 0;
     this.chatT = rnd(5, 18);
     this.hitVoiceT = 0;
     this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
@@ -438,7 +441,7 @@ export class Mannequin {
   panic(direct: boolean) {
     if (!this.alive || this.costume.combat || this.costume.fearless) return;
     const brave = 1 - this.bravery * 0.35;
-    this.fearT = Math.max(this.fearT, (direct ? rnd(14, 22) : rnd(7, 12)) * brave);
+    this.fearT = Math.max(this.fearT, direct ? rnd(55, 65) : rnd(18, 28) * brave); // shot: afraid until a minute passes without being shot again; a witness calms down sooner
     if (this.mode === 'calm') {
       this.mode = 'startle';
       this.modeT = (direct ? rnd(0.08, 0.25) : rnd(0.25, 0.7)) * (0.5 + this.bravery);
@@ -457,6 +460,7 @@ export class Mannequin {
     this.flash = 0.12;
     this.flinch = 0.35;
     this.sinceHit = 0;
+    if (this.health > 0) Mannequin.scareNear(this.group.position, WITNESS_RADIUS, this); // right next to someone being shot
     if (this.health > 0 && this.hitVoiceT <= 0) {
       this.hitVoiceT = 1.6;
       this.hooks.voice?.(this.costume.id, 'hit', this.group.position, this);
@@ -470,7 +474,7 @@ export class Mannequin {
       this.kv.add(away); // shoved away from the player as it falls
       this.updateBar();
       this.hooks.voice?.(this.costume.id, 'death', this.group.position, this);
-      Mannequin.scareNear(this.group.position, 26, this); // witnesses panic
+      Mannequin.scareNear(this.group.position, WITNESS_RADIUS, this); // only people right next to it panic
       return true;
     }
     if (this.costume.combat) {
@@ -727,6 +731,26 @@ export class Mannequin {
     }
   }
 
+  /**
+   * Hit by a crossbow bolt: frozen for 2 s and it loses the player for 5 s (it calms down and ignores him; being shot
+   * again makes it attack right away). The boss is immune to the freeze, but it stops throwing boulders for 5 s.
+   */
+  crossbowHit() {
+    if (!this.alive) return;
+    if (this.costume.boss) {
+      this.bossRockT = Math.max(this.bossRockT, 5);
+      return;
+    }
+    this.rootT = 2;
+    if (this.costume.combat) {
+      this.aggravated = false;
+      this.retreatT = 0;
+      this.windT = this.recoverT = 0;
+      this.aim = 0;
+      this.calmCd = Math.max(this.calmCd, 5);
+    }
+  }
+
   /** Idle small talk: now and then a calm character says something when the player is within earshot. */
   private chatter(dt: number, dist: number) {
     this.hitVoiceT -= dt;
@@ -759,7 +783,7 @@ export class Mannequin {
           this.waryTick -= dt;
           if (this.waryTick <= 0) {
             this.waryTick = 0.4;
-            if (dist < 14 && !playerDead) this.panic(false);
+            if (dist < 6 && !playerDead) this.panic(false);
           }
         }
         // personal space: step away from a player who walks right up to them
@@ -803,15 +827,6 @@ export class Mannequin {
           this.modeT = rnd(2, 3.5);
           this.blockedT = 0;
           return 0;
-        }
-        // panic is contagious: calm neighbours who see a running bot get scared too
-        this.waryTick -= dt;
-        if (this.waryTick <= 0) {
-          this.waryTick = 0.5;
-          for (const o of Mannequin.crowd) {
-            if (o !== this && o.alive && o.mode === 'calm' && !o.costume.combat && Math.random() < 0.5 &&
-                Math.hypot(o.group.position.x - p.x, o.group.position.z - p.z) < 9) o.panic(false);
-          }
         }
         return moved;
       }
@@ -1096,7 +1111,6 @@ export class Mannequin {
     if (!hit) to.add(new THREE.Vector3(rnd(-1.2, 1.2), rnd(-0.6, 0.8), rnd(-1.2, 1.2)));
     this.kick = 1;
     this.hooks.shotFired(from, to);
-    Mannequin.scareNear(from, 14); // gunfire makes the civilians nearby panic too
     if (hit) this.hooks.hurtPlayer(COWBOY.damage);
   }
 
@@ -1282,7 +1296,8 @@ export class Mannequin {
       this.physics(dt);
       if (this.stunT > 0) this.stunT -= dt;
       // knocked about: the AI waits until the character is back on its feet
-      const moving = this.stunT > 0 ? 0 : this.costume.boss ? this.bossBrain(dt) : this.costume.combat ? this.fight(dt) : this.civilian(dt);
+      if (this.rootT > 0) this.rootT -= dt;
+      const moving = this.stunT > 0 || this.rootT > 0 ? 0 : this.costume.boss ? this.bossBrain(dt) : this.costume.combat ? this.fight(dt) : this.civilian(dt);
       this.moveSpeedNow = moving;
       this.separate();
       const p = this.group.position;
@@ -1292,7 +1307,11 @@ export class Mannequin {
       this.animate(dt, moving);
       this.flash = Math.max(0, this.flash - dt);
       const e = this.flash > 0 ? 0.8 : 0;
-      if (this.rig) for (const m of this.rig.materials) (m as THREE.MeshStandardMaterial).emissive.setScalar(e);
+      if (this.rig) for (const m of this.rig.materials) {
+        const em = (m as THREE.MeshStandardMaterial).emissive;
+        if (this.rootT > 0 && e === 0) em.setRGB(0.05, 0.22, 0.35); // frozen by a bolt: a cold blue tint
+        else em.setScalar(e);
+      }
       return;
     }
     this.dieAnimation(dt);

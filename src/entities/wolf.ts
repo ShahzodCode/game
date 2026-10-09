@@ -120,6 +120,7 @@ export class Wolf {
     this.kv.set(0, 0, 0);
     this.air = 0;
     this.stunT = 0;
+    this.rootT = 0;
     if (relocate) this.group.position.copy(this.nav.randomFreePoint(this.player, RESPAWN_MIN_DIST));
     this.health = this.maxHealth;
     this.alive = true;
@@ -303,6 +304,20 @@ export class Wolf {
     this.hooks.onAggro();
   }
 
+  private rootT = 0;
+  /** Hit by a crossbow bolt: frozen for 2 s and it loses the player (calm again; shooting it again makes it attack at once). */
+  crossbowHit() {
+    if (!this.alive) return;
+    this.rootT = 2;
+    if (this.aggravated) {
+      this.aggravated = false;
+      this.state = 'idle';
+      this.idleT = 2;
+      this.eyeMat.color.set(0xffcc33);
+      this.eyeMat.emissive.set(0x553300);
+    }
+  }
+
   // knockback (shotgun blasts, explosions): a push velocity and a height above the ground while thrown
   private kv = new THREE.Vector3();
   private air = 0;
@@ -480,7 +495,8 @@ export class Wolf {
 
       this.physics(dt);
       if (this.stunT > 0) this.stunT -= dt;
-      const speed = this.stunT > 0 ? 0 : this.aggravated ? this.chase(dt) : this.wander(dt);
+      if (this.rootT > 0) this.rootT -= dt;
+      const speed = this.stunT > 0 || this.rootT > 0 ? 0 : this.aggravated ? this.chase(dt) : this.wander(dt);
       const p = this.group.position;
       p.y = this.nav.heightAt(p.x, p.z) + this.air;
       this.group.rotation.y = this.heading;
