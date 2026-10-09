@@ -1,5 +1,7 @@
 # Character upgrade plan (low-poly style)
 
+**Status:** steps 1-5 and 7 are implemented (see CLAUDE.md, "LOW-POLY CHARACTER PASS"); step 6 was replaced by the downloaded knight and PolyArt zombie models.
+
 Decision: stay **low poly**, matching the arena (flat-shaded trees and rocks). Characters stay built in code
 (`src/entities/botModel.ts`, `MeshBuilder`), because every animation, hit zone (head / torso / arms / legs) and effect
 (panic poses, punch wind-up, panting, crossbow freeze, death fall) depends on that rig. Only the **boss** and the

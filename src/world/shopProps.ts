@@ -10,7 +10,7 @@ import { makeDisplayGun } from '../weapons/models';
 const WOOD = 0x8a5a2e, WOOD_DARK = 0x5e3b1c, METAL = 0x2a2d33, STEEL = 0x8c939c, BRASS = 0xb8913c;
 const RED = 0xd94a3a, CREAM = 0xf2ecdc, YELLOW = 0xf2c230, BLACK = 0x1b1c20, OLIVE = 0x56612f;
 
-const stdMat = (rough = 0.75, metal = 0.05) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: rough, metalness: metal });
+const stdMat = (rough = 0.75, metal = 0.05) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: rough, metalness: metal, flatShading: true });
 
 function addMesh(scene: THREE.Scene, b: MeshBuilder, blockers?: THREE.Object3D[], rough = 0.75, metal = 0.05) {
   const m = new THREE.Mesh(b.build(), stdMat(rough, metal));

@@ -154,7 +154,7 @@ export class Wolf {
 
     const coat = COATS[Math.floor(Math.random() * COATS.length)];
     const { base, dark, light, tip } = coat;
-    const mat = (this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+    const mat = (this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
     const mk = (b: MeshBuilder, hit: boolean, head = false) => {
       const g = b.build();
       this.geos.push(g);
@@ -169,7 +169,7 @@ export class Wolf {
     };
 
     // ---- torso: one smooth body (rump -> ribcage -> chest) + neck + fur tufts ----
-    const t = new MeshBuilder();
+    const t = new MeshBuilder(true);
     // lathe along the body axis: [radius, position along the length], rotated so the length runs along z
     t.lathe(
       base,
@@ -190,7 +190,7 @@ export class Wolf {
     this.body.add(torso);
 
     // raised fur along the spine; swells when the wolf is angry
-    const hk = new MeshBuilder();
+    const hk = new MeshBuilder(true);
     for (let i = 0; i < 9; i++) hk.cone(dark, 0.035, 0.1, { p: [0, 0.83 - Math.abs(i - 3.5) * 0.008, 0.38 - i * 0.1] });
     this.hackles = mk(hk, false);
     this.hackles.position.y = -0.08;
@@ -199,7 +199,7 @@ export class Wolf {
     // ---- head (pivot at the top of the neck) ----
     this.head = new THREE.Group();
     this.head.position.set(0, 0.86, 0.62);
-    const h = new MeshBuilder();
+    const h = new MeshBuilder(true);
     h.ball(base, 0.12, { p: [0, 0.0, 0.07], s: [1.0, 0.95, 1.2] }); // skull
     h.ball(dark, 0.1, { p: [0, 0.05, 0.04], s: [1.0, 0.6, 1.2] }); // forehead blaze
     h.cyl(light, 0.04, 0.075, 0.2, { p: [0, -0.015, 0.22], r: [PI / 2, 0, 0] }, 9); // muzzle
@@ -217,7 +217,7 @@ export class Wolf {
     // lower jaw (opens when the wolf snarls or bites)
     this.jaw = new THREE.Group();
     this.jaw.position.set(0, -0.045, 0.06);
-    const j = new MeshBuilder();
+    const j = new MeshBuilder(true);
     j.ball(light, 0.07, { p: [0, -0.012, 0.12], s: [0.85, 0.45, 2.0] });
     j.ball(0xd9708a, 0.04, { p: [0, 0.0, 0.14], s: [0.85, 0.3, 2.2] }); // tongue
     for (const s of [-1, 1]) {
@@ -229,7 +229,7 @@ export class Wolf {
 
     // ears (separate so they can flick and lay back)
     for (const s of [-1, 1]) {
-      const e = new MeshBuilder();
+      const e = new MeshBuilder(true);
       e.cone(base, 0.055, 0.15, { p: [0, 0.075, 0] }, 5);
       e.cone(0xc99a98, 0.03, 0.1, { p: [0, 0.07, 0.014] }, 5); // inner ear
       const ear = new THREE.Group();
@@ -256,10 +256,10 @@ export class Wolf {
     // ---- legs: shoulder/hip pivot, knee pivot, paw ----
     const legSpots: [number, number, boolean][] = [[-0.12, 0.34, false], [0.12, 0.34, false], [-0.12, -0.3, true], [0.12, -0.3, true]];
     for (const [x, z, hind] of legSpots) {
-      const upperB = new MeshBuilder();
+      const upperB = new MeshBuilder(true);
       upperB.ball(base, 0.08, { p: [0, -0.12, hind ? -0.02 : 0], s: [1, 2.3, 1.1], r: [hind ? 0.3 : 0, 0, 0] });
       if (hind) upperB.ball(dark, 0.09, { p: [0, -0.03, -0.03], s: [1.05, 1.3, 1.4] }); // haunch
-      const lowerB = new MeshBuilder();
+      const lowerB = new MeshBuilder(true);
       lowerB.cyl(base, 0.05, 0.036, 0.24, { p: [0, -0.12, 0] }, 8);
       lowerB.cyl(light, 0.04, 0.037, 0.12, { p: [0, -0.19, 0] }, 8); // pale sock
       lowerB.ball(light, 0.055, { p: [0, -0.255, 0.04], s: [1, 0.65, 1.7] }); // paw
@@ -283,7 +283,7 @@ export class Wolf {
     ];
     let parent: THREE.Object3D = this.body;
     for (const sg of segs) {
-      const tb = new MeshBuilder();
+      const tb = new MeshBuilder(true);
       tb.ball(sg.col, sg.r, { p: [0, 0, -sg.len / 2], s: [1, 1, sg.len / sg.r / 1.4] });
       const seg = new THREE.Group();
       seg.position.set(0, sg.y, sg.z);

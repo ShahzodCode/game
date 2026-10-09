@@ -30,9 +30,17 @@ const UNIT = {
   ballLow: new THREE.SphereGeometry(1, 6, 4),
   cube: new THREE.BoxGeometry(1, 1, 1),
 };
+// the faceted (low-poly) set used for characters: few segments, drawn with flat shading
+const FACET = {
+  ballHi: new THREE.SphereGeometry(1, 8, 6),
+  ballMid: new THREE.SphereGeometry(1, 6, 4),
+  ballLow: new THREE.SphereGeometry(1, 5, 3),
+};
 
 export class MeshBuilder {
   private geos: THREE.BufferGeometry[] = [];
+  /** `faceted`: low-poly look (fewer segments everywhere), meant to be drawn with `flatShading`. */
+  constructor(private faceted = false) {}
 
   /** Add a geometry. `own` = the geometry was created just for this call, so it need not be cloned. */
   geo(g: THREE.BufferGeometry, color: THREE.ColorRepresentation, xf: Xf = {}, own = false) {
@@ -68,7 +76,8 @@ export class MeshBuilder {
     const s = triple(xf.s);
     const size = r * Math.max(s[0], s[1], s[2]);
     const auto = size < 0.02 ? 'low' : size < 0.05 ? 'mid' : 'hi';
-    const base = { low: UNIT.ballLow, mid: UNIT.ballMid, hi: UNIT.ballHi }[detail ?? auto];
+    const set = this.faceted ? FACET : UNIT;
+    const base = { low: set.ballLow, mid: set.ballMid, hi: set.ballHi }[detail ?? auto];
     return this.geo(base, color, { ...xf, s: [s[0] * r, s[1] * r, s[2] * r] });
   }
   box(color: THREE.ColorRepresentation, w: number, h: number, d: number, xf: Xf = {}) {
@@ -78,26 +87,27 @@ export class MeshBuilder {
   /** Tapered cylinder (top radius, bottom radius, height). */
   cyl(color: THREE.ColorRepresentation, rTop: number, rBottom: number, h: number, xf: Xf = {}, seg?: number) {
     const r = Math.max(rTop, rBottom);
-    const n = seg ?? (r < 0.03 ? 5 : r < 0.075 ? 8 : 12);
+    const n = this.faceted ? Math.min(seg ?? 8, r < 0.03 ? 4 : r < 0.075 ? 6 : 8) : seg ?? (r < 0.03 ? 5 : r < 0.075 ? 8 : 12);
     return this.geo(new THREE.CylinderGeometry(rTop, rBottom, h, n, 1), color, xf, true);
   }
   cone(color: THREE.ColorRepresentation, r: number, h: number, xf: Xf = {}, seg = 6, open = false) {
-    return this.geo(new THREE.ConeGeometry(r, h, seg, 1, open), color, xf, true);
+    return this.geo(new THREE.ConeGeometry(r, h, this.faceted ? Math.min(seg, 5) : seg, 1, open), color, xf, true);
   }
   /** Ring: radius R, tube thickness t. Lies in the XY plane unless rotated (r: [PI/2,0,0] makes it horizontal). */
   torus(color: THREE.ColorRepresentation, R: number, t: number, xf: Xf = {}) {
     const s = triple(xf.s);
-    const around = R < 0.05 ? 8 : R < 0.12 ? 12 : 16;
-    return this.geo(new THREE.TorusGeometry(R, t, 4, around), color, { ...xf, s }, true);
+    const around = this.faceted ? (R < 0.05 ? 5 : R < 0.12 ? 7 : 9) : R < 0.05 ? 8 : R < 0.12 ? 12 : 16;
+    return this.geo(new THREE.TorusGeometry(R, t, this.faceted ? 3 : 4, around), color, { ...xf, s }, true);
   }
   /** Upper part of a sphere (hair caps, hats). theta = how far down it reaches, in radians (PI/2 = half). */
   dome(color: THREE.ColorRepresentation, r: number, xf: Xf = {}, theta = Math.PI / 2) {
     const s = triple(xf.s);
-    return this.geo(new THREE.SphereGeometry(r, r < 0.05 ? 7 : 12, 6, 0, Math.PI * 2, 0, theta), color, { ...xf, s }, true);
+    const seg = this.faceted ? (r < 0.05 ? 5 : 8) : r < 0.05 ? 7 : 12;
+    return this.geo(new THREE.SphereGeometry(r, seg, this.faceted ? 4 : 6, 0, Math.PI * 2, 0, theta), color, { ...xf, s }, true);
   }
   /** Surface of revolution from [radius, y] points (torsos, hats). */
   lathe(color: THREE.ColorRepresentation, pts: [number, number][], xf: Xf = {}, seg = 16) {
-    return this.geo(new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg), color, xf, true);
+    return this.geo(new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), this.faceted ? Math.min(seg, 10) : seg), color, xf, true);
   }
 
   build(): THREE.BufferGeometry {

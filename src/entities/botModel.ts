@@ -19,8 +19,12 @@ export interface BotRig {
   materials: THREE.Material[];
   /** Bone-driven (downloaded) characters copy the arm / leg / head groups onto their bones here, once per frame. */
   post?: (phase: number, amp: number) => void;
+  /** Swaps the brows + mouth (procedural humans only). */
+  setExpression?: (e: Expression) => void;
   dispose: () => void;
 }
+
+export type Expression = 'neutral' | 'scared' | 'angry' | 'pain';
 
 const SKINS = [0xf1c9a5, 0xe0ac86, 0xc68e63, 0x9a6a46, 0x6f4a2f, 0x4e3322];
 const HAIRS = [0x1b1b1b, 0x3a2614, 0x6a4a2a, 0xa57c3a, 0x8a3b1d, 0xb8b8b8];
@@ -44,22 +48,27 @@ interface Look {
   belt?: number;
   buckle?: number;
   cuff?: number;
+  brow: number; // brow tilt, + = angry / stern, - = worried / friendly
+  smile: number; // mouth curve, + = smile, - = frown
+  lid?: number; // eyelid droop 0..1 (sleepy / squinting)
+  w?: number; // body width factor (shoulders, arms)
+  belly?: number; // extra round belly
 }
 
 const LOOKS: Record<string, Look> = {
-  regular: { sleeves: 'short', shoe: 'sneaker', shoeColor: 0x6a7a8c, hair: 'short', muscle: 1 },
-  winter: { sleeves: 'long', glove: 0x2a2a30, shoe: 'boot', shoeColor: 0x3a2a1c, hair: 'short', muscle: 1.1 },
-  builder: { sleeves: 'long', glove: 0x9a7a44, shoe: 'boot', shoeColor: 0x6b4a2a, hair: 'short', muscle: 1.06, belt: 0x4a3016, buckle: 0xb8b8b8 },
-  sporty: { sleeves: 'short', shoe: 'sneaker', shoeColor: 0xe8e8e8, hair: 'short', muscle: 1.0 },
-  chef: { sleeves: 'long', shoe: 'clog', shoeColor: 0x222226, hair: 'short', mustache: true, muscle: 1.05, cuff: 0xffffff },
-  rich: { sleeves: 'long', shoe: 'dress', shoeColor: 0x111114, hair: 'slick', mustache: true, muscle: 0.98, cuff: 0xf4f4f4 },
-  cowboy: { sleeves: 'long', shoe: 'cowboy', shoeColor: 0x5a3a1e, hair: 'short', mustache: true, muscle: 1.04, belt: 0x4a2c14, buckle: 0xd9b34a },
-  soldier: { sleeves: 'long', glove: 0x26262a, shoe: 'combat', shoeColor: 0x1c1c1e, hair: 'none', muscle: 1.1, belt: 0x2a2a22, buckle: 0x555555 },
-  superman: { sleeves: 'long', shoe: 'superboot', shoeColor: 0xc22d2d, hair: 'curl', hairColor: 0x15151a, muscle: 1.14 },
-  zombie: { sleeves: 'long', shoe: 'boot', shoeColor: 0x2a2a24, hair: 'none', muscle: 0.98 },
-  boss: { sleeves: 'long', glove: 0x1c1224, shoe: 'combat', shoeColor: 0x120c18, hair: 'none', muscle: 1.22, belt: 0x120c18, buckle: 0xb02a2a },
-  ninja: { sleeves: 'long', glove: 0x17171a, shoe: 'tabi', shoeColor: 0x17171a, hair: 'none', muscle: 1.0, cuff: 0x55555c },
-  criminal: { sleeves: 'long', glove: 0x1c1c20, shoe: 'boot', shoeColor: 0x1a1a1c, hair: 'none', muscle: 1.06, belt: 0x141416, buckle: 0x777777 },
+  regular: { sleeves: 'short', shoe: 'sneaker', shoeColor: 0x6a7a8c, hair: 'short', muscle: 1, brow: -0.12, smile: 0.2 },
+  winter: { sleeves: 'long', glove: 0x2a2a30, shoe: 'boot', shoeColor: 0x3a2a1c, hair: 'short', muscle: 1.1, brow: -0.05, smile: -0.1, lid: 0.55, w: 1.04 },
+  builder: { sleeves: 'long', glove: 0x9a7a44, shoe: 'boot', shoeColor: 0x6b4a2a, hair: 'short', muscle: 1.06, belt: 0x4a3016, buckle: 0xb8b8b8, brow: 0.12, smile: 0.1, w: 1.1 },
+  sporty: { sleeves: 'short', shoe: 'sneaker', shoeColor: 0xe8e8e8, hair: 'short', muscle: 1.0, brow: -0.2, smile: 0.9, w: 0.94 },
+  chef: { sleeves: 'long', shoe: 'clog', shoeColor: 0x222226, hair: 'short', mustache: true, muscle: 1.05, cuff: 0xffffff, brow: -0.25, smile: 1, w: 1.06, belly: 1 },
+  rich: { sleeves: 'long', shoe: 'dress', shoeColor: 0x111114, hair: 'slick', mustache: true, muscle: 0.98, cuff: 0xf4f4f4, brow: -0.3, smile: 0.45, lid: 0.3, w: 0.9 },
+  cowboy: { sleeves: 'long', shoe: 'cowboy', shoeColor: 0x5a3a1e, hair: 'short', mustache: true, muscle: 1.04, belt: 0x4a2c14, buckle: 0xd9b34a, brow: 0.2, smile: -0.2, lid: 0.45, w: 1.04 },
+  soldier: { sleeves: 'long', glove: 0x26262a, shoe: 'combat', shoeColor: 0x1c1c1e, hair: 'none', muscle: 1.1, belt: 0x2a2a22, buckle: 0x555555, brow: 0.3, smile: -0.5, w: 1.1 },
+  superman: { sleeves: 'long', shoe: 'superboot', shoeColor: 0xc22d2d, hair: 'curl', hairColor: 0x15151a, muscle: 1.14, brow: 0.14, smile: 0.5, w: 1.12 },
+  zombie: { sleeves: 'long', shoe: 'boot', shoeColor: 0x2a2a24, hair: 'none', muscle: 0.98, brow: 0.3, smile: -0.8 },
+  boss: { sleeves: 'long', glove: 0x1c1224, shoe: 'combat', shoeColor: 0x120c18, hair: 'none', muscle: 1.22, belt: 0x120c18, buckle: 0xb02a2a, brow: 0.5, smile: -0.8 },
+  ninja: { sleeves: 'long', glove: 0x17171a, shoe: 'tabi', shoeColor: 0x17171a, hair: 'none', muscle: 1.0, cuff: 0x55555c, brow: 0.42, smile: 0 },
+  criminal: { sleeves: 'long', glove: 0x1c1c20, shoe: 'boot', shoeColor: 0x1a1a1c, hair: 'none', muscle: 1.06, belt: 0x141416, buckle: 0x777777, brow: 0.45, smile: -0.7, lid: 0.25 },
 };
 
 // torso silhouette as [radius, y above the hips]: waist, chest, shoulders, neck base
@@ -93,19 +102,29 @@ export function buildBot(owner: object, c: Costume): BotRig {
   const eyeColor = id0 === 'boss' ? 0xff2a2a : id0 === 'zombie' ? 0xe0d860 : pick(EYES);
   const bulk = rnd(0.94, 1.08);
   const mu = look.muscle;
-  const tx = 1.12 * bulk * mu; // torso half-width factor
+  const bw = look.w ?? 1; // body type: shoulder / arm width
+  const tx = 1.18 * bulk * mu * bw; // torso half-width factor
   const tz = 0.78 * bulk * mu; // torso half-depth factor
-  const armX = 0.232 * bulk * (1 + (mu - 1) * 0.6);
+  const armX = 0.245 * bulk * (1 + (mu - 1) * 0.6) * (0.5 + 0.5 * bw);
   const fz = (y: number) => profR(y - HIP) * tz; // torso front surface at height y
   const id = c.id;
   const shirt = c.shirt, pants = c.pants, accent = c.accent;
 
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78 });
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, flatShading: true });
   const materials: THREE.Material[] = [material];
   const geos: THREE.BufferGeometry[] = [];
   const hitMeshes: THREE.Mesh[] = [];
-  const mk = (b: MeshBuilder, isHead = false) => {
+  /** Baked 'ambient occlusion': darker low down / under things, lighter on top (multiplies the vertex colours). */
+  const bake = (g: THREE.BufferGeometry, k: (y: number) => number) => {
+    const pos = g.attributes.position, col = g.attributes.color;
+    for (let i = 0; i < pos.count; i++) {
+      const f = k(pos.getY(i));
+      col.setXYZ(i, Math.min(1, col.getX(i) * f), Math.min(1, col.getY(i) * f), Math.min(1, col.getZ(i) * f));
+    }
+  };
+  const mk = (b: MeshBuilder, isHead = false, ao?: (y: number) => number) => {
     const g = b.build();
+    if (ao) bake(g, ao);
     geos.push(g);
     const m = new THREE.Mesh(g, material);
     m.castShadow = true;
@@ -118,10 +137,12 @@ export function buildBot(owner: object, c: Costume): BotRig {
   const root = new THREE.Group();
 
   // ================= torso (jacket / shirt, pelvis, shoulders, clothing details) =================
-  const t = new MeshBuilder();
+  const t = new MeshBuilder(true);
   t.lathe(shirt, PROF, { p: [0, HIP, 0], s: [tx, 1, tz] });
   t.ball(id === 'superman' ? 0xc22d2d : pants, 0.15, { p: [0, 0.935, 0], s: [1.12 * bulk, 0.7, 0.86 * bulk] });
   for (const s of [-1, 1]) t.ball(shirt, 0.068 * bulk * Math.min(mu, 1.1), { p: [s * armX * 0.9, 1.425, 0], s: [1, 1, 0.95] });
+
+  if (look.belly) t.ball(shirt, 0.17, { p: [0, 1.09, 0.03], s: [1.15 * bulk, 0.95, 1.0] }); // round belly
 
   // belt (tucked-in outfits)
   if (look.belt) {
@@ -244,24 +265,63 @@ export function buildBot(owner: object, c: Costume): BotRig {
   }
   // shirt buttons for the button-up outfits
   if (id === 'builder' || id === 'cowboy') buttons(shade(shirt, 0.6), [1.1, 1.2, 1.3, 1.4]);
-  root.add(mk(t));
+  // bolder silhouettes: big shapes that read from far away
+  const bz = (y: number) => -fz(y); // torso back surface
+  switch (id) {
+    case 'winter':
+      for (const y of [1.14, 1.26, 1.38]) t.torus(shade(shirt, 1.08), profR(y - HIP) * 1.1, 0.026, { p: [0, y, 0], r: [PI / 2, 0, 0], s: [tx, tz, 1] }); // puffer rings
+      t.torus(0xb8322a, 0.095, 0.03, { p: [0, 1.47, 0], r: [PI / 2, 0, 0] }); // thick scarf
+      t.box(0xb8322a, 0.07, 0.3, 0.025, { p: [0.05, 1.3, fz(1.3) + 0.025], r: [0, 0, 0.06] }); // scarf tails
+      t.box(0x9a2a24, 0.065, 0.24, 0.025, { p: [-0.02, 1.34, fz(1.34) + 0.035], r: [0, 0, -0.05] });
+      break;
+    case 'sporty':
+      t.torus(0xf2d13a, 0.092, 0.024, { p: [0, 1.47, 0], r: [PI / 2, 0, 0] }); // towel around the neck
+      for (const s of [-1, 1]) t.box(0xf2d13a, 0.05, 0.2, 0.02, { p: [s * 0.03, 1.36, fz(1.36) + 0.022] });
+      break;
+    case 'rich':
+      for (const s of [-1, 1]) t.box(shade(shirt, 0.95), 0.1, 0.42, 0.018, { p: [s * 0.055, 0.72, bz(1.1) - 0.01], r: [0.08, 0, s * 0.05] }); // coat tails
+      break;
+    case 'cowboy': {
+      t.lathe(shade(accent, 0.8), [[0.19, 1.47 - HIP], [0.27, 1.34 - HIP], [0.31, 1.22 - HIP], [0.285, 1.2 - HIP], [0.19, 1.4 - HIP]], { p: [0, HIP, 0], s: [1.05 * bulk, 1, 0.95 * bulk] }); // short poncho
+      for (let i = 0; i < 5; i++) t.box(0xd9b34a, 0.012, 0.03, 0.012, { p: [-0.1 + i * 0.05, 1.08 + i * 0.045, fz(1.1) + 0.03], r: [0, 0, 0.7] }); // bandolier rounds
+      t.box(0x3a2410, 0.06, 0.09, 0.05, { p: [-0.17 * bulk, 0.93, 0.03] }); // holster
+      break;
+    }
+    case 'soldier':
+      t.box(0x3a4a24, 0.3, 0.42, 0.16, { p: [0, 1.2, bz(1.2) - 0.08] }); // backpack
+      t.box(0x2c3a1a, 0.26, 0.1, 0.17, { p: [0, 1.43, bz(1.2) - 0.08] }); // bedroll
+      t.box(0x2a2a22, 0.05, 0.4, 0.02, { p: [0.12, 1.5, fz(1.5)] }); // antenna base
+      t.cyl(0x222222, 0.006, 0.006, 0.4, { p: [0.12, 1.75, bz(1.2) - 0.1] }, 4); // radio antenna
+      break;
+    case 'ninja':
+      t.box(0x2a2a30, 0.034, 0.95, 0.034, { p: [0.04, 1.35, bz(1.3) - 0.05], r: [0, 0, 0.55] }); // katana on the back
+      t.box(0xb8a050, 0.07, 0.014, 0.07, { p: [-0.14, 1.78, bz(1.3) - 0.05], r: [0, 0, 0.55] }); // guard
+      break;
+    case 'criminal':
+      t.torus(0xc8c8c8, 0.09, 0.012, { p: [0, 1.44, 0.01], r: [PI / 2, 0, 0] }); // chain
+      break;
+    case 'builder':
+      t.box(0xd4872a, 0.1, 0.06, 0.06, { p: [-0.17 * bulk, 0.93, 0.05] }); // tape measure
+      t.box(0x2a6ab0, 0.3, 0.1, 0.1, { p: [0, 1.02, bz(1.0) - 0.05] }); // back pocket / spirit level
+      break;
+  }
+  root.add(mk(t, false, (y) => 0.84 + 0.2 * THREE.MathUtils.smoothstep(y, 0.95, 1.5)));
 
   // ================= head (pivot at the neck) =================
-  const h = new MeshBuilder();
+  const h = new MeshBuilder(true);
   const masked = id === 'ninja';
-  h.cyl(skin, 0.047, 0.053, 0.12, { p: [0, -0.005, 0] }); // neck
-  h.ball(skin, 0.115, { p: [0, 0.15, 0], s: [0.9, 1.12, 1.0] }); // skull
-  h.ball(skin, 0.07, { p: [0, 0.085, 0.032], s: [1.05, 0.82, 0.95] }); // jaw / chin
-  if (!masked) h.cone(skin, 0.017, 0.042, { p: [0, 0.135, 0.114], r: [PI / 2, 0, 0] }, 8); // nose
+  h.cyl(skin, 0.05, 0.056, 0.12, { p: [0, -0.005, 0] }); // neck
+  h.ball(skin, 0.116, { p: [0, 0.15, 0], s: [0.92, 1.1, 1.0] }); // skull
+  h.ball(skin, 0.074, { p: [0, 0.083, 0.03], s: [1.05, 0.8, 0.95] }); // jaw / chin
+  if (!masked) h.cone(shade(skin, 0.94), 0.02, 0.05, { p: [0, 0.133, 0.116], r: [PI / 2, 0, 0] }, 4); // nose
+  const lid = look.lid ?? 0;
   for (const s of [-1, 1]) {
-    h.ball(skin, 0.022, { p: [s * 0.106, 0.15, 0], s: [0.5, 1, 0.7] }); // ears
-    h.ball(0xffffff, 0.018, { p: [s * 0.04, 0.17, 0.1], s: [1, 0.82, 0.55] }); // eye white
-    h.ball(eyeColor, 0.0125, { p: [s * 0.04, 0.17, 0.106], s: [1, 1, 0.5] }); // iris
-    h.ball(0x101010, 0.007, { p: [s * 0.04, 0.17, 0.109], s: [1, 1, 0.5] }); // pupil
-    const angry = masked || id === 'soldier' || id === 'criminal' ? 0.28 : -0.1;
-    h.box(masked ? 0x101010 : hair, 0.045, 0.009, 0.012, { p: [s * 0.04, 0.2, 0.104], r: [0, 0, s * angry] }); // brows
+    h.ball(skin, 0.024, { p: [s * 0.107, 0.15, 0], s: [0.5, 1, 0.7] }); // ears
+    h.ball(0xffffff, 0.026, { p: [s * 0.042, 0.168, 0.098], s: [1, 1 - lid * 0.5, 0.5] }); // eye white (big, reads from afar)
+    h.ball(eyeColor, 0.016, { p: [s * 0.042, 0.166 - lid * 0.006, 0.108], s: [1, 1 - lid * 0.35, 0.45] }); // iris
+    h.ball(0x101010, 0.0085, { p: [s * 0.042, 0.166 - lid * 0.006, 0.112], s: [1, 1, 0.45] }); // pupil
+    if (lid > 0) h.box(shade(skin, 0.88), 0.058, 0.026 * lid * 2, 0.03, { p: [s * 0.042, 0.19 - lid * 0.012, 0.1] }); // heavy eyelid
   }
-  if (!masked) h.box(0x7a3b30, 0.046, 0.007, 0.01, { p: [0, 0.097, 0.108] }); // mouth
 
   // hair
   if (look.hair === 'short' || look.hair === 'curl' || look.hair === 'slick') {
@@ -350,17 +410,59 @@ export function buildBot(owner: object, c: Costume): BotRig {
       h.box(accent, 0.03, 0.17, 0.012, { p: [-0.03, 0.18, -0.14], r: [0.4, 0, -0.1] });
       break;
   }
+  // brows + mouth are separate little meshes (one per expression) so they can change with the mood
+  const browC = masked ? 0x101010 : id === 'criminal' || id === 'soldier' ? shade(hair, 0.8) : shade(hair, 0.85);
+  const face = (e: Expression) => {
+    const f = new MeshBuilder(true);
+    const tilt = e === 'scared' ? -0.35 : e === 'angry' ? 0.5 : e === 'pain' ? -0.15 : look.brow;
+    const lift = e === 'scared' ? 0.016 : e === 'pain' ? -0.006 : e === 'angry' ? -0.008 : 0;
+    for (const s of [-1, 1]) f.box(browC, 0.056, 0.014, 0.014, { p: [s * 0.042, 0.208 + lift, 0.1], r: [0, 0, s * tilt] });
+    if (!masked) {
+      const my = 0.095, mz = 0.108;
+      if (e === 'scared') {
+        f.box(0x3a1010, 0.044, 0.05, 0.014, { p: [0, my - 0.012, mz] });
+        f.box(0xffffff, 0.03, 0.009, 0.016, { p: [0, my + 0.008, mz + 0.001] });
+      } else if (e === 'pain') {
+        f.box(0x3a1010, 0.056, 0.022, 0.014, { p: [0, my - 0.004, mz], r: [0, 0, 0.18] });
+        f.box(0xffffff, 0.04, 0.007, 0.016, { p: [0, my + 0.004, mz + 0.001], r: [0, 0, 0.18] });
+      } else if (e === 'angry') {
+        f.box(0x3a1010, 0.056, 0.024, 0.014, { p: [0, my - 0.002, mz] });
+        f.box(0xffffff, 0.05, 0.01, 0.016, { p: [0, my + 0.002, mz + 0.001] });
+      } else {
+        const sm = look.smile;
+        const mc = 0x7a3b30;
+        f.box(mc, 0.03, 0.009, 0.012, { p: [0, my - sm * 0.003, mz] });
+        for (const s of [-1, 1]) f.box(mc, 0.024, 0.009, 0.012, { p: [s * 0.024, my + sm * 0.008, mz - 0.002], r: [0, 0, s * sm * 0.5] });
+        if (sm > 0.8) f.box(0xffffff, 0.036, 0.008, 0.013, { p: [0, my + 0.0, mz + 0.001] }); // toothy grin
+      }
+    }
+    const g = f.build();
+    geos.push(g);
+    const m = new THREE.Mesh(g, material);
+    m.visible = e === 'neutral';
+    return m;
+  };
+  const faces: Record<Expression, THREE.Mesh> = { neutral: face('neutral'), scared: face('scared'), angry: face('angry'), pain: face('pain') };
+  let curExpr: Expression = 'neutral';
+  const setExpression = (e: Expression) => {
+    if (e === curExpr) return;
+    faces[curExpr].visible = false;
+    faces[e].visible = true;
+    curExpr = e;
+  };
   const headPivot = new THREE.Group();
   headPivot.position.set(0, 1.53, 0);
   if (id === 'boss') for (const s of [-1, 1]) h.cone(0x241a2c, 0.034, 0.22, { p: [s * 0.075, 0.3, -0.01], r: [0, 0, -s * 0.45] }, 6); // horns
-  headPivot.add(mk(h, true));
+  headPivot.add(mk(h, true, (y) => 0.8 + 0.28 * THREE.MathUtils.smoothstep(y, 0.0, 0.3)));
+  for (const f of Object.values(faces)) headPivot.add(f);
+  headPivot.scale.setScalar(1.14); // bigger head: toy-like proportions that read from far away
   root.add(headPivot);
 
   // ================= arms (pivot at the shoulder) =================
   const arms: THREE.Group[] = [];
-  const aw = bulk * (1 + (mu - 1) * 0.9);
+  const aw = bulk * (1 + (mu - 1) * 0.9) * bw;
   for (const s of [-1, 1]) {
-    const a = new MeshBuilder();
+    const a = new MeshBuilder(true);
     const long = look.sleeves === 'long';
     const sleeve = id === 'superman' ? shirt : shirt;
     if (long) {
@@ -386,6 +488,10 @@ export function buildBot(owner: object, c: Costume): BotRig {
       for (const f of [-1.5, -0.5, 0.5, 1.5]) a.ball(skin, 0.009, { p: [f * 0.0135, -0.685, 0], s: [1, 1.8, 1] }); // fingers
     }
     // handheld props on the right hand; they point along the forearm so they aim forward when the arm is raised
+    if (s === 1 && id === 'rich') {
+      a.cyl(0x2a1a10, 0.011, 0.011, 0.95, { p: [0, -0.9, 0.02] }, 4); // cane
+      a.ball(0xd9b34a, 0.032, { p: [0, -0.62, 0.02] }); // gold knob
+    }
     if (s === 1 && id === 'criminal') {
       a.box(0x2a2a2e, 0.032, 0.1, 0.036, { p: [0, -0.63, 0] }); // handle
       a.box(0x9a9a9e, 0.05, 0.012, 0.02, { p: [0, -0.685, 0] }); // guard
@@ -408,7 +514,7 @@ export function buildBot(owner: object, c: Costume): BotRig {
     const pivot = new THREE.Group();
     pivot.position.set(s * armX, 1.42, 0);
     pivot.rotation.z = s * 0.06;
-    pivot.add(mk(a));
+    pivot.add(mk(a, false, (y) => 0.9 + 0.12 * THREE.MathUtils.smoothstep(y, -0.7, -0.05)));
     root.add(pivot);
     arms.push(pivot);
   }
@@ -417,7 +523,7 @@ export function buildBot(owner: object, c: Costume): BotRig {
   const legs: THREE.Group[] = [];
   const lw = bulk * (1 + (mu - 1) * 0.5);
   for (const s of [-1, 1]) {
-    const l = new MeshBuilder();
+    const l = new MeshBuilder(true);
     l.cyl(pants, 0.088 * lw, 0.07 * lw, 0.44, { p: [0, -0.22, 0] });
     l.ball(pants, 0.074 * lw, { p: [0, -0.45, 0] });
     l.cyl(pants, 0.068 * lw, 0.052 * lw, 0.38, { p: [0, -0.64, 0] });
@@ -436,7 +542,7 @@ export function buildBot(owner: object, c: Costume): BotRig {
     addShoe(l, look, lw, id === 'sporty' ? accentFor(shirt) : 0xf5f5f5);
     const pivot = new THREE.Group();
     pivot.position.set(s * 0.1 * bulk, HIP, 0);
-    pivot.add(mk(l));
+    pivot.add(mk(l, false, (y) => 0.8 + 0.22 * THREE.MathUtils.smoothstep(y, -0.9, -0.2)));
     root.add(pivot);
     legs.push(pivot);
   }
@@ -469,6 +575,7 @@ export function buildBot(owner: object, c: Costume): BotRig {
     legs,
     arms,
     cape,
+    setExpression,
     hitMeshes,
     materials,
     dispose: () => {

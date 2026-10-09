@@ -1289,6 +1289,7 @@ export class Mannequin {
       rig.cape.rotation.z = Math.sin(t * 1.6) * 0.04;
     }
     rig.post?.(this.phase, this.amp);
+    rig.setExpression?.(this.flinch > 0 ? 'pain' : this.mode === 'flee' || this.mode === 'startle' || this.mode === 'cower' ? 'scared' : this.aggravated || this.windT > 0 || this.lunge > 0 || this.alertT > 0 ? 'angry' : 'neutral');
   }
 
   update(dt: number) {

@@ -187,12 +187,12 @@ export function buildWorld(scene: THREE.Scene): World {
 
   // ---------- terrain mesh ----------
   // 4 x 4 chunks, so the renderer only draws the ground that is in view (normals come from the height field, so seams match)
-  const CH = 4, chunkSize = (half * 2) / CH, chunkSeg = 40;
+  const CH = 4, chunkSize = (half * 2) / CH, chunkSeg = 30;
   const grassW = new THREE.Color(0x4a8236), grassW2 = new THREE.Color(0x5d9440), sand = new THREE.Color(0xa89b68), dryE = new THREE.Color(0x8d8a52);
   const dirt = new THREE.Color(0x6b5238), stone = new THREE.Color(0x7d7a72), path = new THREE.Color(0x826646), mud = new THREE.Color(0x4a3b2a);
   const c = new THREE.Color();
   const jit = (x: number, z: number, k: number) => { const v = Math.sin(x * 12.9898 + z * 78.233 + k * 37.719) * 43758.5453; return v - Math.floor(v); }; // same value for the same spot in every chunk
-  const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }); // faceted ground like the trees and rocks
   for (let cx = 0; cx < CH; cx++) for (let cz = 0; cz < CH; cz++) {
   const geo = new THREE.PlaneGeometry(chunkSize, chunkSize, chunkSeg, chunkSeg);
   geo.rotateX(-Math.PI / 2);
