@@ -628,23 +628,47 @@ export class Mannequin {
   private clearance(angle: number, len: number) {
     const p = this.group.position;
     const sx = Math.sin(angle), sz = Math.cos(angle);
-    for (let k = 1; k <= 4; k++) {
-      const d = (len * k) / 4;
+    const STEP = 0.6; // fine enough that thin walls (houses) cannot be skipped over
+    const n = Math.ceil(len / STEP);
+    for (let k = 1; k <= n; k++) {
+      const d = k * STEP;
       this.probe.set(p.x + sx * d, p.y, p.z + sz * d);
       const bx = this.probe.x, bz = this.probe.z;
       pushOutOfBoxes(this.nav, this.probe, RADIUS + 0.15);
-      if (Math.hypot(this.probe.x - bx, this.probe.z - bz) > 0.02) return (k - 1) / 4;
+      if (Math.hypot(this.probe.x - bx, this.probe.z - bz) > 0.02) return (k - 1) / n;
     }
     return 1;
   }
 
-  /** Best direction to run: away from the threat, but around obstacles and out of corners. */
-  private pickRunHeading(away: number) {
-    let best = away;
+  /** How close (0 = fine .. ~2 = in a corner / outside) a spot is to the arena walls. */
+  private wallPenalty(x: number, z: number) {
+    const r = this.nav.region;
+    const pen = (d: number) => clamp((7 - d) / 7, 0, 1.5);
+    return pen(Math.min(x - r.x0, r.x1 - x)) + pen(Math.min(z - r.z0, r.z1 - z)); // a corner counts twice
+  }
+
+  /**
+   * Best direction to run: away from the threat, but around obstacles and, above all, away from the walls and
+   * corners (a runner that heads for a corner is trapped). `escape` = it is stuck: head back into the open instead.
+   */
+  private pickRunHeading(away: number, escape = false) {
+    const p = this.group.position;
+    const r = this.nav.region;
+    const toCentre = Math.atan2((r.x0 + r.x1) / 2 - p.x, (r.z0 + r.z1) / 2 - p.z);
+    const base = escape ? toCentre : away;
+    let best = base;
     let bestScore = -Infinity;
-    for (const o of [0, 0.45, -0.45, 0.9, -0.9, 1.5, -1.5, 2.3]) {
-      const a = away + o;
-      const score = Math.cos(o) * 0.9 + this.clearance(a, 7) * 1.6 + Math.cos(angleDiff(this.heading, a)) * 0.25;
+    const near = this.wallPenalty(p.x, p.z); // near a wall: stop insisting on 'straight away' and run along it instead
+    for (const o of [0, 0.45, -0.45, 0.9, -0.9, 1.5, -1.5, 2.3, -2.3, Math.PI]) {
+      const a = base + o;
+      const ex = p.x + Math.sin(a) * 7, ez = p.z + Math.cos(a) * 7;
+      const gain = Math.hypot(ex - this.player.x, ez - this.player.z) - Math.hypot(p.x - this.player.x, p.z - this.player.z); // moves it away from the threat?
+      const score =
+        (escape ? 0 : (Math.cos(angleDiff(away, a)) * 0.9) / (1 + near * 2)) +
+        this.clearance(a, 7) * (escape ? 3.5 : 1.6) -
+        this.wallPenalty(ex, ez) * 1.5 +
+        (escape ? 0 : Math.cos(angleDiff(this.heading, a)) * (0.7 + 0.5 * Math.min(near, 1.5))) +
+        clamp(gain, -7, 7) * (escape ? 0.12 : 0.06);
       if (score > bestScore) {
         bestScore = score;
         best = a;
@@ -653,12 +677,20 @@ export class Mannequin {
     return best;
   }
 
+  private escapeT = 0;
   /** One step of running away from `from`. Returns the speed it actually moved at. */
   private runFrom(dt: number, from: THREE.Vector3, speed: number) {
     const p = this.group.position;
     this.steerT -= dt;
-    if (this.steerT <= 0) {
-      this.steerT = rnd(0.1, 0.18);
+    this.escapeT -= dt;
+    // pressed against a wall / corner / crate: break out toward open ground and stick to that for a moment
+    if (this.blockedT > 0.2 && this.escapeT <= 0) {
+      this.runHeading = this.pickRunHeading(Math.atan2(p.x - from.x, p.z - from.z), true);
+      this.escapeT = 1.3;
+      this.steerT = 1.3;
+      this.blockedT = 0;
+    } else if (this.steerT <= 0) {
+      this.steerT = rnd(0.15, 0.3);
       this.runHeading = this.pickRunHeading(Math.atan2(p.x - from.x, p.z - from.z));
     }
     const diff = angleDiff(this.heading, this.runHeading);
@@ -744,7 +776,7 @@ export class Mannequin {
         const speed = FLEE_SPEED * Math.min(this.costume.speedMul ?? 1, 1.3) * (1 - 0.35 * hurt) * (0.92 + this.bravery * 0.1);
         const moved = this.runFrom(dt, this.player, speed);
         // trapped against a wall or crate with the player close: curl up
-        if (this.blockedT > 1.2 && dist < 12) {
+        if (this.blockedT > 1.2 && dist < 4) { // only truly pinned between the wall and the player
           this.mode = 'cower';
           this.modeT = rnd(2, 3.5);
           this.blockedT = 0;
