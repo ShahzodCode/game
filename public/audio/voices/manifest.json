@@ -3,11 +3,22 @@
   "casual": [
    "regular-casual-1.mp3",
    "regular-casual-2.mp3",
-   "regular-casual-3.mp3"
+   "regular-casual-3.mp3",
+   "regular-casual-4.mp3"
+  ],
+  "death": [
+   "regular-death-1.mp3"
   ],
   "hit": [
    "regular-hit-1.mp3",
    "regular-hit-2.mp3"
+  ]
+ },
+ "winter": {
+  "casual": [
+   "winter-casual-1.mp3",
+   "winter-casual-2.mp3",
+   "winter-casual-3.mp3"
   ]
  }
 }
