@@ -28,6 +28,8 @@ export interface BotHooks {
   /** The boss calls a zombie out of the ground here. False if none is free. */
   summon?: (at: THREE.Vector3) => boolean;
   zombiesAlive?: () => number;
+  /** The boss hurls a boulder from its hand toward the player (game/projectiles.ts). */
+  throwRock?: (from: THREE.Vector3) => void;
   /** A scared bot cried out at this spot (optional: draws nothing, only plays a sound). */
   scream?: (at: THREE.Vector3) => void;
   /** Where to aim at the player (roughly the chest). */
@@ -86,8 +88,8 @@ const SUPERMAN_PUNCH: MeleeStats = { aggroRange: 0, speed: 6.4, attackRange: 2.1
 /** Zombies (summoned by the boss): slow, relentless, they always know where you are. */
 const ZOMBIE_CLAW: MeleeStats = { aggroRange: 200, speed: 3.3, attackRange: 1.5, damage: 7, interval: 1.0, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 };
 /** The boss only swats at you when you crowd it (weak): its danger is the zombies it calls. */
-const BOSS_SWAT: MeleeStats = { aggroRange: 0, speed: 2.6, attackRange: 3.8, damage: 7, interval: 1.7, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 1 };
-const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, pant: 3.2, pantCd: 9, fleeSpeed: 4.4, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 6, maxRage: 10, perCast: 2, perCastRage: 3 };
+const BOSS_SWAT: MeleeStats = { aggroRange: 0, speed: 2.6, attackRange: 4.6, damage: 15, interval: 1.3, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 1 };
+const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, closeDist: 5, summonNear: 10, pant: 3.2, pantCd: 9, fleeSpeed: 4.4, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 8, maxRage: 10, perCast: 2, perCastRage: 3, rockMin: 24, rockMax: 85, rockEvery: [4.5, 6.5], rockWind: 1.2 };
 const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 8.4, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
 
 export const COSTUMES: Costume[] = [
@@ -260,6 +262,8 @@ export class Mannequin {
   oneLife = false;
   private bossSummonT = 4;
   private bossPantCd = 0;
+  private bossRockT = 5;
+  private bossAct: 'summon' | 'throw' = 'summon';
   private windT = 0; // heavy punch wind-up
   private windDur = 0.6;
   private recoverT = 0; // catching breath after a heavy punch
@@ -369,6 +373,7 @@ export class Mannequin {
     this.retreated = false;
     this.bossSummonT = 4;
     this.bossPantCd = 0;
+    this.bossRockT = 5;
     this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
     this.gesture = 0;
     this.kv.set(0, 0, 0);
@@ -770,8 +775,10 @@ export class Mannequin {
   }
 
   /**
-   * The boss: huge, slow to hurt you. It stays 17-32 m away, calls zombies out of the ground (more, and faster, below
-   * half health), and if you run up to it it gets winded for a few seconds (the player's chance to unload on it).
+   * The boss: huge. It stays 17-32 m away. Far from you (24 m+) it hurls boulders (they hurt a LOT if they land).
+   * It calls zombies, which appear next to the PLAYER (the farthest zombie vanishes when too many are alive), and does
+   * so at once when you come close. Closer than 5 m it punches; if you run right up to it it gets winded for a few
+   * seconds (your chance to unload on it).
    */
   private bossBrain(dt: number): number {
     const B = BOSS;
@@ -780,6 +787,7 @@ export class Mannequin {
     const dist = Math.hypot(dx, dz);
     const rage = this.health < this.maxHealth * 0.5;
     this.bossSummonT -= dt;
+    this.bossRockT -= dt;
     this.bossPantCd -= dt;
     this.attackCd -= dt;
     const face = (rate: number) => {
@@ -793,23 +801,28 @@ export class Mannequin {
         this.hooks.hurtPlayer(BOSS_SWAT.damage);
       }
     };
-    // winded: bent over and panting, can only swat at whoever stands next to it
+    // winded: bent over and panting, can only punch whoever stands next to it
     if (this.recoverT > 0) {
       this.recoverT -= dt;
       face(2);
       swat();
       return 0;
     }
-    // casting: arms thrown back, then zombies rise around it
+    // casting / throwing: arms thrown back, then the zombies rise next to the player / the boulder flies
     if (this.windT > 0) {
       this.windT -= dt;
-      face(3);
+      face(this.bossAct === 'throw' ? 4 : 3);
       if (this.windT <= 0) {
-        for (let i = 0, n = rage ? B.perCastRage : B.perCast; i < n; i++) {
-          const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 2.5;
-          this.hooks.summon?.(new THREE.Vector3(p.x + Math.sin(a) * r, 0, p.z + Math.cos(a) * r));
+        if (this.bossAct === 'throw') {
+          this.hooks.throwRock?.(new THREE.Vector3(p.x, p.y + 3.4, p.z));
+          this.bossRockT = rnd(B.rockEvery[0], B.rockEvery[1]);
+        } else {
+          for (let i = 0, n = rage ? B.perCastRage : B.perCast; i < n; i++) {
+            const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 3;
+            this.hooks.summon?.(new THREE.Vector3(this.player.x + Math.sin(a) * r, 0, this.player.z + Math.cos(a) * r));
+          }
+          this.bossSummonT = rage ? rnd(B.summonRage[0], B.summonRage[1]) : rnd(B.summonEvery[0], B.summonEvery[1]);
         }
-        this.bossSummonT = rage ? rnd(B.summonRage[0], B.summonRage[1]) : rnd(B.summonEvery[0], B.summonEvery[1]);
       }
       return 0;
     }
@@ -818,8 +831,21 @@ export class Mannequin {
       this.bossPantCd = B.pantCd;
       return 0;
     }
-    if (this.bossSummonT <= 0 && dist < 80 && (this.hooks.zombiesAlive?.() ?? 0) < (rage ? B.maxRage : B.maxZombies)) {
+    // too close for comfort: punches, and reacts by calling more zombies right away
+    if (dist < B.summonNear) this.bossSummonT = Math.min(this.bossSummonT, 0.8);
+    if (this.bossSummonT <= 0 && dist < 90) {
+      this.bossAct = 'summon';
       this.windDur = this.windT = 1.0;
+      return 0;
+    }
+    if (dist < B.closeDist) {
+      face(5);
+      swat();
+      return 0;
+    }
+    if (this.bossRockT <= 0 && dist >= B.rockMin && dist <= B.rockMax && !this.hooks.playerDead()) {
+      this.bossAct = 'throw';
+      this.windDur = this.windT = B.rockWind;
       return 0;
     }
     if (dist < B.keepMin) return this.runFrom(dt, this.player, B.fleeSpeed);

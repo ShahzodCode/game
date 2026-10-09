@@ -66,8 +66,53 @@ function remove(i: number) {
   scene.remove(bodies[i].mesh);
   bodies.splice(i, 1);
 }
+// ---- the boss's boulders: a slow lobbed arc you can dodge; a direct hit hurts a lot ----
+const ROCK_R = 0.95, ROCK_G = 16, ROCK_DAMAGE = 60;
+interface BossRock { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3; life: number }
+const bossRocks: BossRock[] = [];
+const rockGeo = new THREE.IcosahedronGeometry(ROCK_R, 1);
+const rockMat = new THREE.MeshStandardMaterial({ color: 0x6f6a62, roughness: 1, flatShading: true });
+export function spawnBossRock(from: THREE.Vector3) {
+  const d = Math.hypot(pos.x - from.x, pos.z - from.z);
+  const T = THREE.MathUtils.clamp(d / 20, 1.5, 3.4); // flight time: slow enough to see it coming and sidestep
+  const target = new THREE.Vector3(pos.x + vel.x * T * 0.8, pos.y + 1.1, pos.z + vel.z * T * 0.8); // leads a moving player a little
+  const v = new THREE.Vector3(target.x - from.x, target.y - from.y + 0.5 * ROCK_G * T * T, target.z - from.z).divideScalar(T);
+  const mesh = new THREE.Mesh(rockGeo, rockMat);
+  mesh.scale.set(1, 0.85, 1.1);
+  mesh.position.copy(from);
+  mesh.castShadow = true;
+  scene.add(mesh);
+  bossRocks.push({ mesh, v, spin: new THREE.Vector3(Math.random() * 4, Math.random() * 4, Math.random() * 4), life: 8 });
+}
+function updateBossRocks(dt: number) {
+  for (let i = bossRocks.length - 1; i >= 0; i--) {
+    const r = bossRocks[i];
+    r.v.y -= ROCK_G * dt;
+    r.mesh.position.addScaledVector(r.v, dt);
+    r.mesh.rotation.x += r.spin.x * dt;
+    r.mesh.rotation.y += r.spin.y * dt;
+    r.life -= dt;
+    const m = r.mesh.position;
+    const hitPlayer = !S.dead && Math.hypot(m.x - pos.x, m.z - pos.z) < ROCK_R + 0.5 && m.y > pos.y - ROCK_R && m.y < pos.y + S.playerHeight + ROCK_R;
+    const hitGround = m.y - ROCK_R * 0.8 < world.heightAt(m.x, m.z) || r.life <= 0;
+    if (hitPlayer) {
+      damagePlayer(ROCK_DAMAGE);
+      S.shake = 1;
+    }
+    if (hitPlayer || hitGround) {
+      spawnDebris(m.clone(), 12, 7);
+      explosionSound(m.distanceTo(camera.position) + 50); // a dull crash
+      S.shake = Math.max(S.shake, Math.max(0, 0.6 - m.distanceTo(camera.position) / 30));
+      scene.remove(r.mesh);
+      bossRocks.splice(i, 1);
+    }
+  }
+}
+
 /** Remove everything (new game / level reset). */
 export function clearProjectiles() {
+  for (const r of bossRocks) scene.remove(r.mesh);
+  bossRocks.length = 0;
   for (const b of bodies) scene.remove(b.mesh);
   bodies.length = 0;
   for (const f of flashes) scene.remove(f.mesh);
@@ -393,6 +438,7 @@ function updateGrenade(b: Body, dt: number): boolean {
 }
 
 export function updateProjectiles(dt: number) {
+  updateBossRocks(dt);
   for (let i = bodies.length - 1; i >= 0; i--) {
     const b = bodies[i];
     let keep = true;

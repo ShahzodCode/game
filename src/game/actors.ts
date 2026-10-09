@@ -28,9 +28,22 @@ export const botHooks: BotHooks = {
   playerChest: () => playerChestV.set(pos.x, pos.y + S.playerHeight * 0.7, pos.z),
   playerDead: () => S.dead,
   summon: (at) => {
-    const z = zombies.find((q) => q.disabled);
+    // a limited number of zombies live in the arena: when all are out, the one farthest from the player vanishes
+    let z = zombies.find((q) => q.disabled);
+    if (!z) {
+      let far = -1;
+      for (const q of zombies) {
+        const d = Math.hypot(q.group.position.x - pos.x, q.group.position.z - pos.z);
+        if (d > far) {
+          far = d;
+          z = q;
+        }
+      }
+      z?.disable();
+    }
     if (!z) return false;
-    z.spawnAs('zombie', at);
+    const r = world.region;
+    z.spawnAs('zombie', new THREE.Vector3(THREE.MathUtils.clamp(at.x, r.x0 + 2, r.x1 - 2), 0, THREE.MathUtils.clamp(at.z, r.z0 + 2, r.z1 - 2)));
     return true;
   },
   zombiesAlive: () => zombies.filter((q) => !q.disabled && q.alive).length,
@@ -44,7 +57,7 @@ export const regulars = world.spawnPoints.map((p) => {
 });
 /** The final boss (level 21) and the zombies it summons: switched off until the boss level starts. */
 export const boss = new Mannequin(world, world.arenaEntry, pos, botHooks, 4, 'boss');
-export const zombies = Array.from({ length: 12 }, () => {
+export const zombies = Array.from({ length: 8 }, () => {
   const z = new Mannequin(world, world.arenaEntry, pos, botHooks, 4, 'zombie');
   z.oneLife = true;
   return z;

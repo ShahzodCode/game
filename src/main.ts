@@ -14,7 +14,7 @@ import { updateNametag } from './game/nametag';
 import { damagePlayer, movePlayer, usePotion } from './game/player';
 import { collideWithBots } from './game/physics';
 import { castRay } from './game/raycast';
-import { clearProjectiles, explode, projectileCount, projectileInfo, spawnGrenade, updateProjectiles } from './game/projectiles';
+import { clearProjectiles, explode, projectileCount, projectileInfo, spawnBossRock, spawnGrenade, updateProjectiles } from './game/projectiles';
 import { SAVE_KEY, clearSave, loadProgress, saveProgress, startAutosave } from './game/save';
 import { resetGame } from './game/session';
 import { buyItem, buyMag, updateShop } from './game/shops';
@@ -172,6 +172,8 @@ function keepInArena() {
     pos.z = Math.max(pos.z, r.z0 + 1.0);
   }
 }
+
+botHooks.throwRock = spawnBossRock; // the boss's boulders
 
 // ---------- boss health bar ----------
 const bossBarEl = $('bossBar');
