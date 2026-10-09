@@ -76,17 +76,17 @@ export function keepClear(x: number, z: number, margin: number): boolean {
 /**
  * The arena grows as the levels go on. Each stage is a rectangle (all nested, the south edge z = 60 with the gate is
  * always the same); everything outside the current stage is hidden and walled off. Scenery belongs to the first
- * stage whose rectangle contains it, so it appears when the walls move out. Level 25 uses the whole 120 x 120 map.
+ * stage whose rectangle contains it, so it appears when the walls move out. Level 20 (and the boss, 21) uses the whole 120 x 120 map.
  */
 export interface Stage { fromLevel: number; x0: number; x1: number; z0: number; z1: number; bots: number }
 export const STAGES: Stage[] = [
   { fromLevel: 1, x0: -20, x1: 20, z0: 24, z1: 60, bots: 10 },
   { fromLevel: 3, x0: -20, x1: 20, z0: -4, z1: 60, bots: 12 },
   { fromLevel: 6, x0: -20, x1: 52, z0: -14, z1: 60, bots: 16 },
-  { fromLevel: 10, x0: -50, x1: 52, z0: -24, z1: 60, bots: 20 },
-  { fromLevel: 15, x0: -54, x1: 56, z0: -48, z1: 60, bots: 24 },
-  { fromLevel: 20, x0: -58, x1: 59, z0: -56, z1: 60, bots: 24 },
-  { fromLevel: 25, x0: -60, x1: 60, z0: -60, z1: 60, bots: 24 },
+  { fromLevel: 9, x0: -50, x1: 52, z0: -24, z1: 60, bots: 20 },
+  { fromLevel: 13, x0: -54, x1: 56, z0: -48, z1: 60, bots: 24 },
+  { fromLevel: 17, x0: -58, x1: 59, z0: -56, z1: 60, bots: 24 },
+  { fromLevel: 20, x0: -60, x1: 60, z0: -60, z1: 60, bots: 24 },
 ];
 export function stageForLevel(level: number): number {
   let s = 0;

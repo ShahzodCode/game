@@ -35,13 +35,14 @@ export interface LevelConfig {
   wolves: number; // how many wolves live in the arena
   allowed: (c: Costume) => boolean; // which characters can spawn
   note: string; // shown on the level banner
+  boss?: boolean; // level 21+: the boss fight
 }
 
 /**
  * Difficulty curve (levels 1-25). New characters are introduced one at a time so nothing nasty shows up early:
  * 1-2 harmless crowds, 3 wolves, 4 criminals, 5 cowboys, 7 soldiers, 10 Superman, 15 ninjas (COSTUMES.minLevel).
  */
-export const MAX_LEVEL = 25;
+export const MAX_LEVEL = 20; // the last ordinary level; level 21 is the boss
 export const INTRO_NOTES: Record<number, string> = {
   1: 'A quiet arena: harmless crowds. Take your time.',
   2: 'Still peaceful, but the crowds are bigger.',
@@ -50,15 +51,17 @@ export const INTRO_NOTES: Record<number, string> = {
   5: 'Cowboys have arrived: they shoot back when shot.',
   7: 'Soldiers: very tough, they never run away.',
   10: 'Superman is here. A punch hurts a lot, but he is slow to recover.',
-  15: 'Ninjas have appeared. Watch your back.',
+  14: 'Ninjas have appeared. Watch your back.',
+  21: 'THE COLOSSUS. It keeps away and calls zombies: thin them out, then rush it while it pants.',
 };
 
 export function levelConfig(level: number): LevelConfig {
   return {
     level,
-    wolves: level < 3 ? 0 : Math.min(2 + Math.floor((level - 3) / 3), 6),
+    boss: level > MAX_LEVEL,
+    wolves: level > MAX_LEVEL || level < 3 ? 0 : Math.min(2 + Math.floor((level - 3) / 3), 6),
     allowed: (c) => level >= (c.minLevel ?? 1),
-    note: INTRO_NOTES[level] ?? (level >= MAX_LEVEL ? 'The final level. Good luck.' : 'The arena is getting more dangerous.'),
+    note: INTRO_NOTES[level] ?? (level === MAX_LEVEL ? 'The last normal level. The boss waits after it.' : 'The arena is getting more dangerous.'),
   };
 }
 
@@ -76,10 +79,11 @@ function mission(key: string, title: string, target: number, reward: number, mea
 const killsOf = (id: string, n: number, reward: number) =>
   mission(`kill:${id}`, `Kill ${n} ${plural(nameOf(id), n)}`, n, reward, (s) => s.byKind[id] ?? 0);
 
-/** Builds the five missions for a level, easiest first. Targets grow slowly (level 25 is about 3.4x level 1). */
+/** Builds the five missions for a level, easiest first. Targets grow slowly (level 20 is about 3.3x level 1). */
 export function generateMissions(cfg: LevelConfig): Mission[] {
+  if (cfg.boss) return [mission('boss', 'Defeat the Colossus', 1, 15000, (s) => s.byKind['boss'] ?? 0)];
   const L = Math.min(cfg.level, MAX_LEVEL);
-  const sc = 1 + 0.1 * (L - 1); // how big the targets are
+  const sc = 1 + 0.12 * (L - 1); // how big the targets are
   const f = 1 + 0.18 * (L - 1); // how well the missions pay
   const has = (id: string) => COSTUMES.some((c) => c.id === id && cfg.allowed(c));
   const used = new Set<string>();

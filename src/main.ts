@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { COSTUMES } from './entities/mannequin';
 import { rifleLoopActive, stopRifleLoop } from './audio/audio';
 import { BASE_FOV, EYE_OFFSET, S, keys } from './game/state';
-import { camera, flashLight, pos, renderer, scene, updateFx, vel, viewModels, weapons, world } from './game/core';
-import { botHooks, mannequins, wolves } from './game/actors';
+import { $, camera, flashLight, pos, renderer, scene, updateFx, vel, viewModels, weapons, world } from './game/core';
+import { boss, botHooks, mannequins, wolves } from './game/actors';
 import { applyHit, currentSpread, fire, switchWeapon } from './game/combat';
 import { arenaActive, checkMissions, rooms, runLevelWork, startLevel, updateFlow } from './game/flow';
 import { setCrosshair, setCrosshairVisible, updateHud, updateHudTimers, updateSummary } from './game/hud';
@@ -173,6 +173,24 @@ function keepInArena() {
   }
 }
 
+// ---------- boss health bar ----------
+const bossBarEl = $('bossBar');
+const bossFillEl = $('bossFill');
+let bossBarShown = false, bossBarPct = -1;
+function updateBossBar() {
+  const show = !boss.disabled && boss.alive && S.phase === 'arena';
+  if (show !== bossBarShown) {
+    bossBarShown = show;
+    bossBarEl.style.display = show ? 'block' : 'none';
+  }
+  if (!show) return;
+  const pct = Math.max(0, Math.round((boss.health / boss.maxHealth) * 1000) / 10);
+  if (pct !== bossBarPct) {
+    bossBarPct = pct;
+    bossFillEl.style.width = pct + '%';
+  }
+}
+
 // ---------- lights by zone ----------
 // Every point light costs every lit pixel, whether it is near or not. The rooms' candles/lamps and the arena's camp/house
 // lamps are never needed together, so only the lights of the zone the player is in (plus the strip around the gate) are on.
@@ -233,6 +251,7 @@ function frame() {
   updateCrosshair();
   updateShadows(dt);
   updateZoneLights();
+  updateBossBar();
 
   // the arena is only alive while the player can reach it (not while he is in the safe room / sealed airlock)
   if (S.locked && arenaActive()) {

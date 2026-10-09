@@ -53,6 +53,8 @@ const LOOKS: Record<string, Look> = {
   cowboy: { sleeves: 'long', shoe: 'cowboy', shoeColor: 0x5a3a1e, hair: 'short', mustache: true, muscle: 1.04, belt: 0x4a2c14, buckle: 0xd9b34a },
   soldier: { sleeves: 'long', glove: 0x26262a, shoe: 'combat', shoeColor: 0x1c1c1e, hair: 'none', muscle: 1.1, belt: 0x2a2a22, buckle: 0x555555 },
   superman: { sleeves: 'long', shoe: 'superboot', shoeColor: 0xc22d2d, hair: 'curl', hairColor: 0x15151a, muscle: 1.14 },
+  zombie: { sleeves: 'long', shoe: 'boot', shoeColor: 0x2a2a24, hair: 'none', muscle: 0.98 },
+  boss: { sleeves: 'long', glove: 0x1c1224, shoe: 'combat', shoeColor: 0x120c18, hair: 'none', muscle: 1.22, belt: 0x120c18, buckle: 0xb02a2a },
   ninja: { sleeves: 'long', glove: 0x17171a, shoe: 'tabi', shoeColor: 0x17171a, hair: 'none', muscle: 1.0, cuff: 0x55555c },
   criminal: { sleeves: 'long', glove: 0x1c1c20, shoe: 'boot', shoeColor: 0x1a1a1c, hair: 'none', muscle: 1.06, belt: 0x141416, buckle: 0x777777 },
 };
@@ -78,9 +80,10 @@ function slice(y0: number, y1: number, k: number): [number, number][] {
 
 export function buildBot(owner: object, c: Costume): BotRig {
   const look = LOOKS[c.id];
-  const skin = pick(SKINS);
+  const id0 = c.id;
+  const skin = id0 === 'zombie' ? 0x86a878 : id0 === 'boss' ? 0x8a7aa6 : pick(SKINS); // zombies green, the boss a bruised violet
   const hair = look.hairColor ?? pick(HAIRS);
-  const eyeColor = pick(EYES);
+  const eyeColor = id0 === 'boss' ? 0xff2a2a : id0 === 'zombie' ? 0xe0d860 : pick(EYES);
   const bulk = rnd(0.94, 1.08);
   const mu = look.muscle;
   const tx = 1.12 * bulk * mu; // torso half-width factor
@@ -342,6 +345,7 @@ export function buildBot(owner: object, c: Costume): BotRig {
   }
   const headPivot = new THREE.Group();
   headPivot.position.set(0, 1.53, 0);
+  if (id === 'boss') for (const s of [-1, 1]) h.cone(0x241a2c, 0.034, 0.22, { p: [s * 0.075, 0.3, -0.01], r: [0, 0, -s * 0.45] }, 6); // horns
   headPivot.add(mk(h, true));
   root.add(headPivot);
 

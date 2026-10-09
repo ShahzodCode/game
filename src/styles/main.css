@@ -211,3 +211,9 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
   .keys { font-size: 13px; gap: 4px 10px; }
   .loadout { grid-template-columns: 1fr; }
 }
+
+/* boss health bar (level 21) */
+#bossBar { position: fixed; left: 50%; top: 22px; transform: translateX(-50%); width: min(560px, 46vw); display: none; pointer-events: none; text-align: center; }
+#bossBar .bossName { font-size: 13px; letter-spacing: .32em; font-weight: 700; color: #ffb4b4; text-shadow: 0 1px 4px #000; margin-bottom: 6px; }
+#bossBar .bossTrack { height: 14px; border-radius: 8px; background: rgba(12, 8, 14, .78); border: 1px solid rgba(255, 120, 120, .45); box-shadow: 0 2px 14px rgba(0, 0, 0, .55); overflow: hidden; }
+#bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #8e1f2c, #ff4a4a); transition: width .15s linear; }

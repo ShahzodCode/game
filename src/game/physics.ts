@@ -10,12 +10,12 @@ const PLAYER_R = 0.4;
  * into them (the player gives way a bit more than they do, so a charging criminal does not get stuck in you).
  */
 export function collideWithBots() {
-  const minD = BODY_R + PLAYER_R;
   for (const t of [...mannequins, ...wolves]) {
     if (!t.alive) continue;
+    const minD = BODY_R * ('costume' in t ? t.costume.scale ?? 1 : 1) + PLAYER_R;
     const gp = t.group.position;
     const dy = pos.y - gp.y;
-    if (dy > 1.75 || dy < -S.playerHeight) continue; // above or below it
+    if (dy > 1.75 * ('costume' in t ? t.costume.scale ?? 1 : 1) || dy < -S.playerHeight) continue; // above or below it
     const dx = pos.x - gp.x, dz = pos.z - gp.z;
     const d = Math.hypot(dx, dz);
     if (d >= minD || d < 1e-4) continue;

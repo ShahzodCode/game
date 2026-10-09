@@ -27,13 +27,34 @@ export const botHooks: BotHooks = {
   lineOfSight: hasLineOfSight,
   playerChest: () => playerChestV.set(pos.x, pos.y + S.playerHeight * 0.7, pos.z),
   playerDead: () => S.dead,
+  summon: (at) => {
+    const z = zombies.find((q) => q.disabled);
+    if (!z) return false;
+    z.spawnAs('zombie', at);
+    return true;
+  },
+  zombiesAlive: () => zombies.filter((q) => !q.disabled && q.alive).length,
 };
 setSpawnRule(levelConfig(1).allowed); // level 1 has no criminals
-export const mannequins = world.spawnPoints.map((p) => {
+/** The ordinary crowd (flow.ts decides how many are in play). */
+export const regulars = world.spawnPoints.map((p) => {
   const m = new Mannequin(world, p, pos, botHooks);
   scene.add(m.group);
   return m;
 });
+/** The final boss (level 21) and the zombies it summons: switched off until the boss level starts. */
+export const boss = new Mannequin(world, world.arenaEntry, pos, botHooks, 4, 'boss');
+export const zombies = Array.from({ length: 12 }, () => {
+  const z = new Mannequin(world, world.arenaEntry, pos, botHooks, 4, 'zombie');
+  z.oneLife = true;
+  return z;
+});
+for (const m of [boss, ...zombies]) {
+  scene.add(m.group);
+  m.disable();
+}
+/** Everything that can be shot like a bot. */
+export const mannequins = [...regulars, boss, ...zombies];
 
 // wolves: calm until shot (see wolf.ts). The level decides how many of them are active (none in level 1).
 export const MAX_WOLVES = 6;

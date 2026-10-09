@@ -7,7 +7,7 @@ import {
 } from './missions';
 import { $, camera, pos, renderer, scene, world } from './core';
 import { STAGES, stageForLevel } from '../world/layout';
-import { mannequins, wolves } from './actors';
+import { boss, regulars, wolves, zombies } from './actors';
 import { showBanner } from './hud';
 import { S, type Phase } from './state';
 
@@ -16,6 +16,8 @@ import { S, type Phase } from './state';
 // both gates are shut; gate 2 then opens. Three finished missions light up gate 2 for the way back.
 
 export const rooms = world.rooms;
+/** Missions to finish a level: 3 of 5, or all of them on the boss level (a single mission). */
+const missionsNeeded = () => (S.missions.length >= MISSIONS_PER_LEVEL ? MISSIONS_TO_FINISH : S.missions.length);
 const missionsEl = $('missions');
 rooms.gate1.onStart = doorSound;
 rooms.gate2.onStart = doorSound;
@@ -49,9 +51,11 @@ export function renderMissions() {
     })
     .join('');
   const sub =
-    S.missionsDone >= MISSIONS_TO_FINISH
+    S.missionsDone >= missionsNeeded()
       ? 'Level complete! Reach the glowing gate, or finish the rest for more money'
-      : `Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions to finish (${S.missionsDone}/${MISSIONS_TO_FINISH})`;
+      : levelConfig(S.level).boss
+        ? 'Defeat the boss'
+        : `Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions to finish (${S.missionsDone}/${MISSIONS_TO_FINISH})`;
   const html = `<h4>LEVEL ${S.level}</h4><div class="sub">${sub}</div>${rows}`;
   missionsEl.style.display = 'block';
   if (html !== missionsHtml) {
@@ -69,7 +73,7 @@ export function checkMissions() {
       m.done = true;
       S.missionsDone++;
       S.cash += m.reward; // the ONLY source of money
-      if (S.missionsDone === MISSIONS_TO_FINISH) levelComplete();
+      if (S.missionsDone === missionsNeeded()) levelComplete();
       else if (S.missionsDone === MISSIONS_PER_LEVEL) {
         missionSound();
         showBanner('ALL MISSIONS COMPLETE', `${m.title} · +$${m.reward}`, 4);
@@ -87,6 +91,11 @@ function levelComplete() {
   rooms.setExitLight(true);
   S.phase = 'exitOpen';
   missionSound(true);
+  if (levelConfig(S.level).boss) {
+    for (const z of zombies) if (z.alive && !z.disabled) z.damage(99999); // the zombies fall with their master
+    showBanner('VICTORY!', 'The Colossus has fallen and you beat the game. Leave through the gate; the boss will return for rematches.', 9);
+    return;
+  }
   showBanner('LEVEL COMPLETE', 'A bright light has opened at the gate. Leave now, or finish the other missions for more money.', 6);
 }
 
@@ -120,9 +129,17 @@ export function startLevel() {
   arenaGrew = stage > shownStage && shownStage >= 0;
   shownStage = stage;
   levelWork = [];
-  mannequins.forEach((m, i) => {
+  const botCount = cfg.boss ? 0 : STAGES[stage].bots;
+  zombies.forEach((z) => levelWork.push(() => z.disable()));
+  levelWork.push(() => {
+    if (cfg.boss) {
+      boss.spawnAs('boss', world.randomFreePoint(world.arenaEntry, 45));
+      boss.maxHealth = boss.health = boss.costume.health * (1 + 0.25 * (S.level - 21)); // rematches are tougher
+    } else boss.disable();
+  });
+  regulars.forEach((m, i) => {
     levelWork.push(() => {
-      if (i >= STAGES[stage].bots) {
+      if (i >= botCount) {
         m.disable();
         return;
       }
@@ -151,9 +168,9 @@ function ensureMissionCharacters() {
   // a character that is new in this level (criminals in 2, ninjas in 7) is guaranteed to show up, at least twice
   for (const c of COSTUMES) if (c.minLevel && c.minLevel > 1 && c.minLevel === S.level) wanted.set(c.id, Math.max(wanted.get(c.id) ?? 0, 2));
   for (const [id, n] of wanted) {
-    const alive = () => mannequins.filter((m) => !m.disabled && m.costume.id === id).length;
+    const alive = () => regulars.filter((m) => !m.disabled && m.costume.id === id).length;
     const want = Math.min(n, COSTUME_CAP[id] ?? n);
-    for (const m of mannequins) {
+    for (const m of regulars) {
       if (m.disabled) continue;
       if (alive() >= want) break;
       if (!wanted.has(m.costume.id)) m.forceCostume(id); // never steal a bot another mission needs
@@ -196,7 +213,7 @@ export function updateFlow(dt: number) {
       if (runLevelWork(2) && S.phaseT > 0.6) {
         rooms.gate2.setOpen(true);
         enterPhase('airlockReady');
-        showBanner(`LEVEL ${S.level}`, `${arenaGrew ? 'The arena has grown! ' : ''}${levelConfig(S.level).note} Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions.`, 5);
+        showBanner(`LEVEL ${S.level}`, `${arenaGrew ? 'The arena has grown! ' : ''}${levelConfig(S.level).note} ${levelConfig(S.level).boss ? '' : `Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions.`}`, 5);
       }
       break;
     case 'airlockReady':

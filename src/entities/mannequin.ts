@@ -25,6 +25,9 @@ export interface BotHooks {
   /** A heavy punch (Superman) wound up / landed: sound only. */
   punch?: (phase: 'wind' | 'hit' | 'miss') => void;
   lineOfSight: (from: THREE.Vector3, to: THREE.Vector3) => boolean;
+  /** The boss calls a zombie out of the ground here. False if none is free. */
+  summon?: (at: THREE.Vector3) => boolean;
+  zombiesAlive?: () => number;
   /** A scared bot cried out at this spot (optional: draws nothing, only plays a sound). */
   scream?: (at: THREE.Vector3) => void;
   /** Where to aim at the player (roughly the chest). */
@@ -50,6 +53,10 @@ export interface Costume {
   fearless?: boolean;
   /** First level in which this character can appear (default 1). */
   minLevel?: number;
+  /** Body size multiplier (the boss is a giant). */
+  scale?: number;
+  /** The boss: keeps its distance, summons zombies, pants when you get close (see bossBrain). */
+  boss?: boolean;
   /** Stats for `combat: 'melee'` bots. */
   melee?: MeleeStats;
   note: string; // shown in the Rules window
@@ -76,6 +83,11 @@ const KNIFE_CRIMINAL: MeleeStats = { aggroRange: 36, speed: 4.2, attackRange: 1.
  * stands there catching his breath for a long time (interval), which is the player's window to shoot back.
  */
 const SUPERMAN_PUNCH: MeleeStats = { aggroRange: 0, speed: 6.4, attackRange: 2.1, damage: 45, interval: 4.2, giveUp: 60, giveUpTime: 8, calmCooldown: 5, provoked: true, windup: 0.6 };
+/** Zombies (summoned by the boss): slow, relentless, they always know where you are. */
+const ZOMBIE_CLAW: MeleeStats = { aggroRange: 200, speed: 3.3, attackRange: 1.5, damage: 7, interval: 1.0, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 };
+/** The boss only swats at you when you crowd it (weak): its danger is the zombies it calls. */
+const BOSS_SWAT: MeleeStats = { aggroRange: 0, speed: 2.6, attackRange: 3.8, damage: 7, interval: 1.7, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 1 };
+const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, pant: 3.2, pantCd: 9, fleeSpeed: 4.4, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 6, maxRage: 10, perCast: 2, perCastRage: 3 };
 const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 8.4, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
 
 export const COSTUMES: Costume[] = [
@@ -88,8 +100,10 @@ export const COSTUMES: Costume[] = [
   { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', fearless: true, minLevel: 5, note: 'Never flees: shoots back when shot, dodges' },
   { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, fearless: true, minLevel: 7, note: 'Harmless, very tough, never flees: stares you down when shot' },
   { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, combat: 'melee', melee: SUPERMAN_PUNCH, fearless: true, minLevel: 10, note: 'Harmless until shot, then a huge slow punch (45 dmg) and a long rest: dodge it and shoot back' },
+  { id: 'zombie', name: 'Zombie', health: 70, points: 40, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_CLAW, fearless: true, minLevel: 999, note: 'Summoned by the boss: slow, relentless' },
+  { id: 'boss', name: 'The Colossus', health: 2400, points: 2000, weight: 0, shirt: 0x3a2448, pants: 0x241830, accent: 0xb02a2a, combat: 'melee', melee: BOSS_SWAT, fearless: true, boss: true, scale: 2.1, minLevel: 999, note: 'Final boss: keeps away, summons zombies, pants when you get close' },
   { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 4, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
-  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 15, fearless: true, note: 'From level 15. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
+  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 14, fearless: true, note: 'From level 14. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
 ];
 
 /** Which costumes may spawn (set per level by main.ts). Null = all. */
@@ -113,7 +127,7 @@ function pickCostume(self: Mannequin, crowd: Mannequin[]): Costume {
     return crowd.filter((m) => m !== self && m.alive && m.costume?.id === c.id).length < cap;
   };
   const base = spawnRule ? COSTUMES.filter(spawnRule) : COSTUMES;
-  const pool = base.filter(open);
+  const pool = base.filter((c) => c.weight > 0 && open(c));
   const list = pool.length ? pool : COSTUMES;
   let r = Math.random() * list.reduce((s, c) => s + c.weight, 0);
   for (const c of list) if ((r -= c.weight) <= 0) return c;
@@ -242,6 +256,10 @@ export class Mannequin {
   private retreatT = 0; // armed bots that are badly hurt run for cover for this long
   private retreated = false;
   private alertT = 0; // fearless bots that were shot stand and stare at the player for this long
+  /** Dies for good (summoned zombies): after lying there it is switched off instead of respawning. */
+  oneLife = false;
+  private bossSummonT = 4;
+  private bossPantCd = 0;
   private windT = 0; // heavy punch wind-up
   private windDur = 0.6;
   private recoverT = 0; // catching breath after a heavy punch
@@ -289,6 +307,7 @@ export class Mannequin {
     private player: THREE.Vector3,
     private hooks: BotHooks = NO_HOOKS,
     private respawnDelay = 4,
+    initial?: string,
   ) {
     this.group.rotation.order = 'YXZ'; // yaw first, then tip over around the bot's own axis
     this.group.add(this.body);
@@ -301,7 +320,7 @@ export class Mannequin {
     this.group.add(this.barBg, this.barFill);
     this.group.position.copy(start);
     Mannequin.crowd.push(this);
-    this.reset();
+    this.reset(false, initial ? COSTUMES.find((c) => c.id === initial) : undefined);
   }
 
   /** Fresh bot: random costume, face and build, full health, somewhere new if `relocate`. */
@@ -314,13 +333,11 @@ export class Mannequin {
     this.updateBar();
   }
 
-  reset(relocate = false) {
+  reset(relocate = false, forced?: Costume) {
     this.disabled = false;
     if (relocate) this.group.position.copy(this.nav.randomFreePoint(this.player, 20));
     this.alive = true;
     this.deadTime = 0;
-    this.baseScale = 0.94 + Math.random() * 0.14;
-    this.group.scale.setScalar(this.baseScale);
     this.group.rotation.set(0, 0, 0);
     this.body.position.set(0, 0, 0);
     this.body.rotation.set(0, 0, 0);
@@ -329,7 +346,9 @@ export class Mannequin {
     this.state = 'idle';
     this.idleT = Math.random() * 1.5;
     this.amp = 0;
-    this.costume = pickCostume(this, Mannequin.crowd);
+    this.costume = forced ?? pickCostume(this, Mannequin.crowd);
+    this.baseScale = (0.94 + Math.random() * 0.14) * (this.costume.scale ?? 1);
+    this.group.scale.setScalar(this.baseScale);
     this.resetBrain();
     // criminals usually start near the outer walls, away from the middle of the map
     if (this.costume.zone === 'edge' && Math.random() < 0.85) {
@@ -348,6 +367,8 @@ export class Mannequin {
     this.mode = 'calm';
     this.modeT = this.fearT = this.wary = this.retreatT = this.flinch = this.alertT = this.windT = this.recoverT = 0;
     this.retreated = false;
+    this.bossSummonT = 4;
+    this.bossPantCd = 0;
     this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
     this.gesture = 0;
     this.kv.set(0, 0, 0);
@@ -363,7 +384,7 @@ export class Mannequin {
     // anchor in screen space so the fill stays left-aligned however the bot is turned
     this.barFill.center.set(ratio > 0 ? 0.5 / ratio : 0.5, 0.5);
     this.barFill.material.color.setHSL(0.33 * ratio, 0.75, 0.5);
-    this.barBg.visible = this.barFill.visible = this.alive && ratio < 1 && this.sinceHit < BAR_HIDE_AFTER;
+    this.barBg.visible = this.barFill.visible = this.alive && ratio < 1 && this.sinceHit < BAR_HIDE_AFTER && !this.costume.boss; // the boss has its own bar on the HUD
   }
 
   private build() {
@@ -738,6 +759,78 @@ export class Mannequin {
     }
   }
 
+  /** Bring this (switched-off) character to life as a specific costume at a spot: the boss and its zombies. */
+  spawnAs(id: string, at: THREE.Vector3) {
+    const c = COSTUMES.find((x) => x.id === id);
+    if (!c) return;
+    this.reset(false, c);
+    this.group.position.set(at.x, this.nav.heightAt(at.x, at.z), at.z);
+    this.heading = Math.atan2(this.player.x - at.x, this.player.z - at.z);
+    this.aggravate();
+  }
+
+  /**
+   * The boss: huge, slow to hurt you. It stays 17-32 m away, calls zombies out of the ground (more, and faster, below
+   * half health), and if you run up to it it gets winded for a few seconds (the player's chance to unload on it).
+   */
+  private bossBrain(dt: number): number {
+    const B = BOSS;
+    const p = this.group.position;
+    const dx = this.player.x - p.x, dz = this.player.z - p.z;
+    const dist = Math.hypot(dx, dz);
+    const rage = this.health < this.maxHealth * 0.5;
+    this.bossSummonT -= dt;
+    this.bossPantCd -= dt;
+    this.attackCd -= dt;
+    const face = (rate: number) => {
+      this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -rate * dt, rate * dt);
+    };
+    const swat = () => {
+      if (dist < BOSS_SWAT.attackRange && this.attackCd <= 0 && !this.hooks.playerDead()) {
+        this.attackCd = BOSS_SWAT.interval;
+        this.lungeDur = this.lunge = 0.4;
+        this.hooks.punch?.('hit');
+        this.hooks.hurtPlayer(BOSS_SWAT.damage);
+      }
+    };
+    // winded: bent over and panting, can only swat at whoever stands next to it
+    if (this.recoverT > 0) {
+      this.recoverT -= dt;
+      face(2);
+      swat();
+      return 0;
+    }
+    // casting: arms thrown back, then zombies rise around it
+    if (this.windT > 0) {
+      this.windT -= dt;
+      face(3);
+      if (this.windT <= 0) {
+        for (let i = 0, n = rage ? B.perCastRage : B.perCast; i < n; i++) {
+          const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 2.5;
+          this.hooks.summon?.(new THREE.Vector3(p.x + Math.sin(a) * r, 0, p.z + Math.cos(a) * r));
+        }
+        this.bossSummonT = rage ? rnd(B.summonRage[0], B.summonRage[1]) : rnd(B.summonEvery[0], B.summonEvery[1]);
+      }
+      return 0;
+    }
+    if (dist < B.tiredDist && this.bossPantCd <= 0) {
+      this.recoverDur = this.recoverT = B.pant;
+      this.bossPantCd = B.pantCd;
+      return 0;
+    }
+    if (this.bossSummonT <= 0 && dist < 80 && (this.hooks.zombiesAlive?.() ?? 0) < (rage ? B.maxRage : B.maxZombies)) {
+      this.windDur = this.windT = 1.0;
+      return 0;
+    }
+    if (dist < B.keepMin) return this.runFrom(dt, this.player, B.fleeSpeed);
+    face(2.5);
+    if (dist > B.keepMax) {
+      this.moveBy(Math.sin(this.heading), Math.cos(this.heading), B.approach, dt);
+      return B.approach;
+    }
+    return 0;
+  }
+
   // ---------- fighting ----------
   /** Cowboys and criminals: aggro rules, then chase / shoot. Returns walking speed. */
   private fight(dt: number): number {
@@ -1101,7 +1194,7 @@ export class Mannequin {
       this.physics(dt);
       if (this.stunT > 0) this.stunT -= dt;
       // knocked about: the AI waits until the character is back on its feet
-      const moving = this.stunT > 0 ? 0 : this.costume.combat ? this.fight(dt) : this.civilian(dt);
+      const moving = this.stunT > 0 ? 0 : this.costume.boss ? this.bossBrain(dt) : this.costume.combat ? this.fight(dt) : this.civilian(dt);
       this.moveSpeedNow = moving;
       this.separate();
       const p = this.group.position;
@@ -1136,10 +1229,14 @@ export class Mannequin {
         rig.legs[i].rotation.x *= 1 - fall * 0.3;
       }
     }
+    if (this.costume.boss) return; // the boss stays where it fell
     const shrinkStart = Math.max(0.9, this.respawnDelay - 0.5);
     const t = clamp((this.deadTime - shrinkStart) / 0.4, 0, 1);
     this.group.scale.setScalar(this.baseScale * (1 - t));
     if (t >= 1) this.group.visible = false;
-    if (this.deadTime > this.respawnDelay) this.reset(true);
+    if (this.deadTime > this.respawnDelay) {
+      if (this.oneLife) this.disable();
+      else this.reset(true);
+    }
   }
 }
