@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildBot, type BotRig } from './botModel';
+import { onCharacterModels } from './glbRig';
 
 /** What a bot needs to know about the world to wander around it. */
 export interface Nav {
@@ -330,6 +331,10 @@ export class Mannequin {
     this.group.add(this.barBg, this.barFill);
     this.group.position.copy(start);
     Mannequin.crowd.push(this);
+    // the boss / zombies are downloaded models: swap one in as soon as it is available
+    if (initial === 'boss') onCharacterModels(() => {
+      if (!this.rig?.post) this.build();
+    });
     this.reset(false, initial ? COSTUMES.find((c) => c.id === initial) : undefined);
   }
 
@@ -1283,6 +1288,7 @@ export class Mannequin {
       rig.cape.rotation.x = 0.1 + (this.amp + run * 0.6) * 0.32 + Math.sin(this.phase * 1.3) * 0.07 * this.amp + Math.sin(t * 2.2) * 0.03;
       rig.cape.rotation.z = Math.sin(t * 1.6) * 0.04;
     }
+    rig.post?.(this.phase, this.amp);
   }
 
   update(dt: number) {
@@ -1336,6 +1342,7 @@ export class Mannequin {
         rig.legs[i].rotation.x *= 1 - fall * 0.3;
       }
     }
+    rig?.post?.(this.phase, this.amp);
     if (this.costume.boss) return; // the boss stays where it fell
     const shrinkStart = Math.max(0.9, this.respawnDelay - 0.5);
     const t = clamp((this.deadTime - shrinkStart) / 0.4, 0, 1);

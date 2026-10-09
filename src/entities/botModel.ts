@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { MeshBuilder } from './meshBuilder';
 import type { Costume } from './mannequin';
+import { buildGlbRig } from './glbRig';
 
 /**
  * Detailed procedural human for the bots. Every body part (torso, head, 2 arms, 2 legs) is one merged mesh
@@ -16,6 +17,8 @@ export interface BotRig {
   cape: THREE.Group | null;
   hitMeshes: THREE.Mesh[];
   materials: THREE.Material[];
+  /** Bone-driven (downloaded) characters copy the arm / leg / head groups onto their bones here, once per frame. */
+  post?: (phase: number, amp: number) => void;
   dispose: () => void;
 }
 
@@ -79,6 +82,10 @@ function slice(y0: number, y1: number, k: number): [number, number][] {
 }
 
 export function buildBot(owner: object, c: Costume): BotRig {
+  if (c.id === 'boss' || c.id === 'zombie') {
+    const glb = buildGlbRig(owner, c.id); // the knight / the PolyArt zombies, once they have loaded
+    if (glb) return glb;
+  }
   const look = LOOKS[c.id];
   const id0 = c.id;
   const skin = id0 === 'zombie' ? 0x86a878 : id0 === 'boss' ? 0x8a7aa6 : pick(SKINS); // zombies green, the boss a bruised violet

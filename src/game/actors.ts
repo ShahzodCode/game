@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Mannequin, setSpawnRule, type BotHooks } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
+import { loadCharacterModels } from '../entities/glbRig';
 import { botScream, voiceLine, punchSound, enemyShot, knifeSwish, wolfGrowl } from '../audio/audio';
 import { levelConfig } from './missions';
 import { pos, scene, spawnTracer, world } from './core';
@@ -56,6 +57,7 @@ export const regulars = world.spawnPoints.map((p) => {
   scene.add(m.group);
   return m;
 });
+loadCharacterModels(); // the knight (boss) and the zombie models load in the background; procedural ones show until then
 /** The final boss (level 21) and the zombies it summons: switched off until the boss level starts. */
 export const boss = new Mannequin(world, world.arenaEntry, pos, botHooks, 4, 'boss');
 export const zombies = Array.from({ length: 8 }, () => {

@@ -56,7 +56,7 @@ if (import.meta.env.DEV) {
       camera.getWorldDirection(d);
       const all = [...mannequins, ...wolves].filter((m) => m.alive).flatMap((m) => m.hitMeshes);
       const h = castRay(o, d, 400, [...all, ...world.blockers])[0];
-      return h ? { dist: h.distance, owner: !!h.object.userData.owner, at: h.point.toArray() } : null;
+      return h ? { dist: h.distance, owner: !!h.object.userData.owner, head: !!h.object.userData.head, at: h.point.toArray() } : null;
     },
     scene, renderer, camera, S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
   };
