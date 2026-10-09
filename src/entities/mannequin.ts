@@ -68,7 +68,7 @@ export interface MeleeStats {
   /** Heavy hitter: seconds of visible wind-up before each blow (the player can step out of range). */
   windup?: number;
 }
-const KNIFE_CRIMINAL: MeleeStats = { aggroRange: 36, speed: 5.4, attackRange: 1.5, damage: 10, interval: 0.9, giveUp: 52, giveUpTime: 3, calmCooldown: 8 };
+const KNIFE_CRIMINAL: MeleeStats = { aggroRange: 36, speed: 4.2, attackRange: 1.5, damage: 10, interval: 0.9, giveUp: 52, giveUpTime: 3, calmCooldown: 8 };
 /** Ninja: much faster, strikes twice as often and far harder than a criminal, but is fragile. */
 /**
  * Superman: only fights once shot. Then he walks up and winds up a punch that hits very hard (45), and afterwards
