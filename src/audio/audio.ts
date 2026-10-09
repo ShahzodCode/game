@@ -541,6 +541,8 @@ export function doorCreak(distance: number) {
 // (run `npm run voices` after adding files). Missing lines are simply silent.
 // ---------------------------------------------------------------------------------------------
 export type VoiceKind = 'hit' | 'death' | 'casual' | 'summon' | 'throw' | 'pant';
+/** Loudness of all character voices (the files are normalised to -18 LUFS; 0.7 is about 3 dB quieter than the old 1.5 and then some: tune here). */
+const VOICE_GAIN = 0.7;
 let voiceManifest: Record<string, Partial<Record<VoiceKind, string[]>>> = {};
 const voiceBuffers = new Map<string, AudioBuffer>();
 let voicesLoading: Promise<void> | null = null;
@@ -609,7 +611,7 @@ export function voiceLine(id: string, kind: VoiceKind, distance: number, owner?:
   src.buffer = buf;
   src.playbackRate.value = 0.97 + Math.random() * 0.06;
   const g = ctx.createGain();
-  g.gain.value = Math.min(1.6, 1.5 * vol);
+  g.gain.value = Math.min(VOICE_GAIN, VOICE_GAIN * vol);
   src.connect(g).connect(master);
   src.start();
   voicesNow.push({ src, gain: g, kind, until: now + buf.duration / src.playbackRate.value, owner });
