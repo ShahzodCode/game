@@ -164,6 +164,15 @@ function updateShadows(dt: number) {
   for (const m of mannequins) m.setShadows(m.alive && Math.hypot(m.group.position.x - pos.x, m.group.position.z - pos.z) < 50);
 }
 
+/** Safety net: whatever the terrain does, the player can never leave the arena over the walls. */
+function keepInArena() {
+  const lim = world.half - 1.0;
+  if (pos.z < world.half - 1) {
+    pos.x = THREE.MathUtils.clamp(pos.x, -lim, lim);
+    pos.z = Math.max(pos.z, -lim);
+  }
+}
+
 // ---------- lights by zone ----------
 // Every point light costs every lit pixel, whether it is near or not. The rooms' candles/lamps and the arena's camp/house
 // lamps are never needed together, so only the lights of the zone the player is in (plus the strip around the gate) are on.
@@ -200,6 +209,7 @@ function frame() {
 
   if (S.locked) {
     movePlayer(dt);
+    keepInArena();
     collideWithBots();
     updateAim(dt);
     updateWeapon(dt);

@@ -81,6 +81,7 @@ const BUMPS: [number, number, number, number][] = [
   [56, -34, 6, 2.8], [10, -46, 7, 2.4],
 ];
 
+const HILL = 0.7; // global height scale of the hills, ridges and mesas
 const PLAYER_START = new THREE.Vector2(0, 50);
 const SHOP_ZONE = { x: 8, z: 51.4, radius: 3 };
 
@@ -125,15 +126,15 @@ export function buildWorld(scene: THREE.Scene): World {
   // ---------- terrain height function ----------
   const analyticHeight = (x: number, z: number) => {
     let h = 0;
-    for (const [cx, cz, sg, a] of BUMPS) h += gauss(x, z, cx, cz, sg, a);
-    for (const [cx, cz] of ROCK_PILES) h += gauss(x, z, cx, cz, 2.6, 1.1);
-    for (const m of MESAS) h += m.h * (1 - smooth(m.r, m.r + 7, Math.hypot(x - m.x, z - m.z))); // flat-topped plateaus with ramps
+    for (const [cx, cz, sg, a] of BUMPS) h += gauss(x, z, cx, cz, sg, a * HILL);
+    for (const [cx, cz] of ROCK_PILES) h += gauss(x, z, cx, cz, 2.6, 1.1 * HILL);
+    for (const m of MESAS) h += m.h * HILL * (1 - smooth(m.r, m.r + 7, Math.hypot(x - m.x, z - m.z))); // flat-topped plateaus with ramps
     h += gauss(x, z, POND.x, POND.z, 5.2, -2.4); // the pond basin
     const east = smooth(-6, 16, x);
     h += (0.1 + 0.08 * east) * Math.sin(x * 0.7) * Math.cos(z * 0.55) + 0.07 * Math.sin(x * 1.9 + z * 1.3); // small bumps
-    h += east * 0.8 * Math.abs(Math.sin(x * 0.09 + z * 0.05 + 1)); // long ridges in the badlands
+    h += east * 0.8 * HILL * Math.abs(Math.sin(x * 0.09 + z * 0.05 + 1)); // long ridges in the badlands
     // keep ground flat under the houses, camp, entrance and shop, and near the outer walls
-    let mask = smooth(1, 6, half - Math.max(Math.abs(x), Math.abs(z)));
+    let mask = smooth(3, 14, half - Math.max(Math.abs(x), Math.abs(z))); // a wide flat belt along the walls: nothing to jump off
     for (const f of FLATS) {
       const dx = Math.max(Math.abs(x - f.x) - f.w / 2, 0);
       const dz = Math.max(Math.abs(z - f.z) - f.d / 2, 0);
@@ -254,7 +255,7 @@ export function buildWorld(scene: THREE.Scene): World {
   // outer walls
   const wallColor = 0x8d8577;
   const wall = (x: number, z: number, w: number, d: number) =>
-    addBox({ x, z, w, h: 4, d, color: wallColor });
+    addBox({ x, z, w, h: 10, d, color: wallColor });
   wall(0, -half, half * 2, 1);
   // the south wall has a 10 m gap: the entrance gate to the airlock (see rooms.ts)
   wall(-(half + 6.6) / 2, half, half - 6.6, 1); // ends at x = -6.6, where the gate pillar starts
