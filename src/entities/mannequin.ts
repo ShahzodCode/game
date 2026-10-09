@@ -28,6 +28,8 @@ export interface BotHooks {
   /** The boss calls a zombie out of the ground here. False if none is free. */
   summon?: (at: THREE.Vector3) => boolean;
   zombiesAlive?: () => number;
+  /** A character speaks a recorded line (hit / death / casual chatter), see audio.ts voiceLine. */
+  voice?: (id: string, kind: 'hit' | 'death' | 'casual' | 'summon' | 'throw' | 'pant', at: THREE.Vector3) => void;
   /** The boss hurls a boulder from its hand toward the player (game/projectiles.ts). */
   throwRock?: (from: THREE.Vector3) => void;
   /** A scared bot cried out at this spot (optional: draws nothing, only plays a sound). */
@@ -263,6 +265,8 @@ export class Mannequin {
   private bossSummonT = 4;
   private bossPantCd = 0;
   private bossRockT = 5;
+  private chatT = 8;
+  private hitVoiceT = 0;
   private bossAct: 'summon' | 'throw' = 'summon';
   private windT = 0; // heavy punch wind-up
   private windDur = 0.6;
@@ -374,6 +378,8 @@ export class Mannequin {
     this.bossSummonT = 4;
     this.bossPantCd = 0;
     this.bossRockT = 5;
+    this.chatT = rnd(5, 18);
+    this.hitVoiceT = 0;
     this.pStartle = this.pCower = this.pPanic = this.gestureK = 0;
     this.gesture = 0;
     this.kv.set(0, 0, 0);
@@ -451,6 +457,10 @@ export class Mannequin {
     this.flash = 0.12;
     this.flinch = 0.35;
     this.sinceHit = 0;
+    if (this.health > 0 && this.hitVoiceT <= 0) {
+      this.hitVoiceT = 1.6;
+      this.hooks.voice?.(this.costume.id, 'hit', this.group.position);
+    }
     if (this.health <= 0) {
       this.alive = false;
       if (COSTUME_CAP[this.costume.id] !== undefined) cooldownUntil.set(this.costume.id, nowSec() + RESPAWN_COOLDOWN);
@@ -459,6 +469,7 @@ export class Mannequin {
       const away = new THREE.Vector3(this.group.position.x - this.player.x, 0, this.group.position.z - this.player.z).setLength(1.6);
       this.kv.add(away); // shoved away from the player as it falls
       this.updateBar();
+      this.hooks.voice?.(this.costume.id, 'death', this.group.position);
       Mannequin.scareNear(this.group.position, 26, this); // witnesses panic
       return true;
     }
@@ -716,6 +727,15 @@ export class Mannequin {
     }
   }
 
+  /** Idle small talk: now and then a calm character says something when the player is within earshot. */
+  private chatter(dt: number, dist: number) {
+    this.hitVoiceT -= dt;
+    this.chatT -= dt;
+    if (this.chatT > 0) return;
+    this.chatT = rnd(14, 30);
+    if (dist < 16) this.hooks.voice?.(this.costume.id, 'casual', this.group.position);
+  }
+
   // ---------- civilians (the harmless bots) ----------
   private civilian(dt: number): number {
     const p = this.group.position;
@@ -723,6 +743,8 @@ export class Mannequin {
     const dist = Math.hypot(dx, dz);
     if (this.fearT > 0) this.fearT -= dt;
     const playerDead = this.hooks.playerDead();
+    if (this.mode === 'calm') this.chatter(dt, dist);
+    else this.hitVoiceT -= dt;
 
     switch (this.mode) {
       case 'calm': {
@@ -822,6 +844,7 @@ export class Mannequin {
     this.bossRockT -= dt;
     this.bossPantCd -= dt;
     this.attackCd -= dt;
+    this.hitVoiceT -= dt;
     const face = (rate: number) => {
       this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -rate * dt, rate * dt);
     };
@@ -861,6 +884,7 @@ export class Mannequin {
     if (dist < B.tiredDist && this.bossPantCd <= 0) {
       this.recoverDur = this.recoverT = B.pant;
       this.bossPantCd = B.pantCd;
+      this.hooks.voice?.('boss', 'pant', p);
       return 0;
     }
     // too close for comfort: punches, and reacts by calling more zombies right away
@@ -868,6 +892,7 @@ export class Mannequin {
     if (this.bossSummonT <= 0 && dist < 90) {
       this.bossAct = 'summon';
       this.windDur = this.windT = 1.0;
+      this.hooks.voice?.('boss', 'summon', p);
       return 0;
     }
     if (dist < B.closeDist) {
@@ -878,6 +903,7 @@ export class Mannequin {
     if (this.bossRockT <= 0 && dist >= B.rockMin && dist <= B.rockMax && !this.hooks.playerDead()) {
       this.bossAct = 'throw';
       this.windDur = this.windT = B.rockWind;
+      this.hooks.voice?.('boss', 'throw', p);
       return 0;
     }
     if (dist < B.keepMin) return this.runFrom(dt, this.player, B.fleeSpeed);
@@ -905,7 +931,11 @@ export class Mannequin {
     }
     const retreating = this.retreatT > 0;
     this.aim += ((this.aggravated && c.combat === 'ranged' && !retreating ? 1 : 0) - this.aim) * (1 - Math.exp(-8 * dt));
-    if (!this.aggravated) return this.moveWander(dt);
+    if (!this.aggravated) {
+      this.chatter(dt, dist);
+      return this.moveWander(dt);
+    }
+    this.hitVoiceT -= dt;
 
     // badly hurt: run for cover for a few seconds, then come back
     if (retreating) {

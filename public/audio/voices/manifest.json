@@ -1,0 +1,13 @@
+{
+ "regular": {
+  "casual": [
+   "regular-casual-1.mp3",
+   "regular-casual-2.mp3",
+   "regular-casual-3.mp3"
+  ],
+  "hit": [
+   "regular-hit-1.mp3",
+   "regular-hit-2.mp3"
+  ]
+ }
+}

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Mannequin, setSpawnRule, type BotHooks } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
-import { botScream, punchSound, enemyShot, knifeSwish, wolfGrowl } from '../audio/audio';
+import { botScream, voiceLine, punchSound, enemyShot, knifeSwish, wolfGrowl } from '../audio/audio';
 import { levelConfig } from './missions';
 import { pos, scene, spawnTracer, world } from './core';
 import { damagePlayer } from './player';
@@ -46,6 +46,7 @@ export const botHooks: BotHooks = {
     z.spawnAs('zombie', new THREE.Vector3(THREE.MathUtils.clamp(at.x, r.x0 + 2, r.x1 - 2), 0, THREE.MathUtils.clamp(at.z, r.z0 + 2, r.z1 - 2)));
     return true;
   },
+  voice: (id, kind, at) => voiceLine(id, kind, at.distanceTo(pos)),
   zombiesAlive: () => zombies.filter((q) => !q.disabled && q.alive).length,
 };
 setSpawnRule(levelConfig(1).allowed); // level 1 has no criminals

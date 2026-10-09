@@ -20,7 +20,8 @@
     },
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "voices": "node scripts/voices-manifest.mjs"
     },
     "type": "module"
 }

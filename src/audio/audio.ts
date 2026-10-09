@@ -47,6 +47,7 @@ export function initAudio() {
     master.connect(ctx.destination);
   }
   void ctx.resume();
+  void loadVoices();
   loading ??= Promise.all(
     FILES.map(async (n) => {
       const res = await fetch(`/audio/weapons/${n}.mp3`);
@@ -533,4 +534,65 @@ export function doorCreak(distance: number) {
   if (vol < 0.05 || !ctx || !master) return;
   tone('sawtooth', 140, 210, 0.07 * vol, 0.5);
   tone('square', 90, 130, 0.04 * vol, 0.45, 0.05);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Character voices: recordings in public/audio/voices/<costume>-<hit|death|casual>-<n>.mp3, listed in manifest.json
+// (run `npm run voices` after adding files). Missing lines are simply silent.
+// ---------------------------------------------------------------------------------------------
+export type VoiceKind = 'hit' | 'death' | 'casual' | 'summon' | 'throw' | 'pant';
+let voiceManifest: Record<string, Partial<Record<VoiceKind, string[]>>> = {};
+const voiceBuffers = new Map<string, AudioBuffer>();
+let voicesLoading: Promise<void> | null = null;
+function loadVoices() {
+  return (voicesLoading ??= (async () => {
+    try {
+      const res = await fetch(import.meta.env.BASE_URL + 'audio/voices/manifest.json');
+      voiceManifest = await res.json();
+      const files = Object.values(voiceManifest).flatMap((k) => Object.values(k).flat() as string[]);
+      await Promise.all(
+        files.map(async (f) => {
+          try {
+            const r = await fetch(import.meta.env.BASE_URL + 'audio/voices/' + f);
+            voiceBuffers.set(f, await ctx!.decodeAudioData(await r.arrayBuffer()));
+          } catch (e) {
+            console.warn('voice file failed', f, e);
+          }
+        }),
+      );
+    } catch (e) {
+      console.warn('no voices', e);
+    }
+  })());
+}
+interface VoiceNow { src: AudioBufferSourceNode; gain: GainNode; kind: VoiceKind; until: number }
+let voicesNow: VoiceNow[] = [];
+let lastHitVoice = 0;
+/** Speak a random recorded line of a character. Quieter with distance. Returns true if something played. */
+export function voiceLine(id: string, kind: VoiceKind, distance: number): boolean {
+  if (!ctx || !master) return false;
+  const list = voiceManifest[id]?.[kind];
+  if (!list?.length) return false;
+  const vol = Math.pow(Math.max(0, 1 - distance / 40), 1.3);
+  if (vol < 0.04) return false;
+  const now = ctx.currentTime;
+  voicesNow = voicesNow.filter((v) => v.until > now);
+  if (kind === 'casual' && voicesNow.length > 0) return false; // chatter never talks over anything
+  if (kind === 'hit') {
+    if (performance.now() - lastHitVoice < 700 || voicesNow.filter((v) => v.kind === 'hit').length >= 2) return false; // a crowd being shot is not a wall of noise
+    lastHitVoice = performance.now();
+  }
+  if (kind !== 'casual') for (const v of voicesNow) if (v.kind === 'casual') v.gain.gain.setTargetAtTime(0, now, 0.05); // drama interrupts small talk
+  const file = list[Math.floor(Math.random() * list.length)];
+  const buf = voiceBuffers.get(file);
+  if (!buf) return false;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = 0.97 + Math.random() * 0.06;
+  const g = ctx.createGain();
+  g.gain.value = Math.min(1.6, 1.5 * vol);
+  src.connect(g).connect(master);
+  src.start();
+  voicesNow.push({ src, gain: g, kind, until: now + buf.duration / src.playbackRate.value });
+  return true;
 }
