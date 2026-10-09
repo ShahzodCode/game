@@ -84,11 +84,11 @@ export const COSTUMES: Costume[] = [
   { id: 'sporty', name: 'Sporty', health: 105, points: 130, weight: 2, shirt: 0x3fa35a, pants: 0x222222, accent: 0xffffff, speedMul: 1.7, note: 'Harmless, walks fast, runs away when shot' },
   { id: 'chef', name: 'Chef', health: 95, points: 140, weight: 1.5, shirt: 0xf4f4f0, pants: 0x3a3a3a, accent: 0xffffff, note: 'Harmless, runs away when shot' },
   { id: 'rich', name: 'Rich guy', health: 90, points: 150, weight: 1.5, shirt: 0x2f3b52, pants: 0x20242e, accent: 0xb02a2a, note: 'Harmless, runs away when shot' },
-  { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', fearless: true, note: 'Never flees: shoots back when shot, dodges' },
-  { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, fearless: true, note: 'Harmless, very tough, never flees: stares you down when shot' },
-  { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, combat: 'melee', melee: SUPERMAN_PUNCH, fearless: true, note: 'Harmless until shot, then a huge slow punch (45 dmg) and a long rest: dodge it and shoot back' },
-  { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 2, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
-  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 7, fearless: true, note: 'From level 7. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
+  { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', fearless: true, minLevel: 5, note: 'Never flees: shoots back when shot, dodges' },
+  { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, fearless: true, minLevel: 7, note: 'Harmless, very tough, never flees: stares you down when shot' },
+  { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, combat: 'melee', melee: SUPERMAN_PUNCH, fearless: true, minLevel: 10, note: 'Harmless until shot, then a huge slow punch (45 dmg) and a long rest: dodge it and shoot back' },
+  { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 4, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
+  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 15, fearless: true, note: 'From level 15. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
 ];
 
 /** Which costumes may spawn (set per level by main.ts). Null = all. */

@@ -37,14 +37,28 @@ export interface LevelConfig {
   note: string; // shown on the level banner
 }
 
+/**
+ * Difficulty curve (levels 1-25). New characters are introduced one at a time so nothing nasty shows up early:
+ * 1-2 harmless crowds, 3 wolves, 4 criminals, 5 cowboys, 7 soldiers, 10 Superman, 15 ninjas (COSTUMES.minLevel).
+ */
+export const MAX_LEVEL = 25;
+export const INTRO_NOTES: Record<number, string> = {
+  1: 'A quiet arena: harmless crowds. Take your time.',
+  2: 'Still peaceful, but the crowds are bigger.',
+  3: 'Wolves have arrived. Shoot one and the pack comes for you.',
+  4: 'Criminals now patrol the walls. They carry knives.',
+  5: 'Cowboys have arrived: they shoot back when shot.',
+  7: 'Soldiers: very tough, they never run away.',
+  10: 'Superman is here. A punch hurts a lot, but he is slow to recover.',
+  15: 'Ninjas have appeared. Watch your back.',
+};
+
 export function levelConfig(level: number): LevelConfig {
   return {
     level,
-    // level 1 is the gentle introduction: no criminals, no wolves. Characters appear from their own minLevel
-    // (criminals from level 2, ninjas from level 7, see COSTUMES).
-    wolves: level <= 1 ? 0 : Math.min(level + 1, 6),
+    wolves: level < 3 ? 0 : Math.min(2 + Math.floor((level - 3) / 3), 6),
     allowed: (c) => level >= (c.minLevel ?? 1),
-    note: level <= 1 ? 'A quiet arena: harmless crowds, a few surprises.' : level === 2 ? 'Criminals and wolves have arrived.' : level === 7 ? 'Ninjas have appeared. Watch your back.' : 'The arena is getting more dangerous.',
+    note: INTRO_NOTES[level] ?? (level >= MAX_LEVEL ? 'The final level. Good luck.' : 'The arena is getting more dangerous.'),
   };
 }
 
@@ -62,10 +76,11 @@ function mission(key: string, title: string, target: number, reward: number, mea
 const killsOf = (id: string, n: number, reward: number) =>
   mission(`kill:${id}`, `Kill ${n} ${plural(nameOf(id), n)}`, n, reward, (s) => s.byKind[id] ?? 0);
 
-/** Builds the five missions for a level, easiest first. */
+/** Builds the five missions for a level, easiest first. Targets grow slowly (level 25 is about 3.4x level 1). */
 export function generateMissions(cfg: LevelConfig): Mission[] {
-  const L = cfg.level;
-  const f = 1 + 0.4 * (L - 1); // difficulty / reward scale
+  const L = Math.min(cfg.level, MAX_LEVEL);
+  const sc = 1 + 0.1 * (L - 1); // how big the targets are
+  const f = 1 + 0.18 * (L - 1); // how well the missions pay
   const has = (id: string) => COSTUMES.some((c) => c.id === id && cfg.allowed(c));
   const used = new Set<string>();
   const take = (pool: (() => Mission)[]): Mission => {
@@ -75,39 +90,37 @@ export function generateMissions(cfg: LevelConfig): Mission[] {
     return m;
   };
 
-  // 1: always a score target
-  const m1 = mission('score', `Earn ${round50(450 * f)} points`, round50(450 * f), 250 * f, (s) => s.score);
+  // 1: always a score target (easy at first)
+  const m1 = mission('score', `Earn ${round50(300 * sc)} points`, round50(300 * sc), 250 * f, (s) => s.score);
   used.add(m1.key);
   // 2: a number of kills
-  const n2 = Math.round(7 * f);
+  const n2 = Math.round(4 * sc);
   const m2 = mission('kills', `Eliminate ${n2} characters`, n2, 350 * f, (s) => s.kills);
   used.add(m2.key);
 
   // 3: a common character, or headshots
   const common = ['regular', 'winter', 'builder', 'sporty', 'chef', 'rich'];
   const m3 = take([
-    () => killsOf(pickOne(common), Math.round(3 * f), 500 * f),
-    () => mission('head', `Get ${Math.round(3 * f) + 1} headshot kills`, Math.round(3 * f) + 1, 500 * f, (s) => s.headshots),
+    () => killsOf(pickOne(common), Math.round(2 * sc), 500 * f),
+    () => mission('head', `Get ${Math.round(2 * sc) + 1} headshot kills`, Math.round(2 * sc) + 1, 500 * f, (s) => s.headshots),
   ]);
 
-  // 4: something specific and harder
+  // 4: something specific and harder (only characters that exist on this level)
   const pool4: (() => Mission)[] = [
-    () => mission('knife', `Kill ${2 + L} with the knife`, 2 + L, 750 * f, (s) => s.knifeKills),
-    () => killsOf('cowboy', 2 + Math.floor(L / 2), 750 * f),
-    () => mission('head', `Get ${5 + 2 * L} headshot kills`, 5 + 2 * L, 750 * f, (s) => s.headshots),
+    () => mission('knife', `Kill ${1 + Math.ceil(L / 3)} with the knife`, 1 + Math.ceil(L / 3), 750 * f, (s) => s.knifeKills),
+    () => mission('head', `Get ${3 + Math.round(L * 0.6)} headshot kills`, 3 + Math.round(L * 0.6), 750 * f, (s) => s.headshots),
   ];
-  if (cfg.wolves > 0) pool4.push(() => killsOf('wolf', Math.min(1 + Math.floor(L / 2), cfg.wolves), 800 * f));
-  if (has('criminal')) pool4.push(() => killsOf('criminal', 2 + Math.floor(L / 2), 800 * f));
+  if (has('cowboy')) pool4.push(() => killsOf('cowboy', Math.min(1 + Math.floor(L / 6), 4), 750 * f));
+  if (cfg.wolves > 0) pool4.push(() => killsOf('wolf', Math.min(1 + Math.floor((L - 3) / 4), cfg.wolves), 800 * f));
+  if (has('criminal')) pool4.push(() => killsOf('criminal', Math.min(1 + Math.floor((L - 4) / 4), 4), 800 * f));
   const m4 = take(pool4);
 
   // 5: the hardest
-  const pool5: (() => Mission)[] = [
-    () => killsOf('superman', 1 + Math.floor(L / 3), 1100 * f),
-    () => killsOf('soldier', 2 + Math.floor(L / 2), 1100 * f),
-    () => mission('score2', `Earn ${round50(1500 * f)} points`, round50(1500 * f), 1100 * f, (s) => s.score),
-  ];
-  if (has('ninja')) pool5.push(() => killsOf('ninja', 1 + Math.floor(L / 2), 1200 * f));
-  if (cfg.wolves > 0) pool5.push(() => killsOf('wolf', Math.min(2 + L, cfg.wolves), 1200 * f));
+  const pool5: (() => Mission)[] = [() => mission('score2', `Earn ${round50(1000 * sc)} points`, round50(1000 * sc), 1100 * f, (s) => s.score)];
+  if (has('soldier')) pool5.push(() => killsOf('soldier', Math.min(1 + Math.floor((L - 7) / 5), 4), 1100 * f));
+  if (has('superman')) pool5.push(() => killsOf('superman', Math.min(1 + Math.floor((L - 10) / 8), 3), 1100 * f));
+  if (has('ninja')) pool5.push(() => killsOf('ninja', Math.min(1 + Math.floor((L - 15) / 4), 4), 1200 * f));
+  if (cfg.wolves > 0) pool5.push(() => killsOf('wolf', Math.min(1 + Math.floor(L / 4), cfg.wolves), 1200 * f));
   const m5 = take(pool5);
 
   return [m1, m2, m3, m4, m5];
