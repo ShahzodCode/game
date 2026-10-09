@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { COSTUMES, setSpawnRule } from '../entities/mannequin';
+import { COSTUMES, COSTUME_CAP, clearSpawnCooldowns, setSpawnRule } from '../entities/mannequin';
 import { ARENA_GATE_Z, GATE1_Z } from '../world/rooms';
 import { doorSound, missionSound } from '../audio/audio';
 import {
@@ -108,6 +108,7 @@ export function startLevel() {
   S.missions = generateMissions(cfg);
   S.missionsDone = 0;
   missionsHtml = '';
+  clearSpawnCooldowns();
   levelWork = [];
   for (const m of mannequins) {
     levelWork.push(() => {
@@ -137,8 +138,9 @@ function ensureMissionCharacters() {
   for (const c of COSTUMES) if (c.minLevel && c.minLevel > 1 && c.minLevel === S.level) wanted.set(c.id, Math.max(wanted.get(c.id) ?? 0, 2));
   for (const [id, n] of wanted) {
     const alive = () => mannequins.filter((m) => m.costume.id === id).length;
+    const want = Math.min(n, COSTUME_CAP[id] ?? n);
     for (const m of mannequins) {
-      if (alive() >= n) break;
+      if (alive() >= want) break;
       if (!wanted.has(m.costume.id)) m.forceCostume(id); // never steal a bot another mission needs
     }
   }

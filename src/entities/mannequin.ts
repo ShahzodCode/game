@@ -96,8 +96,23 @@ let spawnRule: ((c: Costume) => boolean) | null = null;
 export function setSpawnRule(rule: ((c: Costume) => boolean) | null) {
   spawnRule = rule;
 }
-function pickCostume(): Costume {
-  const pool = spawnRule ? COSTUMES.filter(spawnRule) : COSTUMES;
+/** The armed characters are limited: at most this many alive at once, and a cooldown after one has been killed. */
+export const COSTUME_CAP: Record<string, number> = { criminal: 2, cowboy: 2 };
+const RESPAWN_COOLDOWN = 25; // seconds before a killed capped character can spawn again
+const cooldownUntil = new Map<string, number>();
+const nowSec = () => performance.now() / 1000;
+export function clearSpawnCooldowns() {
+  cooldownUntil.clear();
+}
+function pickCostume(self: Mannequin, crowd: Mannequin[]): Costume {
+  const open = (c: Costume) => {
+    const cap = COSTUME_CAP[c.id];
+    if (cap === undefined) return true;
+    if (nowSec() < (cooldownUntil.get(c.id) ?? 0)) return false;
+    return crowd.filter((m) => m !== self && m.alive && m.costume?.id === c.id).length < cap;
+  };
+  const base = spawnRule ? COSTUMES.filter(spawnRule) : COSTUMES;
+  const pool = base.filter(open);
   const list = pool.length ? pool : COSTUMES;
   let r = Math.random() * list.reduce((s, c) => s + c.weight, 0);
   for (const c of list) if ((r -= c.weight) <= 0) return c;
@@ -303,7 +318,7 @@ export class Mannequin {
     this.state = 'idle';
     this.idleT = Math.random() * 1.5;
     this.amp = 0;
-    this.costume = pickCostume();
+    this.costume = pickCostume(this, Mannequin.crowd);
     this.resetBrain();
     // criminals usually start near the outer walls, away from the middle of the map
     if (this.costume.zone === 'edge' && Math.random() < 0.85) {
@@ -401,6 +416,7 @@ export class Mannequin {
     this.sinceHit = 0;
     if (this.health <= 0) {
       this.alive = false;
+      if (COSTUME_CAP[this.costume.id] !== undefined) cooldownUntil.set(this.costume.id, nowSec() + RESPAWN_COOLDOWN);
       this.deadTime = 0;
       // shoved away from the player as it falls
       const away = new THREE.Vector3(this.group.position.x - this.player.x, 0, this.group.position.z - this.player.z).setLength(1.6);

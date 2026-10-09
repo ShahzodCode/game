@@ -5,10 +5,10 @@
 export type Side = 'N' | 'S' | 'E' | 'W';
 export interface HouseSpec { x: number; z: number; w: number; d: number; door: Side }
 
-/** Big houses: a floor, walls with a door and some windows, a gable roof and a couch. w = size along x, d = along z. */
+/** Big houses: a floor, walls with an open doorway and some windows, a gable roof and a couch. w = size along x, d = along z. */
 export const HOUSES: HouseSpec[] = [
-  { x: -38, z: -28, w: 11, d: 8, door: 'E' }, // in the forest, door toward the middle of the map
-  { x: 32, z: 22, w: 10, d: 8, door: 'W' }, // at the edge of the badlands
+  { x: -38, z: -28, w: 17, d: 12, door: 'E' }, // in the forest, door toward the middle of the map
+  { x: 32, z: 22, w: 16, d: 12, door: 'W' }, // at the edge of the badlands
 ];
 
 export const CAMP = { x: -16, z: 4 }; // campfire clearing in the forest
@@ -39,8 +39,8 @@ export const GIANT_OAK = { x: -22, z: -16 };
 
 /** Dirt paths (polylines) from the gate to the houses and the camp. */
 export const PATHS: [number, number][][] = [
-  [[0, 56], [-4, 46], [-12, 32], [-17, 16], [-16, 4], [-22, -8], [-30, -18], [-35, -25]],
-  [[4, 56], [12, 46], [22, 34], [28, 25]],
+  [[0, 56], [-4, 46], [-12, 32], [-17, 16], [-16, 4], [-22, -8], [-24, -20], [-26, -28]],
+  [[4, 56], [12, 46], [18, 30], [21, 22]],
 ];
 
 /** Rectangles that are levelled flat (x, z centre, w, d size, margin = width of the blend into the hills). */

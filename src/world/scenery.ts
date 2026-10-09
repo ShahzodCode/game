@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { MeshBuilder } from '../entities/meshBuilder';
-import { doorCreak } from '../audio/audio';
 import { CAMP, GIANT_OAK, HOUSES, POND, keepClear, pathDistance, type HouseSpec } from './layout';
 
 // Scenery builders for the arena: forest, grass, rocks, houses, campfire, pond, mountains and clouds.
@@ -436,7 +435,7 @@ export function buildHouse(ctx: Ctx, spec: HouseSpec, style: { wall: number; tri
   const { scene, boxes, blockers, heightAt } = ctx;
   const { x: cx, z: cz, w, d } = spec;
   const y0 = heightAt(cx, cz);
-  const T = 0.3, H = 3.2, RISE = 1.7, FLOOR = 0.08;
+  const T = 0.3, H = 3.6, RISE = 2.2, FLOOR = 0.08;
   const b = new MeshBuilder();
   const solid = (x0: number, x1: number, ya: number, yb: number, z0: number, z1: number, col: number) => {
     b.box(col, x1 - x0, yb - ya, z1 - z0, { p: [(x0 + x1) / 2, y0 + (ya + yb) / 2, (z0 + z1) / 2] });
@@ -461,7 +460,7 @@ export function buildHouse(ctx: Ctx, spec: HouseSpec, style: { wall: number; tri
     piece(cursor, to, -0.05, H);
   };
   const x0 = cx - w / 2, x1 = cx + w / 2, z0 = cz - d / 2, z1 = cz + d / 2;
-  const DOOR_W = 1.7, DOOR_H = 2.45;
+  const DOOR_W = 2.4, DOOR_H = 2.7;
   const door = (side: string, len: number, c: number): Opening[] => [{ c, w: DOOR_W, y0: 0, y1: DOOR_H }, ...[-1, 1].map((s) => ({ c: c + s * len * 0.3, w: 1.3, y0: 1.0, y1: 2.15 }))];
   const windows = (len: number, c: number): Opening[] => [-1, 1].map((s) => ({ c: c + s * len * 0.26, w: 1.3, y0: 1.0, y1: 2.15 }));
   wall('x', z0, x0 - T / 2, x1 + T / 2, spec.door === 'N' ? door('N', w, cx) : windows(w, cx));
@@ -514,7 +513,7 @@ export function buildHouse(ctx: Ctx, spec: HouseSpec, style: { wall: number; tri
   blockers.push(mesh);
 
   // a warm lamp inside, so the house is not a dark box
-  const lamp = new THREE.PointLight(0xffe2b0, 45, 12, 2);
+  const lamp = new THREE.PointLight(0xffe2b0, 80, 18, 2);
   lamp.position.set(cx, y0 + H - 0.4, cz);
   scene.add(lamp);
 
@@ -542,53 +541,8 @@ export function buildHouse(ctx: Ctx, spec: HouseSpec, style: { wall: number; tri
   boxes.push(couchBox);
   blockers.push(couch);
 
-  // the door: a hinged slab that swings away from the player when he comes close
-  const pivot = new THREE.Group();
-  const doorMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.09, DOOR_H - 0.05, DOOR_W - 0.1),
-    new THREE.MeshStandardMaterial({ color: 0x7a4e28, roughness: 0.8 }),
-  );
-  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.9, roughness: 0.3 }));
-  // built for a door in an east wall (the slab spans z), then turned to whichever side it is on
-  const hingeLocal = DOOR_W / 2 - 0.05; // hinge at the +z edge of the slab when facing east
-  doorMesh.position.set(0, 0, -hingeLocal);
-  knob.position.set(0.09, -0.05, -DOOR_W + 0.35);
-  pivot.add(doorMesh, knob);
-  const baseYaw = { E: 0, W: Math.PI, N: Math.PI / 2, S: -Math.PI / 2 }[spec.door]; // turns local +x (outward) to the door's side
-  const holder = new THREE.Group();
-  holder.position.set(doorX, y0 + DOOR_H / 2 + 0.03, doorZ);
-  holder.rotation.y = baseYaw;
-  holder.add(pivot);
-  pivot.position.z = hingeLocal; // hinge at the edge of the opening
-  doorMesh.castShadow = true;
-  scene.add(holder);
-  blockers.push(doorMesh);
-  const dxh = out[0] ? 0.07 : DOOR_W / 2 - 0.05, dzh = out[1] ? 0.07 : DOOR_W / 2 - 0.05;
-  const doorBox = new THREE.Box3(new THREE.Vector3(doorX - dxh, y0, doorZ - dzh), new THREE.Vector3(doorX + dxh, y0 + DOOR_H, doorZ + dzh));
-  const doorBoxClosed = doorBox.clone();
-  boxes.push(doorBox);
-
-  let open = 0; // 0 closed .. 1 open
-  let wasCreaking = false;
-  let dir = 1; // which way it swings (away from the player who opened it)
-  const OPEN_ANGLE = 1.7;
-  const update: HouseHandle['update'] = (dt, player) => {
-    const near = Math.hypot(player.x - doorX, player.z - doorZ) < 2.6 && Math.abs(player.y - y0) < 2.5;
-    const far = Math.hypot(player.x - doorX, player.z - doorZ) > 3.4;
-    if (near && open < 0.02) {
-      // outside the house -> swing in; inside -> swing out
-      const outside = (player.x - doorX) * out[0] + (player.z - doorZ) * out[1] > 0;
-      dir = outside ? 1 : -1; // positive angle = swings inward
-    }
-    const target = near ? 1 : far ? 0 : open > 0.5 ? 1 : 0;
-    const wasMoving = Math.abs(target - open) > 0.05;
-    if (!wasCreaking && wasMoving && dt > 0) doorCreak(Math.hypot(player.x - doorX, player.z - doorZ));
-    wasCreaking = wasMoving;
-    open += (target - open) * (1 - Math.exp(-6 * dt));
-    pivot.rotation.y = dir * open * OPEN_ANGLE;
-    if (open > 0.45) doorBox.makeEmpty();
-    else doorBox.copy(doorBoxClosed);
-  };
+  // no door any more: the doorway stays open so people and bots can walk in and out
+  const update: HouseHandle['update'] = () => {};
   return { update, rect: { x0: x0 - 1.5, x1: x1 + 1.5, z0: z0 - 1.5, z1: z1 + 1.5 } };
 }
 
