@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { stopRifleLoop, stopReloadSound, hurtSound, potionSound, stepSound, landSound, splashSound } from '../audio/audio';
-import { POND } from '../world/layout';
+import { CAMP, POND } from '../world/layout';
 import { POTION } from '../shop/shopItems';
 import { pos, vel, weapons, world } from './core';
 import { showPopup } from './hud';
@@ -76,7 +76,26 @@ const _grad = new THREE.Vector2();
 let jumpWasDown = false;
 let jumped = false; // the current rise came from a jump (so releasing the key cuts it short)
 
+const FIRE_RADIUS = 0.95; // m around the campfire
+const FIRE_DPS = 5;
+let burnT = 0;
+/** Standing in the campfire hurts: 5 damage per second, in ticks of 0.25 s. */
+function campfireBurn(dt: number) {
+  const ground = world.heightAt(CAMP.x, CAMP.z);
+  const inFire = Math.hypot(pos.x - CAMP.x, pos.z - CAMP.z) < FIRE_RADIUS && pos.y < ground + 1.3;
+  if (!inFire) {
+    burnT = 0;
+    return;
+  }
+  burnT += dt;
+  while (burnT >= 0.25) {
+    burnT -= 0.25;
+    damagePlayer(FIRE_DPS * 0.25);
+  }
+}
+
 export function movePlayer(dt: number) {
+  campfireBurn(dt);
   const w = weapons[S.current].stats;
   const horiz0 = Math.hypot(vel.x, vel.z);
   const shift = !!(keys['ShiftLeft'] || keys['ShiftRight']);

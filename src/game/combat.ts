@@ -3,7 +3,7 @@ import { Mannequin } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
 import type { Weapon } from '../weapons/weapons';
 import {
-  pistolShot, shotgunShot, startRifleLoop, stopRifleLoop, reloadSound, stopReloadSound, knifeSwish, synthShot,
+  pistolShot, shotgunShot, startRifleLoop, stopRifleLoop, reloadSound, stopReloadSound, knifeSwish, synthShot, sniperShot,
 } from '../audio/audio';
 import { camera, flashLight, spawnImpact, spawnTracer, vel, viewModels, weapons, world } from './core';
 import { spawnBolt, spawnCasing, spawnGrenade } from './projectiles';
@@ -65,6 +65,7 @@ function shotSound(w: Weapon) {
   if (w.stats.id === 'pistol') pistolShot();
   else if (w.stats.id === 'shotgun') shotgunShot();
   else if (w.stats.melee) knifeSwish();
+  else if (w.stats.id === 'sniper') sniperShot();
   else if (w.stats.shot) synthShot(w.stats.shot);
   else startRifleLoop(); // no-op if already running
 }
