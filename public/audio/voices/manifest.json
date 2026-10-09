@@ -28,6 +28,19 @@
    "regular-hit-2.mp3"
   ]
  },
+ "sporty": {
+  "casual": [
+   "sporty-casual-1.mp3",
+   "sporty-casual-2.mp3",
+   "sporty-casual-3.mp3"
+  ],
+  "death": [
+   "sporty-death-1.mp3"
+  ],
+  "hit": [
+   "sporty-hit-1.mp3"
+  ]
+ },
  "winter": {
   "casual": [
    "winter-casual-1.mp3",
