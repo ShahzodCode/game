@@ -24,16 +24,38 @@ export function saveSettings() {
 
 /** pixelRatio: render resolution cap; shadow: sun shadow map size (0 = off); period: the shadow map is redrawn every Nth frame. */
 const QUALITY: Record<Quality, { pixelRatio: number; shadow: number; period: number }> = {
-  high: { pixelRatio: 2, shadow: 4096, period: 1 },
-  medium: { pixelRatio: 1.25, shadow: 2048, period: 2 },
+  high: { pixelRatio: 2, shadow: 2048, period: 1 },
+  medium: { pixelRatio: 1.25, shadow: 1536, period: 2 },
   low: { pixelRatio: 1, shadow: 0, period: 1 },
 };
 export const shadowPeriod = () => QUALITY[settings.quality].period;
 
+// Dynamic resolution: when frames take too long the render resolution drops a little, and it creeps back up when
+// there is time to spare, so the game stays smooth on any machine. Not used by automated test browsers.
+let resScale = 1;
+let slowT = 0, fastT = 0, accT = 0, accN = 0;
+export function tuneResolution(dt: number) {
+  if (navigator.webdriver || dt <= 0) return;
+  accT += dt;
+  accN++;
+  if (accT < 1) return;
+  const avg = accT / accN;
+  accT = accN = 0;
+  const old = resScale;
+  if (avg > 1 / 52) {
+    fastT = 0;
+    if (++slowT >= 1) resScale = Math.max(0.55, resScale - (avg > 1 / 30 ? 0.2 : 0.1));
+  } else if (avg < 1 / 85) {
+    slowT = 0;
+    if (++fastT >= 5) { resScale = Math.min(1, resScale + 0.1); fastT = 0; }
+  } else slowT = fastT = 0;
+  if (resScale !== old) applyQuality();
+}
+
 /** Apply the graphics quality to the renderer and the sun. */
 export function applyQuality() {
   const q = QUALITY[settings.quality];
-  renderer.setPixelRatio(Math.min(devicePixelRatio, q.pixelRatio));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, q.pixelRatio) * resScale);
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.autoUpdate = false; // main.ts asks for a shadow redraw every `period` frames
   renderer.shadowMap.needsUpdate = true;

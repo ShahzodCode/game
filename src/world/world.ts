@@ -36,6 +36,8 @@ export interface World {
   terrainProxy: THREE.Object3D;
   /** Collision boxes near a point (a fresh array each call). */
   boxesNear: (x: number, z: number, r: number) => THREE.Box3[];
+  /** The sun's shadow box follows the player (snapped to shadow texels so edges do not shimmer). */
+  followSun: (x: number, z: number) => void;
   /** Quality knob: sun shadow resolution (0 = shadows off). */
   setShadowQuality: (mapSize: number) => void;
   /** Per-frame life: doors that open, campfire, water, clouds. */
@@ -100,10 +102,25 @@ export function buildWorld(scene: THREE.Scene): World {
   sun.shadow.bias = -0.0004; // steadier shadows: no acne / flicker on flat walls
   sun.shadow.normalBias = 0.04;
   const s = sun.shadow.camera;
-  s.left = s.bottom = -half - 5;
-  s.right = s.top = half + 5;
+  const SHADOW_R = 42; // the shadow box covers 84 m around the player: sharper shadows and far fewer casters than the whole arena
+  s.left = s.bottom = -SHADOW_R;
+  s.right = s.top = SHADOW_R;
   s.far = 220;
-  scene.add(sun);
+  scene.add(sun, sun.target);
+  const sunOffset = new THREE.Vector3(50, 80, 30);
+  const lightDir = sunOffset.clone().normalize();
+  const lightRight = new THREE.Vector3(0, 1, 0).cross(lightDir).normalize();
+  const lightUp = lightDir.clone().cross(lightRight).normalize();
+  const followSun = (x: number, z: number) => {
+    const texel = (SHADOW_R * 2) / sun.shadow.mapSize.x;
+    const p = new THREE.Vector3(x, 0, z);
+    const r = p.dot(lightRight), u = p.dot(lightUp);
+    p.addScaledVector(lightRight, Math.round(r / texel) * texel - r).addScaledVector(lightUp, Math.round(u / texel) * texel - u);
+    sun.target.position.copy(p);
+    sun.position.copy(p).add(sunOffset);
+    sun.target.updateMatrixWorld();
+  };
+  followSun(0, 0);
 
   // ---------- terrain height function ----------
   const analyticHeight = (x: number, z: number) => {
@@ -164,23 +181,34 @@ export function buildWorld(scene: THREE.Scene): World {
   };
 
   // ---------- terrain mesh ----------
-  const seg = 160;
-  const geo = new THREE.PlaneGeometry(half * 2, half * 2, seg, seg);
-  geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
-  geo.computeVertexNormals();
-  const colors = new Float32Array(pos.count * 3);
-  const norm = geo.attributes.normal;
+  // 4 x 4 chunks, so the renderer only draws the ground that is in view (normals come from the height field, so seams match)
+  const CH = 4, chunkSize = (half * 2) / CH, chunkSeg = 40;
   const grassW = new THREE.Color(0x4a8236), grassW2 = new THREE.Color(0x5d9440), sand = new THREE.Color(0xa89b68), dryE = new THREE.Color(0x8d8a52);
   const dirt = new THREE.Color(0x6b5238), stone = new THREE.Color(0x7d7a72), path = new THREE.Color(0x826646), mud = new THREE.Color(0x4a3b2a);
   const c = new THREE.Color();
+  const jit = (x: number, z: number, k: number) => { const v = Math.sin(x * 12.9898 + z * 78.233 + k * 37.719) * 43758.5453; return v - Math.floor(v); }; // same value for the same spot in every chunk
+  const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  for (let cx = 0; cx < CH; cx++) for (let cz = 0; cz < CH; cz++) {
+  const geo = new THREE.PlaneGeometry(chunkSize, chunkSize, chunkSeg, chunkSeg);
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(-half + (cx + 0.5) * chunkSize, 0, -half + (cz + 0.5) * chunkSize);
+  const pos = geo.attributes.position;
+  const norm = geo.attributes.normal;
+  const e = 0.25;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    pos.setY(i, heightAt(x, z));
+    const nx = heightAt(x - e, z) - heightAt(x + e, z), nz = heightAt(x, z - e) - heightAt(x, z + e);
+    const l = Math.hypot(nx, 2 * e, nz);
+    norm.setXYZ(i, nx / l, (2 * e) / l, nz / l);
+  }
+  const colors = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), h = pos.getY(i);
     const east = smooth(-8, 14, x);
     const patch = 0.5 + 0.5 * Math.sin(x * 0.21 + 1) * Math.cos(z * 0.17);
-    c.copy(grassW).lerp(grassW2, patch * 0.7 + rand() * 0.2);
-    c.lerp(east > 0.5 ? sand : dryE, east * (0.55 + patch * 0.3 + rand() * 0.12)); // dusty badlands
+    c.copy(grassW).lerp(grassW2, patch * 0.7 + jit(x, z, 1) * 0.2);
+    c.lerp(east > 0.5 ? sand : dryE, east * (0.55 + patch * 0.3 + jit(x, z, 2) * 0.12)); // dusty badlands
     c.lerp(dirt, smooth(-0.3, -1.3, h)); // the shore and the pond bed
     c.lerp(mud, smooth(-1.0, -1.8, h) * 0.8);
     c.lerp(stone, smooth(0.93, 0.8, norm.getY(i)) * 0.75); // steep ground is bare rock
@@ -188,9 +216,10 @@ export function buildWorld(scene: THREE.Scene): World {
     colors.set([c.r, c.g, c.b], i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const terrain = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+  const terrain = new THREE.Mesh(geo, terrainMat);
   terrain.receiveShadow = true;
   scene.add(terrain); // render only: gameplay rays use terrainRay (it is not in `blockers`)
+  }
   const terrainProxy = new THREE.Object3D();
 
   // ---------- structures ----------
@@ -277,7 +306,8 @@ export function buildWorld(scene: THREE.Scene): World {
   buildStoneCircle(ctx, rocks, STONE_CIRCLE.x, STONE_CIRCLE.z, STONE_CIRCLE.r, STONE_CIRCLE.n);
 
   buildForest(ctx);
-  buildGroundCover(ctx);
+  const cover = buildGroundCover(ctx);
+  for (const m of cover) m.geometry.computeBoundingSphere();
   const updatePond = buildPond(ctx, rocks);
   const updateCamp = buildCamp(ctx, rocks);
   rocks.finish(); // every rock is placed now: build the instanced meshes
@@ -346,6 +376,10 @@ export function buildWorld(scene: THREE.Scene): World {
     updateCamp(time);
     updatePond(time);
     updateClouds(dt);
+    for (const m of cover) { // grass, bushes and flowers: only the cells near the player are drawn
+      const bs = m.geometry.boundingSphere!;
+      m.visible = Math.hypot(bs.center.x - player.x, bs.center.z - player.z) < 62 + bs.radius;
+    }
   };
 
   const boxGrid = new BoxGrid(boxes); // built last: every collision box exists now
@@ -360,6 +394,6 @@ export function buildWorld(scene: THREE.Scene): World {
 
   return {
     boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update,
-    terrainRay, terrainProxy, boxesNear: (x, z, r) => boxGrid.near(x, z, r), setShadowQuality,
+    terrainRay, terrainProxy, boxesNear: (x, z, r) => boxGrid.near(x, z, r), setShadowQuality, followSun,
   };
 }

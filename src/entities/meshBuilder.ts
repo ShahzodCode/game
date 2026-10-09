@@ -64,10 +64,11 @@ export class MeshBuilder {
   }
 
   /** Ellipsoid: radius `r`, stretched by xf.s. */
-  ball(color: THREE.ColorRepresentation, r: number, xf: Xf = {}) {
+  ball(color: THREE.ColorRepresentation, r: number, xf: Xf = {}, detail?: 'low' | 'mid' | 'hi') {
     const s = triple(xf.s);
     const size = r * Math.max(s[0], s[1], s[2]);
-    const base = size < 0.02 ? UNIT.ballLow : size < 0.05 ? UNIT.ballMid : UNIT.ballHi;
+    const auto = size < 0.02 ? 'low' : size < 0.05 ? 'mid' : 'hi';
+    const base = { low: UNIT.ballLow, mid: UNIT.ballMid, hi: UNIT.ballHi }[detail ?? auto];
     return this.geo(base, color, { ...xf, s: [s[0] * r, s[1] * r, s[2] * r] });
   }
   box(color: THREE.ColorRepresentation, w: number, h: number, d: number, xf: Xf = {}) {
@@ -80,8 +81,8 @@ export class MeshBuilder {
     const n = seg ?? (r < 0.03 ? 5 : r < 0.075 ? 8 : 12);
     return this.geo(new THREE.CylinderGeometry(rTop, rBottom, h, n, 1), color, xf, true);
   }
-  cone(color: THREE.ColorRepresentation, r: number, h: number, xf: Xf = {}, seg = 6) {
-    return this.geo(new THREE.ConeGeometry(r, h, seg, 1), color, xf, true);
+  cone(color: THREE.ColorRepresentation, r: number, h: number, xf: Xf = {}, seg = 6, open = false) {
+    return this.geo(new THREE.ConeGeometry(r, h, seg, 1, open), color, xf, true);
   }
   /** Ring: radius R, tube thickness t. Lies in the XY plane unless rotated (r: [PI/2,0,0] makes it horizontal). */
   torus(color: THREE.ColorRepresentation, R: number, t: number, xf: Xf = {}) {
@@ -105,5 +106,32 @@ export class MeshBuilder {
     this.geos = [];
     if (!merged) throw new Error('MeshBuilder: nothing to build (or incompatible geometries)');
     return merged;
+  }
+}
+
+/**
+ * Scenery split into square cells: one merged mesh per cell instead of one for the whole arena, so the renderer
+ * can skip every cell outside the view (and outside the sun's shadow box). Use `at(x, z)` to get the builder of a cell.
+ */
+export class ChunkedBuilder {
+  private cells = new Map<string, MeshBuilder>();
+  constructor(private cell = 24) {}
+  at(x: number, z: number): MeshBuilder {
+    const key = `${Math.floor(x / this.cell)},${Math.floor(z / this.cell)}`;
+    let b = this.cells.get(key);
+    if (!b) this.cells.set(key, (b = new MeshBuilder()));
+    return b;
+  }
+  /** One mesh per non-empty cell, made by `make` (so the caller picks the material and flags). */
+  build(make: (geo: THREE.BufferGeometry) => THREE.Mesh): THREE.Mesh[] {
+    const out: THREE.Mesh[] = [];
+    for (const b of this.cells.values()) {
+      try {
+        out.push(make(b.build()));
+      } catch {
+        /* empty cell */
+      }
+    }
+    return out;
   }
 }

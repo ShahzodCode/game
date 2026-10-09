@@ -196,7 +196,9 @@ const flashes: Flash[] = [];
 const fireMat = () => new THREE.MeshBasicMaterial({ color: 0xffa030, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 const smokeMat = () => new THREE.MeshBasicMaterial({ color: 0x3a3836, transparent: true, opacity: 0.55, depthWrite: false });
 const ringMat = () => new THREE.MeshBasicMaterial({ color: 0xffe0a0, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-let boomLight: THREE.PointLight | null = null;
+// created up front (intensity 0): adding a light later would make every material recompile its shader mid-game
+const boomLight = new THREE.PointLight(0xffa550, 0, 30, 2);
+scene.add(boomLight);
 let boomLightT = 0;
 
 function addFlash(mesh: THREE.Mesh, dur: number, from: number, to: number) {
@@ -222,10 +224,6 @@ export function explode(at: THREE.Vector3, stats: WeaponStats) {
     const puff = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), smokeMat());
     puff.position.set(at.x + (Math.random() - 0.5) * R * 0.5, at.y + 0.3 + Math.random() * 1.2, at.z + (Math.random() - 0.5) * R * 0.5);
     addFlash(puff, 1.3 + Math.random() * 0.6, 0.4, R * (0.28 + Math.random() * 0.18));
-  }
-  if (!boomLight) {
-    boomLight = new THREE.PointLight(0xffa550, 0, 30, 2);
-    scene.add(boomLight);
   }
   boomLight.position.copy(at).y += 1;
   boomLightT = 0.3;

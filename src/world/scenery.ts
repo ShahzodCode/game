@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MeshBuilder } from '../entities/meshBuilder';
+import { ChunkedBuilder, MeshBuilder } from '../entities/meshBuilder';
 import { CAMP, GIANT_OAK, HOUSES, POND, keepClear, pathDistance, type HouseSpec } from './layout';
 
 // Scenery builders for the arena: forest, grass, rocks, houses, campfire, pond, mountains and clouds.
@@ -157,50 +157,51 @@ const BIRCH_LEAF = [0x8bb04a, 0x9bbf55, 0x7da340];
 
 export function buildForest(ctx: Ctx) {
   const { scene, boxes, blockers, heightAt, rand } = ctx;
-  const trunks = new MeshBuilder();
-  const leaves = new MeshBuilder();
+  const trunks = new ChunkedBuilder();
+  const leaves = new ChunkedBuilder();
   const placed: [number, number][] = [];
 
   const treeAt = (x: number, z: number, kind: 'pine' | 'oak' | 'birch' | 'dead', s: number) => {
     const y = heightAt(x, z);
+    const T = trunks.at(x, z), Lf = leaves.at(x, z);
     const tc = pick(rand, TRUNK);
     let trunkR = 0.25 * s;
     if (kind === 'pine') {
       const h = (6 + rand() * 3.5) * s;
-      trunks.cyl(tc, 0.12 * s, 0.3 * s, h * 0.55, { p: [x, y + h * 0.27, z] }, 7);
+      T.cyl(tc, 0.12 * s, 0.3 * s, h * 0.55, { p: [x, y + h * 0.27, z] }, 7);
       const pc = pick(rand, PINE);
       const col = new THREE.Color(pc);
       for (let i = 0; i < 4; i++) {
         const k = 1 - i * 0.2;
         const c = col.clone().offsetHSL(0, 0, (rand() - 0.5) * 0.04 + i * 0.012);
-        leaves.cone(c, (1.9 * k + 0.2) * s, h * 0.34, { p: [x, y + h * 0.3 + i * h * 0.17 + h * 0.15, z], r: [0, rand() * 6, 0] }, 8);
+        Lf.cone(c, (1.9 * k + 0.2) * s, h * 0.34, { p: [x, y + h * 0.3 + i * h * 0.17 + h * 0.15, z], r: [0, rand() * 6, 0] }, 8);
       }
     } else if (kind === 'oak') {
       const th = (2.6 + rand() * 0.8) * s;
       trunkR = 0.3 * s;
-      trunks.cyl(tc, 0.2 * s, 0.34 * s, th, { p: [x, y + th / 2, z] }, 8);
-      trunks.cyl(tc, 0.08 * s, 0.14 * s, 1.1 * s, { p: [x + 0.4 * s, y + th * 0.85, z], r: [0, 0, -0.7] }, 6);
+      T.cyl(tc, 0.2 * s, 0.34 * s, th, { p: [x, y + th / 2, z] }, 8);
+      T.cyl(tc, 0.08 * s, 0.14 * s, 1.1 * s, { p: [x + 0.4 * s, y + th * 0.85, z], r: [0, 0, -0.7] }, 6);
       const oc = pick(rand, OAK);
-      leaves.ball(oc, 2.2 * s, { p: [x, y + th + 1.4 * s, z], s: [1, 0.8, 1] });
+      Lf.ball(oc, 2.2 * s, { p: [x, y + th + 1.4 * s, z], s: [1, 0.8, 1] }, 'mid');
       for (let i = 0; i < 3; i++) {
         const a = rand() * 6.28;
-        leaves.ball(new THREE.Color(oc).offsetHSL(0, 0, (rand() - 0.5) * 0.06), 1.5 * s, { p: [x + Math.cos(a) * 1.5 * s, y + th + (0.6 + rand() * 1.0) * s, z + Math.sin(a) * 1.5 * s], s: [1, 0.85, 1] });
+        Lf.ball(new THREE.Color(oc).offsetHSL(0, 0, (rand() - 0.5) * 0.06), 1.5 * s, { p: [x + Math.cos(a) * 1.5 * s, y + th + (0.6 + rand() * 1.0) * s, z + Math.sin(a) * 1.5 * s], s: [1, 0.85, 1] }, 'mid');
       }
     } else if (kind === 'birch') {
       const h = (4.2 + rand() * 1.4) * s;
       trunkR = 0.18 * s;
-      trunks.cyl(0xe6e2d4, 0.1 * s, 0.17 * s, h, { p: [x, y + h / 2, z] }, 7);
-      for (let i = 0; i < 4; i++) trunks.box(0x2a2a28, 0.2 * s, 0.07 * s, 0.2 * s, { p: [x, y + h * (0.25 + i * 0.18), z], r: [0, rand() * 6, 0] });
+      T.cyl(0xe6e2d4, 0.1 * s, 0.17 * s, h, { p: [x, y + h / 2, z] }, 7);
+      for (let i = 0; i < 4; i++) T.box(0x2a2a28, 0.2 * s, 0.07 * s, 0.2 * s, { p: [x, y + h * (0.25 + i * 0.18), z], r: [0, rand() * 6, 0] });
       const bc = pick(rand, BIRCH_LEAF);
-      leaves.ball(bc, 1.4 * s, { p: [x, y + h + 0.6 * s, z], s: [1, 1.2, 1] });
-      leaves.ball(new THREE.Color(bc).offsetHSL(0, 0, 0.04), 1.0 * s, { p: [x + 0.7 * s, y + h - 0.4 * s, z + 0.3 * s] });
+      Lf.ball(bc, 1.4 * s, { p: [x, y + h + 0.6 * s, z], s: [1, 1.2, 1] }, 'mid');
+      Lf.ball(new THREE.Color(bc).offsetHSL(0, 0, 0.04), 1.0 * s, { p: [x + 0.7 * s, y + h - 0.4 * s, z + 0.3 * s] }, 'mid');
     } else {
       const h = (4 + rand() * 2.2) * s;
       trunkR = 0.24 * s;
-      trunks.cyl(0x5a4a3c, 0.1 * s, 0.28 * s, h, { p: [x, y + h / 2, z] }, 7);
+      T.cyl(0x5a4a3c, 0.1 * s, 0.28 * s, h, { p: [x, y + h / 2, z] }, 7);
       for (let i = 0; i < 3; i++) {
         const a = rand() * 6.28;
-        trunks.cyl(0x5a4a3c, 0.03 * s, 0.09 * s, 1.6 * s, { p: [x + Math.cos(a) * 0.5 * s, y + h * (0.6 + i * 0.12), z + Math.sin(a) * 0.5 * s], r: [Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9] }, 5);
+        T.cyl(0x5a4a3c, 0.03 * s, 0.09 * s, 1.6 * s, { p: [x + Math.cos(a) * 0.5 * s, y + h * (0.6 + i * 0.12), z + Math.sin(a) * 0.5 * s], r: [Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9] }, 5);
       }
     }
     const hw = Math.max(0.3, trunkR * 1.05);
@@ -234,20 +235,23 @@ export function buildForest(ctx: Ctx) {
     n++;
   }
 
-  const trunkMesh = new THREE.Mesh(trunks.build(), vcolMat(0.95));
-  trunkMesh.castShadow = trunkMesh.receiveShadow = true;
-  scene.add(trunkMesh);
-  blockers.push(trunkMesh);
-  const leafMesh = new THREE.Mesh(leaves.build(), vcolMat(0.9, true));
-  leafMesh.castShadow = true;
-  scene.add(leafMesh);
+  for (const m of trunks.build((g) => new THREE.Mesh(g, vcolMat(0.95)))) {
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+    blockers.push(m);
+  }
+  for (const m of leaves.build((g) => new THREE.Mesh(g, vcolMat(0.9, true)))) {
+    m.castShadow = true;
+    scene.add(m);
+  }
   return { count: placed.length };
 }
 
 /** Bushes, grass tufts, flowers, stumps, fallen logs: no collision, just life. */
 export function buildGroundCover(ctx: Ctx) {
   const { scene, heightAt, rand } = ctx;
-  const b = new MeshBuilder();
+  const B = new ChunkedBuilder(30);
+  let b = B.at(0, 0);
   const free = (x: number, z: number, margin: number) => !keepClear(x, z, margin) && heightAt(x, z) > -0.3;
 
   // bushes in the forest
@@ -255,8 +259,9 @@ export function buildGroundCover(ctx: Ctx) {
     const x = -57 + rand() * 60, z = (rand() * 2 - 1) * 56;
     if (rand() > smooth(10, -14, x) || !free(x, z, 1.5)) continue;
     const y = heightAt(x, z);
+    b = B.at(x, z);
     const col = pick(rand, [0x3f6b2c, 0x4e7d34, 0x35602a]);
-    for (let k = 0; k < 3; k++) b.ball(new THREE.Color(col).offsetHSL(0, 0, (rand() - 0.5) * 0.05), 0.5 + rand() * 0.35, { p: [x + (rand() - 0.5) * 0.9, y + 0.35, z + (rand() - 0.5) * 0.9], s: [1, 0.75, 1] });
+    for (let k = 0; k < 3; k++) b.ball(new THREE.Color(col).offsetHSL(0, 0, (rand() - 0.5) * 0.05), 0.5 + rand() * 0.35, { p: [x + (rand() - 0.5) * 0.9, y + 0.35, z + (rand() - 0.5) * 0.9], s: [1, 0.75, 1] }, 'mid');
     n++;
   }
   // grass tufts: lush in the west, dry in the east
@@ -266,11 +271,12 @@ export function buildGroundCover(ctx: Ctx) {
     if (rand() > 0.12 + 0.88 * west * (0.4 + 0.6 * noise2(x * 1.7, z * 1.7))) continue;
     if (!free(x, z, 0.3) || pathDistance(x, z) < 1.6 || slopeAt(ctx, x, z) > 0.7) continue;
     const y = heightAt(x, z);
+    b = B.at(x, z);
     const col = new THREE.Color(west > 0.5 ? 0x4c8a35 : 0x9a9a52).offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.12);
     const hgt = 0.28 + rand() * 0.3;
     for (let k = 0; k < 3; k++) {
       const a = rand() * 6.28;
-      b.cone(col, 0.05, hgt, { p: [x + Math.cos(a) * 0.07, y + hgt / 2 - 0.02, z + Math.sin(a) * 0.07], r: [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35] }, 3);
+      b.cone(col, 0.05, hgt, { p: [x + Math.cos(a) * 0.07, y + hgt / 2 - 0.02, z + Math.sin(a) * 0.07], r: [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35] }, 3, true);
     }
     n++;
   }
@@ -279,9 +285,10 @@ export function buildGroundCover(ctx: Ctx) {
     const x = -56 + rand() * 62, z = (rand() * 2 - 1) * 56;
     if (rand() > smooth(6, -12, x) || !free(x, z, 0.5) || pathDistance(x, z) < 2) continue;
     const y = heightAt(x, z);
+    b = B.at(x, z);
     const col = pick(rand, [0xf4f4f0, 0xffd84a, 0xc779e8, 0xff7a8a, 0x7aa8ff]);
     b.cyl(0x3f7a2c, 0.01, 0.012, 0.3, { p: [x, y + 0.15, z] }, 4);
-    b.ball(col, 0.05, { p: [x, y + 0.31, z] });
+    b.ball(col, 0.05, { p: [x, y + 0.31, z] }, 'low');
     n++;
   }
   // stumps and fallen logs in the forest
@@ -289,6 +296,7 @@ export function buildGroundCover(ctx: Ctx) {
     const x = -56 + rand() * 54, z = (rand() * 2 - 1) * 55;
     if (!free(x, z, 2)) continue;
     const y = heightAt(x, z);
+    b = B.at(x, z);
     b.cyl(0x6a4a2d, 0.3, 0.36, 0.5, { p: [x, y + 0.2, z] }, 9);
     b.cyl(0xc9a36a, 0.28, 0.28, 0.02, { p: [x, y + 0.46, z] }, 9);
     n++;
@@ -297,15 +305,19 @@ export function buildGroundCover(ctx: Ctx) {
     const x = -55 + rand() * 52, z = (rand() * 2 - 1) * 54;
     if (!free(x, z, 3)) continue;
     const y = heightAt(x, z);
+    b = B.at(x, z);
     const len = 2.5 + rand() * 2;
     const a = rand() * Math.PI;
     b.cyl(0x5b4128, 0.28, 0.3, len, { p: [x, y + 0.26, z], r: [Math.PI / 2, 0, a] }, 8);
     b.cyl(0xc9a36a, 0.27, 0.27, 0.02, { p: [x + Math.sin(a) * len / 2, y + 0.26, z + Math.cos(a) * len / 2], r: [Math.PI / 2, 0, a] }, 8);
     n++;
   }
-  const mesh = new THREE.Mesh(b.build(), vcolMat(1));
-  mesh.receiveShadow = true;
-  scene.add(mesh);
+  const meshes = B.build((geo) => new THREE.Mesh(geo, vcolMat(1)));
+  for (const mesh of meshes) {
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+  }
+  return meshes;
 }
 
 // =============================================================================================

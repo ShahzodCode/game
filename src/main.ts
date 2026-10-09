@@ -7,7 +7,7 @@ import { botHooks, mannequins, wolves } from './game/actors';
 import { applyHit, currentSpread, fire, switchWeapon } from './game/combat';
 import { arenaActive, checkMissions, rooms, runLevelWork, startLevel, updateFlow } from './game/flow';
 import { setCrosshair, setCrosshairVisible, updateHud, updateHudTimers, updateSummary } from './game/hud';
-import { applyQuality, shadowPeriod } from './game/settings';
+import { applyQuality, shadowPeriod, tuneResolution } from './game/settings';
 import './game/settingsUi';
 import './game/input';
 import { updateNametag } from './game/nametag';
@@ -58,7 +58,7 @@ if (import.meta.env.DEV) {
       const h = castRay(o, d, 400, [...all, ...world.blockers])[0];
       return h ? { dist: h.distance, owner: !!h.object.userData.owner, at: h.point.toArray() } : null;
     },
-    scene, renderer, S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
+    scene, renderer, camera, S, explode, spawnGrenade, projectileCount, projectileInfo, updateProjectiles, collideWithBots, clearProjectiles, setAiming: (b: boolean) => (S.aiming = b), updateAim: (dt: number) => updateAim(dt),
   };
 }
 
@@ -154,18 +154,49 @@ let shadowClock = 0;
 let frameNo = 0;
 function updateShadows(dt: number) {
   frameNo++;
-  if (frameNo % shadowPeriod() === 0) renderer.shadowMap.needsUpdate = true;
+  if (frameNo % shadowPeriod() === 0) {
+    world.followSun(pos.x, pos.z);
+    renderer.shadowMap.needsUpdate = true;
+  }
   shadowClock -= dt;
   if (shadowClock > 0) return;
   shadowClock = 0.4;
   for (const m of mannequins) m.setShadows(m.alive && Math.hypot(m.group.position.x - pos.x, m.group.position.z - pos.z) < 50);
 }
 
+// ---------- lights by zone ----------
+// Every point light costs every lit pixel, whether it is near or not. The rooms' candles/lamps and the arena's camp/house
+// lamps are never needed together, so only the lights of the zone the player is in (plus the strip around the gate) are on.
+// The shader variants for each combination are compiled once at startup so switching never hitches.
+const roomLights: THREE.Light[] = [], arenaLights: THREE.Light[] = [];
+scene.traverse((o) => {
+  const l = o as THREE.PointLight;
+  if (!l.isPointLight || l === flashLight || l.intensity === 0) return;
+  if (l.position.z >= 62) roomLights.push(l);
+  else if (l.position.z < 50) arenaLights.push(l);
+});
+function updateZoneLights() {
+  const z = pos.z;
+  const rooms_ = z > 50, arena_ = z < 64;
+  for (const l of roomLights) l.visible = rooms_;
+  for (const l of arenaLights) l.visible = arena_;
+}
+{
+  for (const [r, a] of [[false, true], [true, true], [true, false]]) {
+    roomLights.forEach((l) => (l.visible = r));
+    arenaLights.forEach((l) => (l.visible = a));
+    renderer.compile(scene, camera);
+  }
+  updateZoneLights();
+}
+
 // ---------- main loop ----------
 const clock = new THREE.Clock();
 function frame() {
   requestAnimationFrame(frame);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta();
+  const dt = Math.min(rawDt, 0.05);
+  if (S.locked && !document.hidden && rawDt < 0.5) tuneResolution(rawDt);
 
   if (S.locked) {
     movePlayer(dt);
@@ -191,6 +222,7 @@ function frame() {
   animateViewModel(dt);
   updateCrosshair();
   updateShadows(dt);
+  updateZoneLights();
 
   // the arena is only alive while the player can reach it (not while he is in the safe room / sealed airlock)
   if (S.locked && arenaActive()) {
