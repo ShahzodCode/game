@@ -142,7 +142,6 @@ export function buildBot(owner: object, c: Costume): BotRig {
   t.ball(id === 'superman' ? 0xc22d2d : pants, 0.15, { p: [0, 0.935, 0], s: [1.12 * bulk, 0.7, 0.86 * bulk] });
   for (const s of [-1, 1]) t.ball(shirt, 0.068 * bulk * Math.min(mu, 1.1), { p: [s * armX * 0.9, 1.425, 0], s: [1, 1, 0.95] });
 
-  if (look.belly) t.ball(shirt, 0.17, { p: [0, 1.09, 0.03], s: [1.15 * bulk, 0.95, 1.0] }); // round belly
 
   // belt (tucked-in outfits)
   if (look.belt) {
@@ -229,7 +228,6 @@ export function buildBot(owner: object, c: Costume): BotRig {
     }
     case 'superman': {
       // sculpted chest, emblem, belt, collar clasps
-      for (const s of [-1, 1]) t.ball(shade(shirt, 1.12), 0.075, { p: [s * 0.065, 1.32, fz(1.32) - 0.006], s: [1, 0.8, 0.6] });
       t.box(0xf2c500, 0.115, 0.115, 0.012, { p: [0, 1.3, fz(1.3) + 0.012], r: [0, 0, PI / 4] });
       t.box(0xc22d2d, 0.088, 0.088, 0.014, { p: [0, 1.3, fz(1.3) + 0.013], r: [0, 0, PI / 4] });
       t.box(0xf2c500, 0.05, 0.012, 0.016, { p: [0, 1.335, fz(1.3) + 0.014] }); // the S
@@ -528,7 +526,6 @@ export function buildBot(owner: object, c: Costume): BotRig {
     l.ball(pants, 0.074 * lw, { p: [0, -0.45, 0] });
     l.cyl(pants, 0.068 * lw, 0.052 * lw, 0.38, { p: [0, -0.64, 0] });
     l.cyl(shade(pants, 0.8), 0.058 * lw, 0.06 * lw, 0.03, { p: [0, -0.825, 0] });
-    if (id === 'sporty') l.box(0xffffff, 0.012, 0.78, 0.05, { p: [s * 0.078 * lw, -0.43, 0] });
     if (id === 'rich') l.box(shade(pants, 1.5), 0.006, 0.7, 0.01, { p: [0, -0.43, 0.082 * lw] });
     if (id === 'builder') l.ball(0x2a2a2e, 0.06, { p: [0, -0.46, 0.045], s: [1.1, 1.1, 0.7] }); // knee pads
     if (id === 'ninja') for (const y of [-0.7, -0.75]) l.cyl(0x55555c, 0.058, 0.058, 0.022, { p: [0, y, 0] });

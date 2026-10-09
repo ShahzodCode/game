@@ -93,7 +93,7 @@ const ZOMBIE_CLAW: MeleeStats = { aggroRange: 200, speed: 3.3, attackRange: 1.5,
 /** The boss only swats at you when you crowd it (weak): its danger is the zombies it calls. */
 const BOSS_SWAT: MeleeStats = { aggroRange: 0, speed: 2.6, attackRange: 4.6, damage: 15, interval: 1.3, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 1 };
 const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, closeDist: 5, summonNear: 10, pant: 3.2, pantCd: 9, fleeSpeed: 4.4, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 8, maxRage: 10, perCast: 2, perCastRage: 3, rockMin: 24, rockMax: 85, rockEvery: [4.5, 6.5], rockWind: 1.2 };
-const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 8.4, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
+const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 6, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
 
 export const COSTUMES: Costume[] = [
   { id: 'regular', name: 'Regular', health: 100, points: 100, weight: 3, shirt: 0xd9d4c7, pants: 0x4a5f82, accent: 0x8c8a85, note: 'Harmless, runs away when shot' },
@@ -108,7 +108,7 @@ export const COSTUMES: Costume[] = [
   { id: 'zombie', name: 'Zombie', health: 70, points: 40, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_CLAW, fearless: true, minLevel: 999, note: 'Summoned by the boss: slow, relentless' },
   { id: 'boss', name: 'The Colossus', health: 2400, points: 2000, weight: 0, shirt: 0x3a2448, pants: 0x241830, accent: 0xb02a2a, combat: 'melee', melee: BOSS_SWAT, fearless: true, boss: true, scale: 2.1, minLevel: 999, note: 'Final boss: keeps away, summons zombies, pants when you get close' },
   { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 4, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
-  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 14, fearless: true, note: 'From level 14. Attacks on sight, zig-zags: very fast and deadly, but fragile' },
+  { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 14, fearless: true, note: 'From level 14. Attacks on sight, zig-zags: fast and deadly, but fragile' },
 ];
 
 /** Which costumes may spawn (set per level by main.ts). Null = all. */
