@@ -91,12 +91,12 @@ function slice(y0: number, y1: number, k: number): [number, number][] {
 }
 
 export function buildBot(owner: object, c: Costume): BotRig {
-  if (c.id === 'boss' || c.id === 'zombie') {
-    const glb = buildGlbRig(owner, c.id); // the knight / the PolyArt zombies, once they have loaded
+  if (c.boss || c.zombie) {
+    const glb = buildGlbRig(owner, c.boss ? 'boss' : 'zombie', c.prop); // the knight / the PolyArt zombies, once they have loaded
     if (glb) return glb;
   }
-  const look = LOOKS[c.id];
-  const id0 = c.id;
+  const look = LOOKS[c.id] ?? LOOKS.zombie;
+  const id0 = c.zombie ? 'zombie' : c.id;
   const skin = id0 === 'zombie' ? 0x86a878 : id0 === 'boss' ? 0x8a7aa6 : pick(SKINS); // zombies green, the boss a bruised violet
   const hair = look.hairColor ?? pick(HAIRS);
   const eyeColor = id0 === 'boss' ? 0xff2a2a : id0 === 'zombie' ? 0xe0d860 : pick(EYES);

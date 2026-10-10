@@ -68,21 +68,23 @@ function remove(i: number) {
 }
 // ---- the boss's boulders: a slow lobbed arc you can dodge; a direct hit hurts a lot ----
 const ROCK_R = 0.95, ROCK_G = 16, ROCK_DAMAGE = 60;
-interface BossRock { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3; life: number }
+interface BossRock { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3; life: number; r: number; damage: number }
+const SMALL_ROCK = { r: 0.32, damage: 16, speed: 14 }; // thrown by thrower zombies
 const bossRocks: BossRock[] = [];
 const rockGeo = new THREE.IcosahedronGeometry(ROCK_R, 1);
 const rockMat = new THREE.MeshStandardMaterial({ color: 0x6f6a62, roughness: 1, flatShading: true });
-export function spawnBossRock(from: THREE.Vector3) {
+export function spawnBossRock(from: THREE.Vector3, small = false) {
   const d = Math.hypot(pos.x - from.x, pos.z - from.z);
-  const T = THREE.MathUtils.clamp(d / 20, 1.5, 3.4); // flight time: slow enough to see it coming and sidestep
+  const T = small ? THREE.MathUtils.clamp(d / SMALL_ROCK.speed, 0.9, 2.6) : THREE.MathUtils.clamp(d / 20, 1.5, 3.4); // flight time: slow enough to see it coming and sidestep
   const target = new THREE.Vector3(pos.x + vel.x * T * 0.8, pos.y + 1.1, pos.z + vel.z * T * 0.8); // leads a moving player a little
   const v = new THREE.Vector3(target.x - from.x, target.y - from.y + 0.5 * ROCK_G * T * T, target.z - from.z).divideScalar(T);
   const mesh = new THREE.Mesh(rockGeo, rockMat);
-  mesh.scale.set(1, 0.85, 1.1);
+  const rr = small ? SMALL_ROCK.r / ROCK_R : 1;
+  mesh.scale.set(rr, 0.85 * rr, 1.1 * rr);
   mesh.position.copy(from);
   mesh.castShadow = true;
   scene.add(mesh);
-  bossRocks.push({ mesh, v, spin: new THREE.Vector3(Math.random() * 4, Math.random() * 4, Math.random() * 4), life: 8 });
+  bossRocks.push({ mesh, v, spin: new THREE.Vector3(Math.random() * 4, Math.random() * 4, Math.random() * 4), life: 8, r: small ? SMALL_ROCK.r : ROCK_R, damage: small ? SMALL_ROCK.damage : ROCK_DAMAGE });
 }
 function updateBossRocks(dt: number) {
   for (let i = bossRocks.length - 1; i >= 0; i--) {
@@ -93,16 +95,16 @@ function updateBossRocks(dt: number) {
     r.mesh.rotation.y += r.spin.y * dt;
     r.life -= dt;
     const m = r.mesh.position;
-    const hitPlayer = !S.dead && Math.hypot(m.x - pos.x, m.z - pos.z) < ROCK_R + 0.5 && m.y > pos.y - ROCK_R && m.y < pos.y + S.playerHeight + ROCK_R;
-    const hitGround = m.y - ROCK_R * 0.8 < world.heightAt(m.x, m.z) || r.life <= 0;
+    const hitPlayer = !S.dead && Math.hypot(m.x - pos.x, m.z - pos.z) < r.r + 0.5 && m.y > pos.y - r.r && m.y < pos.y + S.playerHeight + r.r;
+    const hitGround = m.y - r.r * 0.8 < world.heightAt(m.x, m.z) || r.life <= 0;
     if (hitPlayer) {
-      damagePlayer(ROCK_DAMAGE);
-      S.shake = 1;
+      damagePlayer(r.damage);
+      S.shake = r.r > 0.5 ? 1 : 0.3;
     }
     if (hitPlayer || hitGround) {
-      spawnDebris(m.clone(), 12, 7);
-      explosionSound(m.distanceTo(camera.position) + 50); // a dull crash
-      S.shake = Math.max(S.shake, Math.max(0, 0.6 - m.distanceTo(camera.position) / 30));
+      spawnDebris(m.clone(), r.r > 0.5 ? 12 : 4, r.r > 0.5 ? 7 : 3);
+      explosionSound(m.distanceTo(camera.position) + (r.r > 0.5 ? 50 : 90)); // a dull crash
+      if (r.r > 0.5) S.shake = Math.max(S.shake, Math.max(0, 0.6 - m.distanceTo(camera.position) / 30));
       scene.remove(r.mesh);
       bossRocks.splice(i, 1);
     }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildArmoryTerminal, buildWeaponShopProps } from './shopProps';
+import { buildArmoryTerminal, buildQuestBoard, buildWeaponShopProps } from './shopProps';
 
 /**
  * The rooms around the arena, laid out along +z behind the arena's south wall:
@@ -115,6 +115,8 @@ export interface Rooms {
   hubShop: { pos: THREE.Vector3; radius: number };
   /** Armory terminal zone (loadout screen) and a function that redraws its screen. */
   armory: { pos: THREE.Vector3; radius: number };
+  /** Quest board on the back wall of the safe room. */
+  questBoard: { pos: THREE.Vector3; radius: number };
   setArmoryScreen: (lines: string[]) => void;
   /** Bright light around the arena gate (shown once the level can be left). */
   setExitLight: (on: boolean) => void;
@@ -316,6 +318,8 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
   // armory terminal against the right wall (a machine with a screen where the loadout is chosen)
   const setArmoryScreen = buildArmoryTerminal(scene, boxes, blockers, HX, 94, makeSignBoard);
   const armory = { pos: new THREE.Vector3(HX - 4.4, 0, 94), radius: 3.4 };
+  buildQuestBoard(scene, boxes, HZ1, 0, makeSignBoard);
+  const questBoard = { pos: new THREE.Vector3(0, 0, HZ1 - 3.2), radius: 3.4 };
   const hubSpawn = new THREE.Vector3(0, 0, 98);
 
   // ---------- exit light (shown when the level can be left) ----------
@@ -384,6 +388,7 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
     hubSpawn,
     hubShop,
     armory,
+    questBoard,
     setArmoryScreen,
     setExitLight: (on) => {
       exit.visible = on;

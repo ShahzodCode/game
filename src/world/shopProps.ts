@@ -352,10 +352,10 @@ export function buildArmoryTerminal(
     g.fillText('ARMORY', 256, 76);
     g.fillRect(36, 96, 440, 3);
     g.textAlign = 'left';
-    g.font = 'bold 36px system-ui, sans-serif';
+    g.font = "bold 34px system-ui, sans-serif";
     lines.forEach((l, i) => {
       g.fillStyle = l.includes('EMPTY') ? '#ff8a6a' : '#e6fff0';
-      g.fillText(`${i + 1}  ${l}`, 40, 160 + i * 62);
+      g.fillText(`${i + 1}  ${l}`, 40, 150 + i * 52);
     });
     g.font = '24px system-ui, sans-serif';
     g.fillStyle = '#7ad9a0';
@@ -376,4 +376,36 @@ export function buildArmoryTerminal(
   glow.position.set(fx - 0.9, 1.8, Z);
   scene.add(glow);
   return draw;
+}
+
+// =============================================================================================
+// QUEST BOARD (safe room, back wall): a wooden notice board covered in notes. Press E next to it to read the global quests.
+// =============================================================================================
+export function buildQuestBoard(
+  scene: THREE.Scene,
+  boxes: THREE.Box3[],
+  WZ: number, // inner surface of the back wall (z)
+  X: number,
+  makeSign: (text: string, w: number, h: number) => THREE.Object3D,
+) {
+  const b = new MeshBuilder();
+  const fz = WZ - 0.12; // front of the board
+  b.box(WOOD_DARK, 4.2, 2.5, 0.12, { p: [X, 1.75, WZ - 0.06] }); // frame
+  b.box(0x9a6a3a, 3.96, 2.26, 0.06, { p: [X, 1.75, fz - 0.03] }); // cork / planks
+  for (const [dx, dy, w, h, c, r] of [
+    [-1.4, 2.4, 0.7, 0.9, 0xf0e6c8, 0.05], [-0.5, 2.55, 0.8, 0.6, 0xe8dcb8, -0.04], [0.5, 2.35, 0.7, 1.0, 0xf4ecd2, 0.03], [1.4, 2.5, 0.75, 0.7, 0xe6d9b4, -0.06],
+    [-1.3, 1.5, 0.8, 0.7, 0xe8dcb8, -0.03], [-0.3, 1.45, 0.7, 0.9, 0xf0e6c8, 0.06], [0.7, 1.4, 0.85, 0.7, 0xf4ecd2, -0.05], [1.5, 1.45, 0.6, 0.8, 0xe6d9b4, 0.04],
+  ] as [number, number, number, number, number, number][]) {
+    b.box(c, w, h, 0.01, { p: [X + dx, dy - 0.1, fz - 0.07], r: [0, 0, r] }); // pinned note
+    b.ball(0xc23b3b, 0.035, { p: [X + dx, dy + h / 2 - 0.16, fz - 0.085], s: [1, 1, 0.5] }); // pin
+    for (let l = 0; l < 3; l++) b.box(0x6a5a40, w * 0.7, 0.025, 0.004, { p: [X + dx, dy - 0.1 + 0.12 - l * 0.12, fz - 0.078], r: [0, 0, r] }); // scribbles
+  }
+  b.box(0x2a2f3a, 4.4, 0.1, 0.9, { p: [X, 0.45, WZ - 0.5] }); // ledge
+  for (const s of [-1, 1]) b.box(WOOD_DARK, 0.14, 0.5, 0.14, { p: [X + s * 2.1, 0.25, WZ - 0.5] });
+  addMesh(scene, b);
+  boxes.push(new THREE.Box3(new THREE.Vector3(X - 2.2, 0, WZ - 0.95), new THREE.Vector3(X + 2.2, 3.1, WZ)));
+  const sign = makeSign('QUEST BOARD', 2.6, 0.65);
+  sign.position.set(X, 3.15, fz - 0.05);
+  sign.rotation.y = Math.PI;
+  scene.add(sign);
 }

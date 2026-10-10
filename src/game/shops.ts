@@ -5,6 +5,7 @@ import { beginReload, switchSlot } from './combat';
 import { SLOTS, SLOT_NAMES, SLOT_OPTIONS, bindArmoryScreen, cycleSlot, isEquipped, sanitizeLoadout } from './loadout';
 import { rooms } from './flow';
 import { showPopup } from './hud';
+import { questsHtml } from './quests';
 import { S } from './state';
 
 // Two shops: the WEAPON shop in the safe room (sells guns) and the SUPPLY shop next to the arena gate
@@ -49,11 +50,19 @@ function armoryHtml() {
       .join('');
     return `<div class="lslot"><div class="lhead"><kbd>${n + 1}</kbd>${SLOT_NAMES[slot]}</div>${rows}</div>`;
   }).join('');
-  return `<h3>ARMORY</h3><div class="cashline">Pick one weapon per slot. The knife is always with you.</div><div class="loadout">${cols}</div>` +
-    `<div class="foot">Press 1 / 2 / 3 to switch the weapon in that slot · E to close · you can only change this in the safe room</div>`;
+  return `<h3>ARMORY</h3><div class="cashline">Pick one weapon per slot.</div><div class="loadout">${cols}</div>` +
+    `<div class="foot">Press 1 / 2 / 3 / 4 to switch the weapon in that slot · E to close · you can only change this in the safe room</div>`;
 }
 
 const shops: ShopDef[] = [
+  {
+    title: 'QUEST BOARD',
+    pos: rooms.questBoard.pos,
+    radius: rooms.questBoard.radius,
+    cards: () => [],
+    html: questsHtml,
+    buy: () => {},
+  },
   {
     title: 'ARMORY',
     pos: rooms.armory.pos,
@@ -61,7 +70,7 @@ const shops: ShopDef[] = [
     cards: () => [],
     html: armoryHtml,
     buy: (n) => {
-      if (n < 0 || n > 2) return;
+      if (n < 0 || n > 3) return;
       const name = cycleSlot(SLOTS[n]);
       if (name) showPopup(`${name} equipped`, '#7dff9b');
       else showPopup('No other weapon owned for that slot: buy more at the weapon shop', '#ff9a4a');

@@ -91,7 +91,7 @@ interface Joint {
 }
 
 /** A bone-driven character; returns null when no model of that kind has loaded yet. */
-export function buildGlbRig(owner: object, kind: 'boss' | 'zombie'): BotRig | null {
+export function buildGlbRig(owner: object, kind: 'boss' | 'zombie', prop?: 'knife' | 'gun'): BotRig | null {
   const list = templates[kind];
   if (!list.length) return null;
   const t = list[Math.floor(Math.random() * list.length)];
@@ -188,6 +188,33 @@ export function buildGlbRig(owner: object, kind: 'boss' | 'zombie'): BotRig | nu
     m.castShadow = true;
     materials.push(c);
   });
+
+  // something in the hand (knife / gun zombies): parts along the forearm, like the procedural humans' props
+  if (prop) {
+    const hj = hand[1]!;
+    const hp = pos(hj);
+    const part = (color: number, size0: [number, number, number], at0: [number, number, number], metal = 0.1) => {
+      const size = size0.map((v) => v * 1.6) as [number, number, number]; // bigger than life so it reads from a distance
+      const at = at0.map((v) => v * 1.6) as [number, number, number];
+      const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: metal }));
+      geos.push(m.geometry);
+      materials.push(m.material as THREE.Material);
+      const inv = hj.restW.clone().invert();
+      const ws = hj.bone.getWorldScale(new THREE.Vector3()).x || 1;
+      m.position.set(hp.x + at[0] * H, hp.y + at[1] * H, hp.z + at[2] * H).sub(hp).applyQuaternion(inv).divideScalar(ws).add(new THREE.Vector3());
+      m.quaternion.copy(inv);
+      m.scale.setScalar(1 / ws);
+      m.castShadow = true;
+      hj.bone.add(m);
+    };
+    if (prop === 'knife') {
+      part(0x2a2a2e, [0.02 * H, 0.07 * H, 0.025 * H], [0, -0.03, 0]); // handle
+      part(0xc9ced4, [0.008 * H, 0.17 * H, 0.03 * H], [0, -0.14, 0], 0.9); // blade
+    } else {
+      part(0x26282c, [0.03 * H, 0.05 * H, 0.1 * H], [0, -0.03, 0.03], 0.5); // gun body
+      part(0x26282c, [0.026 * H, 0.1 * H, 0.03 * H], [0, -0.06, -0.01], 0.4); // grip
+    }
+  }
 
   // ---- holder: scaled to a human-like height, feet on the ground, centred on the pelvis ----
   const target = (kind === 'boss' ? 1.9 : 1.78) * (kind === 'zombie' ? 0.95 + Math.random() * 0.1 : 1);

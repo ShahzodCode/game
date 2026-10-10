@@ -10,6 +10,7 @@ import { spawnBolt, spawnCasing, spawnGrenade } from './projectiles';
 import { castRay } from './raycast';
 import { mannequins, wolves, type Target } from './actors';
 import { addScore } from './flow';
+import { questKill } from './quests';
 import { equippedIndices, isEquipped, slotWeaponIndex } from './loadout';
 import { hitmarker, showPopup } from './hud';
 import { POINTS_HEADSHOT_KILL, POINTS_HIT, S } from './state';
@@ -111,7 +112,9 @@ export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE
     S.stats.kills++;
     S.stats.byKind[owner.kind] = (S.stats.byKind[owner.kind] ?? 0) + 1;
     if (head) S.stats.headshots++;
-    if (weapons[S.current].stats.melee) S.stats.knifeKills++;
+    const byBlade = !!weapons[S.current].stats.melee;
+    if (byBlade) S.stats.knifeKills++;
+    questKill(owner.kind, head, byBlade);
     showPopup(`${head ? 'HEADSHOT · ' : ''}${name} +${gained} pts`);
     addScore(gained); // also re-checks the missions
   }

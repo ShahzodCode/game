@@ -139,7 +139,7 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
 .shopitem .price { color: var(--gold); font-weight: 800; margin: 2px 0; }
 .shopitem .sub { font-size: 12px; color: var(--dim); }
 
-.loadout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px; text-align: left; }
+.loadout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 8px; text-align: left; }
 .lslot { background: rgba(255, 255, 255, .04); border: 1px solid var(--edge); border-radius: 12px; padding: 10px 8px; }
 .lhead { font-weight: 800; letter-spacing: .14em; font-size: 13px; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .lhead kbd { margin: 0; }
@@ -218,3 +218,18 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
 #bossBar .bossName { font-size: 13px; letter-spacing: .32em; font-weight: 700; color: #ffb4b4; text-shadow: 0 1px 4px #000; margin-bottom: 6px; }
 #bossBar .bossTrack { height: 14px; border-radius: 8px; background: rgba(12, 8, 14, .78); border: 1px solid rgba(255, 120, 120, .45); box-shadow: 0 2px 14px rgba(0, 0, 0, .55); overflow: hidden; }
 #bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #8e1f2c, #ff4a4a); transition: width .15s linear; }
+
+/* global quests (quest board in the safe room) */
+.quests { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; text-align: left; }
+.quest { background: rgba(255, 255, 255, .04); border: 1px solid var(--edge); border-radius: 9px; padding: 6px 9px; display: grid; gap: 2px; }
+.quest .qt { display: grid; }
+.quest .qt b { font-size: 13px; }
+.quest .qt span { font-size: 11.5px; color: var(--dim); }
+.quest .qp { font-size: 11px; font-weight: 700; display: grid; gap: 2px; }
+.quest .qp i { display: block; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.quest .qp u { display: block; height: 100%; background: var(--accent); text-decoration: none; }
+.quest .qr { font-size: 11px; color: #ffd84a; font-weight: 700; }
+.quest.done { opacity: .55; }
+.quest.done .qp { color: var(--accent); }
+@media (max-width: 900px) { .quests { grid-template-columns: 1fr 1fr; } }
+#shopWindow:has(.quests) { width: min(1040px, 96vw); }

@@ -2,6 +2,7 @@ import { stopRifleLoop, stopReloadSound } from '../audio/audio';
 import { START, pos, vel, weapons } from './core';
 import { switchSlot } from './combat';
 import { sanitizeLoadout } from './loadout';
+import { resetQuests } from './quests';
 import { resetFlow } from './flow';
 import { clearProjectiles } from './projectiles';
 import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH } from './state';
@@ -19,6 +20,8 @@ export function resetGame(fresh = false) {
     S.loadout.side = 'pistol';
     S.loadout.rifle = 'rifle';
     S.loadout.heavy = null;
+    S.loadout.melee = 'knife';
+    resetQuests();
   }
   sanitizeLoadout();
   stopRifleLoop();

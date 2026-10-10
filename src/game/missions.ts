@@ -35,7 +35,33 @@ export interface LevelConfig {
   wolves: number; // how many wolves live in the arena
   allowed: (c: Costume) => boolean; // which characters can spawn
   note: string; // shown on the level banner
-  boss?: boolean; // level 21+: the boss fight
+  boss?: boolean; // level 21: the boss fight
+  horde?: HordeCfg; // levels 22+: wave after wave of zombies
+}
+
+/** Zombie levels 22-30 (30 repeats after that): how many come, how many at once, how fast, which kinds. */
+export interface HordeCfg {
+  total: number; // zombies to kill (and to spawn)
+  cap: number; // alive at the same time
+  every: number; // seconds between spawns while below the cap
+  mix: [string, number][]; // costume id and spawn weight
+}
+export const BOSS_LEVEL = 21;
+export const LAST_HORDE_LEVEL = 30;
+const HORDE_MIX: [string, number][][] = [
+  [['zombie', 10]], // 22: only the plain shamblers
+  [['zombie', 8], ['zombie_runner', 4]], // 23: + fast little ones
+  [['zombie', 7], ['zombie_runner', 4], ['zombie_brute', 2]], // 24: + big slow ones
+  [['zombie', 6], ['zombie_runner', 4], ['zombie_brute', 3], ['zombie_stabber', 3]], // 25: + knives
+  [['zombie', 5], ['zombie_runner', 4], ['zombie_brute', 3], ['zombie_stabber', 3], ['zombie_thrower', 2]], // 26: + rock throwers
+  [['zombie', 5], ['zombie_runner', 4], ['zombie_brute', 3], ['zombie_stabber', 3], ['zombie_thrower', 2], ['zombie_gunner', 2]], // 27: + gunners
+  [['zombie', 4], ['zombie_runner', 4], ['zombie_brute', 4], ['zombie_stabber', 4], ['zombie_thrower', 3], ['zombie_gunner', 3]],
+  [['zombie', 3], ['zombie_runner', 5], ['zombie_brute', 4], ['zombie_stabber', 4], ['zombie_thrower', 4], ['zombie_gunner', 4]],
+  [['zombie', 3], ['zombie_runner', 5], ['zombie_brute', 5], ['zombie_stabber', 5], ['zombie_thrower', 5], ['zombie_gunner', 5]], // 30
+];
+export function hordeConfig(level: number): HordeCfg {
+  const k = Math.min(Math.max(level, BOSS_LEVEL + 1), LAST_HORDE_LEVEL) - (BOSS_LEVEL + 1); // 0..8
+  return { total: 40 + k * 12, cap: Math.min(10 + Math.round(k * 2.5), 30), every: 1.1 - k * 0.07, mix: HORDE_MIX[k] };
 }
 
 /**
@@ -52,16 +78,24 @@ export const INTRO_NOTES: Record<number, string> = {
   7: 'Soldiers: very tough, they never run away.',
   10: 'Superman is here. A punch hurts a lot, but he is slow to recover.',
   14: 'Ninjas have appeared. Watch your back.',
+  22: 'THE HORDE. Zombies pour in from everywhere. Keep moving and thin them out.',
+  23: 'Runners join the horde: small, very fast and hard to hit.',
+  24: 'Brutes: huge and slow, but one blow hurts. Shoot them from afar.',
+  25: 'Some zombies now carry knives.',
+  26: 'Thrower zombies lob rocks from a distance. Close in on them or break their line.',
+  27: 'Gun zombies shoot back. Everything is in the arena now.',
+  30: 'The last wave. Survive it, Noah.',
   21: 'THE COLOSSUS. It keeps away and calls zombies: thin them out, then rush it while it pants.',
 };
 
 export function levelConfig(level: number): LevelConfig {
   return {
     level,
-    boss: level > MAX_LEVEL,
+    boss: level === BOSS_LEVEL,
+    horde: level > BOSS_LEVEL ? hordeConfig(level) : undefined,
     wolves: level > MAX_LEVEL || level < 3 ? 0 : Math.min(2 + Math.floor((level - 3) / 3), 6),
     allowed: (c) => level >= (c.minLevel ?? 1),
-    note: INTRO_NOTES[level] ?? (level === MAX_LEVEL ? 'The last normal level. The boss waits after it.' : 'The arena is getting more dangerous.'),
+    note: INTRO_NOTES[level] ?? (level > BOSS_LEVEL ? 'The horde grows. More of them, and worse kinds.' : level === MAX_LEVEL ? 'The last normal level. The boss waits after it.' : 'The arena is getting more dangerous.'),
   };
 }
 
@@ -81,6 +115,7 @@ const killsOf = (id: string, n: number, reward: number) =>
 
 /** Builds the five missions for a level, easiest first. Targets grow slowly (level 20 is about 3.3x level 1). */
 export function generateMissions(cfg: LevelConfig): Mission[] {
+  if (cfg.horde) return hordeMissions(cfg);
   if (cfg.boss) return [mission('boss', 'Defeat the Colossus', 1, 15000, (s) => s.byKind['boss'] ?? 0)];
   const L = Math.min(cfg.level, MAX_LEVEL);
   const sc = 1 + 0.12 * (L - 1); // how big the targets are
@@ -128,4 +163,26 @@ export function generateMissions(cfg: LevelConfig): Mission[] {
   const m5 = take(pool5);
 
   return [m1, m2, m3, m4, m5];
+}
+
+/** Horde levels: three missions, all three needed (the horde itself, a specialty, a score). */
+function hordeMissions(cfg: LevelConfig): Mission[] {
+  const h = cfg.horde!;
+  const k = Math.min(cfg.level, LAST_HORDE_LEVEL) - (BOSS_LEVEL + 1);
+  const f = 1 + 0.12 * k;
+  const zombieKills = (s: LevelStats) => Object.entries(s.byKind).reduce((n, [id, v]) => n + (id.startsWith('zombie') ? v : 0), 0);
+  const m1 = mission('horde', `Destroy the horde: kill ${h.total} zombies`, h.total, 3000 * f, zombieKills);
+  // a specialty of the level: the newest kind, or headshots on the first horde level
+  const kinds = h.mix.map(([id]) => id).filter((id) => id !== 'zombie');
+  let m2: Mission;
+  if (kinds.length === 0) m2 = mission('horde-head', 'Get 15 headshot kills', 15, 2000 * f, (s) => s.headshots);
+  else {
+    const id = kinds[kinds.length - 1];
+    const share = (h.mix.find(([x]) => x === id)![1] / h.mix.reduce((n, [, w]) => n + w, 0)) * h.total;
+    const n = Math.max(2, Math.floor(share * 0.5));
+    m2 = mission(`horde-${id}`, `Kill ${n} ${COSTUMES.find((c) => c.id === id)?.name ?? id}s`, n, 2200 * f, (s) => s.byKind[id] ?? 0);
+  }
+  const target = round50(h.total * 38);
+  const m3 = mission('horde-score', `Earn ${target} points`, target, 2500 * f, (s) => s.score);
+  return [m1, m2, m3];
 }

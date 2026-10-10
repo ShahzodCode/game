@@ -4,14 +4,15 @@ import { S } from './state';
 // Loadout: the player carries ONE weapon per slot into the arena (plus the knife), chosen at the armory terminal in
 // the safe room. Slot keys: 1 sidearm, 2 rifle class, 3 heavy, 4 knife.
 
-export type Slot = 'side' | 'rifle' | 'heavy';
-export const SLOTS: Slot[] = ['side', 'rifle', 'heavy'];
-export const SLOT_NAMES: Record<Slot, string> = { side: 'SIDEARM', rifle: 'RIFLE', heavy: 'HEAVY' };
+export type Slot = 'side' | 'rifle' | 'heavy' | 'melee';
+export const SLOTS: Slot[] = ['side', 'rifle', 'heavy', 'melee'];
+export const SLOT_NAMES: Record<Slot, string> = { side: 'SIDEARM', rifle: 'RIFLE', heavy: 'HEAVY', melee: 'MELEE' };
 /** Which weapons may go in each slot. */
 export const SLOT_OPTIONS: Record<Slot, string[]> = {
   side: ['pistol', 'smg'],
   rifle: ['rifle', 'sniper', 'crossbow'],
   heavy: ['shotgun', 'launcher'],
+  melee: ['knife', 'katana'], // the katana is a quest reward
 };
 
 const weaponIndex = (id: string) => weapons.findIndex((w) => w.stats.id === id);
@@ -19,16 +20,15 @@ const owned = (id: string) => !!weapons[weaponIndex(id)]?.owned;
 
 /** Index into `weapons` for a slot key (0 sidearm, 1 rifle, 2 heavy, 3 knife); -1 if the slot is empty. */
 export function slotWeaponIndex(n: number): number {
-  if (n === 3) return weaponIndex('knife');
   const id = S.loadout[SLOTS[n]];
   return id ? weaponIndex(id) : -1;
 }
 
-/** Is this weapon (by index) in the current loadout? The knife always is. */
+/** Is this weapon (by index) in the current loadout? */
 export function isEquipped(i: number): boolean {
   const id = weapons[i]?.stats.id;
   if (!id) return false;
-  return id === 'knife' || S.loadout.side === id || S.loadout.rifle === id || S.loadout.heavy === id;
+  return S.loadout.side === id || S.loadout.rifle === id || S.loadout.heavy === id || S.loadout.melee === id;
 }
 
 /** Weapon indices in the loadout, in key order (1, 2, 3, 4). */
@@ -41,7 +41,7 @@ export function sanitizeLoadout() {
   for (const slot of SLOTS) {
     const cur = S.loadout[slot];
     if (cur && SLOT_OPTIONS[slot].includes(cur) && owned(cur)) continue;
-    S.loadout[slot] = SLOT_OPTIONS[slot].find(owned) ?? null;
+    S.loadout[slot] = SLOT_OPTIONS[slot].find(owned) ?? null; // (the knife is always owned, so the melee slot is never empty)
   }
   refreshArmoryScreen();
 }

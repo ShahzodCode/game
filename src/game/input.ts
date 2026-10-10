@@ -172,6 +172,11 @@ $('btnBoss').addEventListener('click', () => {
   updateSummary();
 });
 
+$('btnHorde').addEventListener('click', () => {
+  S.level = Math.max(S.level, 21);
+  updateSummary();
+});
+
 document.addEventListener('pointerlockchange', () => {
   S.locked = document.pointerLockElement === renderer.domElement;
   rules.style.display = 'none';

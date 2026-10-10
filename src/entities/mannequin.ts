@@ -32,7 +32,7 @@ export interface BotHooks {
   /** A character speaks a recorded line (hit / death / casual chatter), see audio.ts voiceLine. */
   voice?: (id: string, kind: 'hit' | 'death' | 'casual' | 'summon' | 'throw' | 'pant', at: THREE.Vector3, owner?: object) => void;
   /** The boss hurls a boulder from its hand toward the player (game/projectiles.ts). */
-  throwRock?: (from: THREE.Vector3) => void;
+  throwRock?: (from: THREE.Vector3, small?: boolean) => void;
   /** A scared bot cried out at this spot (optional: draws nothing, only plays a sound). */
   scream?: (at: THREE.Vector3) => void;
   /** Where to aim at the player (roughly the chest). */
@@ -62,6 +62,12 @@ export interface Costume {
   scale?: number;
   /** The boss: keeps its distance, summons zombies, pants when you get close (see bossBrain). */
   boss?: boolean;
+  /** A zombie type (the boss's summons and the horde levels): always hunts, never gives up, uses the zombie models. */
+  zombie?: boolean;
+  /** Something held in the hand (zombie models): a knife or a gun. */
+  prop?: 'knife' | 'gun';
+  /** Keeps its distance and throws rocks (see throwerBrain). */
+  rocks?: boolean;
   /** Stats for `combat: 'melee'` bots. */
   melee?: MeleeStats;
   note: string; // shown in the Rules window
@@ -90,6 +96,12 @@ const KNIFE_CRIMINAL: MeleeStats = { aggroRange: 36, speed: 4.2, attackRange: 1.
 const SUPERMAN_PUNCH: MeleeStats = { aggroRange: 0, speed: 6.4, attackRange: 2.1, damage: 45, interval: 4.2, giveUp: 60, giveUpTime: 8, calmCooldown: 5, provoked: true, windup: 0.6 };
 /** Zombies (summoned by the boss): slow, relentless, they always know where you are. */
 const ZOMBIE_CLAW: MeleeStats = { aggroRange: 200, speed: 3.3, attackRange: 1.5, damage: 7, interval: 1.0, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 };
+/** Horde zombies (levels 22-30): runners are fast and weak, brutes slow and brutal, stabbers carry a knife. */
+const ZOMBIE_RUNNER: MeleeStats = { aggroRange: 300, speed: 5.9, attackRange: 1.3, damage: 5, interval: 0.55, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 };
+const ZOMBIE_BRUTE: MeleeStats = { aggroRange: 300, speed: 2.1, attackRange: 2.2, damage: 26, interval: 1.7, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 0.55 };
+const ZOMBIE_STABBER: MeleeStats = { aggroRange: 300, speed: 4.1, attackRange: 1.6, damage: 12, interval: 0.7, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 };
+const ZOMBIE_GUNNER: MeleeStats = { aggroRange: 300, speed: 3.4, attackRange: 0, damage: 0, interval: 1, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 }; // only the aggro range is used
+const ZOMBIE_THROW = { keepMin: 11, keepMax: 30, every: [3, 4.6], wind: 0.9, minDist: 8, maxDist: 55, speed: 3 };
 /** The boss only swats at you when you crowd it (weak): its danger is the zombies it calls. */
 const BOSS_SWAT: MeleeStats = { aggroRange: 0, speed: 2.6, attackRange: 4.6, damage: 15, interval: 1.3, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 1 };
 const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, closeDist: 5, summonNear: 10, pant: 3.2, pantCd: 9, fleeSpeed: 3.6, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 8, maxRage: 10, perCast: 2, perCastRage: 3, rockMin: 24, rockMax: 85, rockEvery: [4.5, 6.5], rockWind: 1.2 };
@@ -105,7 +117,12 @@ export const COSTUMES: Costume[] = [
   { id: 'cowboy', name: 'Cowboy', health: 125, points: 160, weight: 1.2, shirt: 0xa5522d, pants: 0x4a3a2a, accent: 0x5b3a1e, combat: 'ranged', fearless: true, minLevel: 5, note: 'Never flees: shoots back when shot, dodges' },
   { id: 'soldier', name: 'Soldier', health: 170, points: 170, weight: 1, shirt: 0x5a6b3a, pants: 0x4b5a32, accent: 0x3b4528, fearless: true, minLevel: 7, note: 'Harmless, very tough, never flees: stares you down when shot' },
   { id: 'superman', name: 'Superman', health: 250, points: 180, weight: 1, shirt: 0x2d5ea8, pants: 0x2d5ea8, accent: 0xc22d2d, speedMul: 1.9, combat: 'melee', melee: SUPERMAN_PUNCH, fearless: true, minLevel: 10, note: 'Harmless until shot, then a huge slow punch (45 dmg) and a long rest: dodge it and shoot back' },
-  { id: 'zombie', name: 'Zombie', health: 70, points: 40, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_CLAW, fearless: true, minLevel: 999, note: 'Summoned by the boss: slow, relentless' },
+  { id: 'zombie', name: 'Zombie', health: 70, points: 40, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_CLAW, fearless: true, zombie: true, minLevel: 999, note: 'Summoned by the boss: slow, relentless' },
+  { id: 'zombie_runner', name: 'Runner Zombie', health: 40, points: 30, weight: 0, scale: 0.72, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_RUNNER, fearless: true, zombie: true, minLevel: 999, note: 'Horde: small and very fast, hard to hit' },
+  { id: 'zombie_brute', name: 'Brute Zombie', health: 260, points: 120, weight: 0, scale: 1.4, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_BRUTE, fearless: true, zombie: true, minLevel: 999, note: 'Horde: big and slow, but every blow is heavy' },
+  { id: 'zombie_stabber', name: 'Knife Zombie', health: 80, points: 60, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_STABBER, fearless: true, zombie: true, prop: 'knife', minLevel: 999, note: 'Horde: runs at you with a knife' },
+  { id: 'zombie_thrower', name: 'Thrower Zombie', health: 90, points: 90, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'melee', melee: ZOMBIE_GUNNER, fearless: true, zombie: true, rocks: true, minLevel: 999, note: 'Horde: keeps away and lobs rocks' },
+  { id: 'zombie_gunner', name: 'Gun Zombie', health: 70, points: 90, weight: 0, shirt: 0x4a5a3a, pants: 0x3a3a30, accent: 0x6a7a50, combat: 'ranged', melee: ZOMBIE_GUNNER, fearless: true, zombie: true, prop: 'gun', minLevel: 999, note: 'Horde: shoots from a distance' },
   { id: 'boss', name: 'The Colossus', health: 2400, points: 2000, weight: 0, shirt: 0x3a2448, pants: 0x241830, accent: 0xb02a2a, combat: 'melee', melee: BOSS_SWAT, fearless: true, boss: true, scale: 2.1, minLevel: 999, note: 'Final boss: keeps away, summons zombies, pants when you get close' },
   { id: 'criminal', name: 'Criminal', health: 130, points: 200, weight: 1.3, shirt: 0x1c1c20, pants: 0x2c2c32, accent: 0xf0f0f0, combat: 'melee', melee: KNIFE_CRIMINAL, zone: 'edge', minLevel: 4, note: 'Patrols the walls, attacks on sight with a knife, hits and backs off' },
   { id: 'ninja', name: 'Ninja', health: 70, points: 220, weight: 0.7, shirt: 0x17171a, pants: 0x17171a, accent: 0xc42b2b, combat: 'melee', melee: NINJA_STRIKER, minLevel: 14, fearless: true, note: 'From level 14. Attacks on sight, zig-zags: fast and deadly, but fragile' },
@@ -935,6 +952,39 @@ export class Mannequin {
     return 0;
   }
 
+  /** Thrower zombie: stays 11-30 m away and lobs rocks (arms thrown back for 0.9 s first). */
+  private throwerBrain(dt: number): number {
+    const T = ZOMBIE_THROW;
+    const p = this.group.position;
+    const dx = this.player.x - p.x, dz = this.player.z - p.z;
+    const dist = Math.hypot(dx, dz);
+    this.bossRockT -= dt;
+    this.hitVoiceT -= dt;
+    const face = (rate: number) => {
+      this.heading += clamp(angleDiff(this.heading, Math.atan2(dx, dz)), -rate * dt, rate * dt);
+    };
+    if (this.windT > 0) {
+      this.windT -= dt;
+      face(4);
+      if (this.windT <= 0) {
+        this.hooks.throwRock?.(new THREE.Vector3(p.x, p.y + 1.9 * this.baseScale, p.z), true);
+        this.bossRockT = rnd(T.every[0], T.every[1]);
+      }
+      return 0;
+    }
+    if (this.bossRockT <= 0 && dist >= T.minDist && dist <= T.maxDist && !this.hooks.playerDead()) {
+      this.windDur = this.windT = T.wind;
+      return 0;
+    }
+    face(3);
+    if (dist < T.keepMin) return this.runFrom(dt, this.player, T.speed * 1.3);
+    if (dist > T.keepMax) {
+      this.moveBy(Math.sin(this.heading), Math.cos(this.heading), T.speed, dt);
+      return T.speed;
+    }
+    return 0;
+  }
+
   // ---------- fighting ----------
   /** Cowboys and criminals: aggro rules, then chase / shoot. Returns walking speed. */
   private fight(dt: number): number {
@@ -944,7 +994,7 @@ export class Mannequin {
     const dist = Math.hypot(dx, dz);
     const playerDead = this.hooks.playerDead();
 
-    if (c.combat === 'melee' && !this.aggravated && !c.melee?.provoked) {
+    if ((c.combat === 'melee' || c.zombie) && !this.aggravated && !c.melee?.provoked) {
       // criminals go for the player automatically once he is close enough
       this.calmCd = Math.max(0, this.calmCd - dt);
       if (this.calmCd === 0 && dist < (c.melee ?? KNIFE_CRIMINAL).aggroRange && !playerDead) this.aggravate();
@@ -966,7 +1016,7 @@ export class Mannequin {
 
     // lose interest when the player is too far away for a while (or dead)
     const M = c.melee ?? KNIFE_CRIMINAL;
-    const giveUp = c.combat === 'melee' ? M.giveUp : COWBOY.giveUp;
+    const giveUp = c.zombie ? 1e9 : c.combat === 'melee' ? M.giveUp : COWBOY.giveUp; // zombies never give up
     const giveUpTime = c.combat === 'melee' ? M.giveUpTime : COWBOY.giveUpTime;
     this.farT = dist > giveUp || playerDead ? this.farT + dt : 0;
     if (this.farT > giveUpTime) {
@@ -1304,7 +1354,7 @@ export class Mannequin {
       if (this.stunT > 0) this.stunT -= dt;
       // knocked about: the AI waits until the character is back on its feet
       if (this.rootT > 0) this.rootT -= dt;
-      const moving = this.stunT > 0 || this.rootT > 0 ? 0 : this.costume.boss ? this.bossBrain(dt) : this.costume.combat ? this.fight(dt) : this.civilian(dt);
+      const moving = this.stunT > 0 || this.rootT > 0 ? 0 : this.costume.boss ? this.bossBrain(dt) : this.costume.rocks ? this.throwerBrain(dt) : this.costume.combat ? this.fight(dt) : this.civilian(dt);
       this.moveSpeedNow = moving;
       this.separate();
       const p = this.group.position;

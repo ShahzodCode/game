@@ -1,5 +1,6 @@
 import { weapons } from './core';
 import { sanitizeLoadout } from './loadout';
+import { questsFromSave, questsToSave } from './quests';
 import { S, START_CASH } from './state';
 
 // Saved progress (browser localStorage).
@@ -8,14 +9,16 @@ import { S, START_CASH } from './state';
 // If you change the save shape, bump `v` and handle the old version in loadProgress().
 export const SAVE_KEY = 'botshooter.save.v1'; // the key keeps its name; the data inside carries its own version
 interface SaveData {
-  v: 1 | 2; // 2 added the loadout
+  v: 1 | 2 | 3; // 2 added the loadout, 3 the quests (and the melee slot)
+  quests?: { progress?: Record<string, number>; done?: string[] };
   level: number;
   cash: number;
-  loadout?: { side?: string | null; rifle?: string | null; heavy?: string | null };
+  loadout?: { side?: string | null; rifle?: string | null; heavy?: string | null; melee?: string | null };
   weapons: { id: string; owned: boolean; ammo: number; spare: number[] }[];
 }
 const snapshot = (): SaveData => ({
-  v: 2,
+  v: 3,
+  quests: questsToSave(),
   level: S.level,
   cash: Math.round(S.cash),
   loadout: { ...S.loadout },
@@ -46,7 +49,7 @@ export function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const d = JSON.parse(raw) as Partial<SaveData>;
-    if (d.v !== 1 && d.v !== 2) return;
+    if (d.v !== 1 && d.v !== 2 && d.v !== 3) return;
     const int = (n: unknown, min: number, max: number, fallback: number) =>
       typeof n === 'number' && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.floor(n))) : fallback;
     S.level = int(d.level, 1, 999, 1);
@@ -55,7 +58,7 @@ export function loadProgress() {
       const w = weapons.find((x) => x.stats.id === sw?.id); // weapons that no longer exist are skipped
       if (!w) continue;
       const s = w.stats;
-      w.owned = s.unlockPrice === 0 || !!sw.owned;
+      w.owned = (s.unlockPrice === 0 && !s.questOnly) || !!sw.owned;
       if (!w.owned || s.melee) continue;
       w.ammo = int(sw.ammo, 0, s.magSize, s.magSize);
       if (Array.isArray(sw.spare)) w.spare = sw.spare.slice(0, s.maxMags).map((n) => int(n, 0, s.magSize, 0));
@@ -65,7 +68,9 @@ export function loadProgress() {
       S.loadout.side = typeof l.side === 'string' ? l.side : null;
       S.loadout.rifle = typeof l.rifle === 'string' ? l.rifle : null;
       S.loadout.heavy = typeof l.heavy === 'string' ? l.heavy : null;
+      S.loadout.melee = typeof l.melee === 'string' ? l.melee : 'knife';
     }
+    questsFromSave(d.quests);
     sanitizeLoadout(); // only owned weapons in the right slots (also fills the heavy slot for an old save that owns the shotgun)
     lastSaved = JSON.stringify(snapshot());
   } catch {

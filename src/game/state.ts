@@ -63,7 +63,7 @@ export const S = {
 
   // weapons
   /** What is carried into the arena (one per slot; null = nothing owned for that slot yet). Chosen at the armory terminal. */
-  loadout: { side: 'pistol', rifle: 'rifle', heavy: null } as { side: string | null; rifle: string | null; heavy: string | null },
+  loadout: { side: 'pistol', rifle: 'rifle', heavy: null, melee: 'knife' } as { side: string | null; rifle: string | null; heavy: string | null; melee: string | null },
   current: 0,
   equipLeft: 0,
   kick: 0, // viewmodel kickback
@@ -103,4 +103,7 @@ export const S = {
   stats: emptyStats() as LevelStats,
   missions: [] as Mission[],
   missionsDone: 0,
+
+  // global quests (game/quests.ts): long-term progress, saved
+  quests: { progress: {} as Record<string, number>, done: [] as string[] },
 };

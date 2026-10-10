@@ -24,6 +24,8 @@ export interface WeaponStats {
   maxMags: number; // most spare magazines the player can carry
   magPrice: number; // cost of one magazine at the shop
   unlockPrice: number; // 0 = owned from the start, otherwise it must be bought at the shop
+  /** Not for sale and not owned at the start: unlocked by a quest reward (the katana). */
+  questOnly?: boolean;
   reloadTime: number; // seconds
   equipTime: number; // seconds
   // --- accuracy (degrees of cone half-angle) ---
@@ -247,6 +249,54 @@ export const WEAPONS: WeaponStats[] = [
     maxMags: 0,
     magPrice: 0,
     unlockPrice: 0, // basic weapon, owned from the start
+    reloadTime: 0,
+    equipTime: 0.25,
+    spreadBase: 0,
+    spreadMoving: 0,
+    spreadAir: 0,
+    spreadPerShot: 0,
+    spreadRecovery: 1,
+    spreadMax: 0,
+    recoilPitch: 0,
+    recoilYaw: 0,
+    recoilRecovery: 1,
+    recoilBuildup: 0,
+    recoilBuildupMax: 1,
+    recoilBuildupDecay: 1,
+    recoilRoll: 0,
+    moveSpeedMultiplier: 1.08, // light: a little faster than guns
+    adsZoom: 1,
+    adsTime: 0,
+    muzzleVelocity: 0,
+    bulletMass: 0,
+    bulletDrag: 0,
+    gravityScale: 0,
+    impactImpulse: 6,
+    penetration: 0,
+    weight: 0.4,
+    viewKick: 0,
+    soundPitch: 0,
+    tracerColor: 0xffffff,
+  },
+  {
+    id: 'katana',
+    name: 'Katana',
+    melee: true,
+    meleeArc: 18,
+    fireMode: 'semi',
+    rpm: 130, // a slash every 0.46s
+    damage: 90,
+    headshotMultiplier: 2,
+    range: 3.0,
+    falloffStart: 3.0,
+    falloffMinMultiplier: 1,
+    pellets: 1,
+    magSize: 1, // unused for melee
+    startMags: 0,
+    maxMags: 0,
+    magPrice: 0,
+    unlockPrice: 0,
+    questOnly: true, // reward for killing 15 ninjas
     reloadTime: 0,
     equipTime: 0.25,
     spreadBase: 0,
@@ -515,7 +565,7 @@ export class Weapon {
   }
   /** Back to the starting loadout (weapons with an unlock price are locked again). */
   refill() {
-    this.owned = this.stats.unlockPrice === 0;
+    this.owned = this.stats.unlockPrice === 0 && !this.stats.questOnly;
     this.ammo = this.stats.magSize;
     this.spare = Array.from({ length: this.stats.startMags }, () => this.stats.magSize);
     this.reloadLeft = 0;
@@ -558,6 +608,18 @@ export function buildViewModel(id: string): THREE.Group {
     return finishModel(buildCrossbow());
   } else if (id === 'launcher') {
     return finishModel(buildLauncher());
+  } else if (id === 'katana') {
+    const steel = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, roughness: 0.35, metalness: 0.3, emissive: 0x2a323a });
+    const lacquer = new THREE.MeshStandardMaterial({ color: 0x1a1416, roughness: 0.6 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0xb8a050, roughness: 0.4, metalness: 0.8 });
+    g.add(box(0.034, 0.04, 0.22, 0, 0, 0.06, lacquer)); // wrapped handle
+    g.add(box(0.075, 0.075, 0.014, 0, 0, -0.06, brass)); // round guard (tsuba)
+    g.add(box(0.012, 0.036, 0.62, 0, 0.002, -0.38, steel)); // long blade
+    g.add(box(0.008, 0.014, 0.62, 0, 0.022, -0.38, mid)); // spine
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09, 4), steel);
+    tip.rotation.x = -Math.PI / 2;
+    tip.position.set(0, 0.002, -0.735);
+    g.add(tip);
   } else if (id === 'knife') {
     const steel = new THREE.MeshStandardMaterial({ color: 0xd6dbe0, roughness: 0.25, metalness: 0.9 });
     g.add(box(0.032, 0.04, 0.13, 0, 0, 0.02, dark)); // handle

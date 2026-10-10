@@ -3,12 +3,13 @@ import { COSTUMES, COSTUME_CAP, clearSpawnCooldowns, setSpawnRule } from '../ent
 import { ARENA_GATE_Z, GATE1_Z } from '../world/rooms';
 import { doorSound, missionSound } from '../audio/audio';
 import {
-  MISSIONS_TO_FINISH, MISSIONS_PER_LEVEL, emptyStats, generateMissions, levelConfig,
+  MISSIONS_TO_FINISH, MISSIONS_PER_LEVEL, emptyStats, generateMissions, levelConfig, LAST_HORDE_LEVEL, type HordeCfg,
 } from './missions';
 import { $, camera, pos, renderer, scene, world } from './core';
 import { STAGES, stageForLevel } from '../world/layout';
-import { boss, regulars, wolves, zombies } from './actors';
+import { boss, regulars, spawnZombie, wolves, zombieLimit, zombies } from './actors';
 import { showBanner } from './hud';
+import { questLevelDone } from './quests';
 import { S, type Phase } from './state';
 
 // Levels, missions and the gate flow.
@@ -55,6 +56,8 @@ export function renderMissions() {
       ? 'Level complete! Reach the glowing gate, or finish the rest for more money'
       : levelConfig(S.level).boss
         ? 'Defeat the boss'
+        : levelConfig(S.level).horde
+          ? 'Survive the horde: finish all three missions'
         : `Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions to finish (${S.missionsDone}/${MISSIONS_TO_FINISH})`;
   const html = `<h4>LEVEL ${S.level}</h4><div class="sub">${sub}</div>${rows}`;
   missionsEl.style.display = 'block';
@@ -100,13 +103,19 @@ export function checkMissions() {
 }
 
 function levelComplete() {
+  questLevelDone(S.level);
   rooms.gate2.setOpen(true);
   rooms.setExitLight(true);
   S.phase = 'exitOpen';
   missionSound(true);
   if (levelConfig(S.level).boss) {
     for (const z of zombies) if (z.alive && !z.disabled) z.damage(99999); // the zombies fall with their master
-    showBanner('VICTORY!', 'The Colossus has fallen and you beat the game. Leave through the gate; the boss will return for rematches.', 9);
+    showBanner('THE COLOSSUS HAS FALLEN', 'But the dead keep rising. Leave through the gate: a horde of zombies waits in level 22.', 9);
+    return;
+  }
+  if (S.level >= LAST_HORDE_LEVEL) {
+    for (const z of zombies) if (z.alive && !z.disabled) z.damage(99999);
+    showBanner('THE LAST WAVE IS OVER', 'You survived everything the world had left. The horde will keep coming back on the next levels.', 9);
     return;
   }
   showBanner('LEVEL COMPLETE', 'A bright light has opened at the gate. Leave now, or finish the other missions for more money.', 6);
@@ -126,6 +135,27 @@ let levelWork: (() => void)[] = [];
 let shownStage = -1;
 let arenaGrew = false;
 
+/** Zombie levels (22+): a director keeps the arena filled with zombies until `total` have been sent. */
+let horde: { cfg: HordeCfg; spawned: number; t: number } | null = null;
+function pickKind(cfg: HordeCfg) {
+  let r = Math.random() * cfg.mix.reduce((n, [, w]) => n + w, 0);
+  for (const [id, w] of cfg.mix) if ((r -= w) <= 0) return id;
+  return cfg.mix[0][0];
+}
+function updateHorde(dt: number) {
+  if (!horde || S.phase !== 'arena') return;
+  const h = horde;
+  h.t -= dt;
+  if (h.t > 0 || h.spawned >= h.cfg.total) return;
+  const alive = zombies.filter((z) => !z.disabled && z.alive).length;
+  if (alive >= h.cfg.cap) return;
+  // a spot 22-50 m from the player (the zombies come from all around)
+  let at = world.randomFreePoint(pos, 22);
+  for (let i = 0; i < 6 && Math.hypot(at.x - pos.x, at.z - pos.z) > 50; i++) at = world.randomFreePoint(pos, 22);
+  if (spawnZombie(pickKind(h.cfg), at, h.cfg.cap + 4)) h.spawned++;
+  h.t = h.cfg.every * (0.6 + Math.random() * 0.8);
+}
+
 /** Queue everything the level needs. */
 export function startLevel() {
   const cfg = levelConfig(S.level);
@@ -142,8 +172,10 @@ export function startLevel() {
   arenaGrew = stage > shownStage && shownStage >= 0;
   shownStage = stage;
   levelWork = [];
-  const botCount = cfg.boss ? 0 : STAGES[stage].bots;
+  const botCount = cfg.boss || cfg.horde ? 0 : STAGES[stage].bots;
   zombies.forEach((z) => levelWork.push(() => z.disable()));
+  zombieLimit.n = 8; // the boss may have 8 zombies out; the horde levels use the whole pool
+  horde = cfg.horde ? { cfg: cfg.horde, spawned: 0, t: 2 } : null;
   levelWork.push(() => {
     if (cfg.boss) {
       boss.spawnAs('boss', world.randomFreePoint(world.arenaEntry, 45));
@@ -204,6 +236,7 @@ function enterPhase(p: Phase) {
 
 export function updateFlow(dt: number) {
   S.phaseT += dt;
+  updateHorde(dt);
   const centred = Math.abs(pos.x) < 7;
   switch (S.phase) {
     case 'hub':
@@ -226,7 +259,7 @@ export function updateFlow(dt: number) {
       if (runLevelWork(2) && S.phaseT > 0.6) {
         rooms.gate2.setOpen(true);
         enterPhase('airlockReady');
-        showBanner(`LEVEL ${S.level}`, `${arenaGrew ? 'The arena has grown! ' : ''}${levelConfig(S.level).note} ${levelConfig(S.level).boss ? '' : `Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions.`}`, 5);
+        showBanner(`LEVEL ${S.level}`, `${arenaGrew ? 'The arena has grown! ' : ''}${levelConfig(S.level).note} ${levelConfig(S.level).boss || levelConfig(S.level).horde ? '' : `Complete ${MISSIONS_TO_FINISH} of ${MISSIONS_PER_LEVEL} missions.`}`, 5);
       }
       break;
     case 'airlockReady':
@@ -255,7 +288,7 @@ export function updateFlow(dt: number) {
     case 'toHub':
       if (pos.z > GATE1_Z + 2) {
         enterPhase('hub');
-        showBanner('SAFE ROOM', `Spend your money, then walk through the gate for level ${S.level}.`, 4.5);
+        showBanner('SAFE ROOM', `Spend your money, check the quest board at the back wall, then walk through the gate for level ${S.level}.`, 5.5);
       }
       break;
   }
@@ -273,6 +306,7 @@ export function resetFlow() {
   rooms.gate2.setOpen(false, true);
   rooms.setExitLight(false);
   levelWork = [];
+  horde = null;
   wolves.forEach((w) => w.deactivate()); // the arena itself is rebuilt when the next level starts
   renderMissions();
 }

@@ -1,3 +1,4 @@
+import { questKill, questsHtml } from './game/quests';
 import * as THREE from 'three';
 import { COSTUMES } from './entities/mannequin';
 import { rifleLoopActive, stopRifleLoop } from './audio/audio';
@@ -27,7 +28,7 @@ updateSummary();
 // dev-only hook for automated checks (placing the camera, simulating input without pointer lock)
 if (import.meta.env.DEV) {
   (window as any).__game = {
-    pos, vel, keys, world, mannequins, resetGame, fire, weapons, switchWeapon,
+    pos, vel, keys, world, mannequins, resetGame, fire, weapons, switchWeapon, questKill, questsHtml,
     clearEquip: () => (S.equipLeft = 0),
     setShopOpen: (b: boolean) => (S.shopOpen = b),
     sync: () => {
