@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { initAudio, stopRifleLoop, stopReloadSound, setMuted, isMuted } from '../audio/audio';
 import { $, camera, renderer, weapons } from './core';
 import { beginReload, cycleWeapon, switchSlot } from './combat';
-import { devSkipLevel } from './flow';
 import { resumeHint, overlay, showBanner, updateSummary } from './hud';
 import { usePotion } from './player';
 import { rules, closeRules } from './rules';
@@ -156,25 +155,6 @@ $('btnNew').addEventListener('click', () => {
   resetGame(true);
   saveProgress();
   startPlaying();
-});
-// TEST ONLY: free cash for trying out the shop. Remove this button (and #btnCash in index.html) before release.
-$('btnCash').addEventListener('click', () => {
-  S.cash += 100000;
-  updateSummary();
-});
-// TEST ONLY: finish the level you are in / make the next level the boss
-$('btnSkip').addEventListener('click', () => {
-  devSkipLevel();
-  updateSummary();
-});
-$('btnBoss').addEventListener('click', () => {
-  S.level = Math.max(S.level, 20);
-  updateSummary();
-});
-
-$('btnHorde').addEventListener('click', () => {
-  S.level = Math.max(S.level, 21);
-  updateSummary();
 });
 
 document.addEventListener('pointerlockchange', () => {
