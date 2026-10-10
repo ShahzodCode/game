@@ -15,6 +15,10 @@ const WEAPON_NOTES: Record<string, string> = {
   crossbow: 'Silent. A hit freezes its target for 2 s and makes it lose you for 5 s (the boss only stops throwing boulders for 5 s). Bolts drop over distance, one bolt per reload',
   launcher: 'Bouncing grenades, big blast and knockback (hurts you too), 3 per drum',
   katana: 'Quest reward (kill 15 ninjas): long reach, heavy slash',
+  revolver: 'Quest reward (High Noon: 12 cowboys, sidearm headshots): six heavy rounds, slow to fire and reload',
+  dmr: 'Quest reward (Eagle Eye: 25 headshot kills beyond 50 m): semi-auto, nearly pinpoint when aimed, pierces 1 target',
+  minigun: 'Quest reward (Untouchable: 3 levels from 8 on without losing health): hold to spin up, then 20 rounds a second; heavy, 4.5 s belt change',
+  hammer: 'Quest reward (Bare Knuckle: 5 Supermen in melee): one slow, crushing blow that knocks people off their feet',
   knife: `Melee, ${WEAPONS.find((w) => w.id === 'knife')?.range} m reach, silent`,
 };
 const slotLabel = (id: string) => {

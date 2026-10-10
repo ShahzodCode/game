@@ -1,7 +1,7 @@
 import { questKill, questsHtml } from './game/quests';
 import * as THREE from 'three';
 import { COSTUMES } from './entities/mannequin';
-import { rifleLoopActive, stopRifleLoop } from './audio/audio';
+import { minigunWhirr, rifleLoopActive, stopRifleLoop } from './audio/audio';
 import { BASE_FOV, EYE_OFFSET, S, keys } from './game/state';
 import { $, camera, flashLight, pos, renderer, scene, updateFx, vel, viewModels, weapons, world } from './game/core';
 import { boss, botHooks, mannequins, wolves } from './game/actors';
@@ -78,6 +78,11 @@ function updateWeapon(dt: number) {
       w.finishReload();
     }
   }
+  if (w.stats.spinUp) {
+    // minigun: holding the trigger spins the barrels up; it fires once they are at speed, and they spin down when released
+    const want = S.trigger && !S.shopOpen && !w.reloading && S.equipLeft <= 0;
+    w.spin = want ? Math.min(w.stats.spinUp, w.spin + dt) : Math.max(0, w.spin - dt * 0.7);
+  }
   if (S.trigger && !S.shopOpen && (w.stats.fireMode === 'auto' || S.triggerPressed)) fire();
   S.triggerPressed = false;
   // stop the rifle burst once shots stop coming (released, reloading, switched...)
@@ -139,6 +144,11 @@ function animateViewModel(dt: number) {
     vm.rotation.set(-0.5 * arc, 0.9 * arc - 0.2 * k, -1.0 * arc);
   }
   flashLight.intensity = Math.max(0, flashLight.intensity - dt * 400);
+  // minigun: the barrel cluster turns with the spin, and the motor whirrs
+  const spinK = w.stats.spinUp ? w.spin / w.stats.spinUp : 0;
+  const barrels = vm.getObjectByName('barrels');
+  if (barrels) barrels.rotation.z += dt * 45 * spinK;
+  minigunWhirr(S.locked ? spinK : 0);
 }
 
 /** The crosshair ticks open up as the weapon's spread grows (moving, jumping, firing). */

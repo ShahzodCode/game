@@ -1,7 +1,7 @@
 import { weapons } from './core';
 import { sanitizeLoadout } from './loadout';
 import { questsFromSave, questsToSave } from './quests';
-import { S, START_CASH } from './state';
+import { S, START_CASH, levelBeaten } from './state';
 
 // Saved progress (browser localStorage).
 // Only the long-term progress is stored: the level the player is on, his money, and his weapons with their ammo.
@@ -19,7 +19,7 @@ interface SaveData {
 const snapshot = (): SaveData => ({
   v: 3,
   quests: questsToSave(),
-  level: S.level,
+  level: S.level + (levelBeaten() ? 1 : 0), // a won level counts even if the page closes before the player walks out
   cash: Math.round(S.cash),
   loadout: { ...S.loadout },
   weapons: weapons.map((w) => ({ id: w.stats.id, owned: w.owned, ammo: w.ammo, spare: [...w.spare] })),

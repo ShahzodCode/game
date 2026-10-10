@@ -60,10 +60,15 @@ function makeBolt() {
 function add(b: Body) {
   scene.add(b.mesh);
   bodies.push(b);
-  if (bodies.length > MAX_BODIES) remove(0); // oldest goes first
+  if (bodies.length > MAX_BODIES) {
+    // the oldest casing / debris goes first: a live grenade or bolt must never vanish
+    const i = bodies.findIndex((o) => o.kind === 'casing' || o.kind === 'debris');
+    remove(i >= 0 ? i : 0);
+  }
 }
 function remove(i: number) {
   scene.remove(bodies[i].mesh);
+  if (bodies[i].kind === 'grenade') ((bodies[i].mesh as THREE.Mesh).material as THREE.Material).dispose(); // each grenade has its own (blinking) material
   bodies.splice(i, 1);
 }
 // ---- the boss's boulders: a slow lobbed arc you can dodge; a direct hit hurts a lot ----
@@ -115,8 +120,7 @@ function updateBossRocks(dt: number) {
 export function clearProjectiles() {
   for (const r of bossRocks) scene.remove(r.mesh);
   bossRocks.length = 0;
-  for (const b of bodies) scene.remove(b.mesh);
-  bodies.length = 0;
+  while (bodies.length) remove(bodies.length - 1);
   for (const f of flashes) scene.remove(f.mesh);
   flashes.length = 0;
 }
@@ -303,7 +307,7 @@ export function explode(at: THREE.Vector3, stats: WeaponStats) {
     any = true;
     const dir = new THREE.Vector3(centre.x - at.x, 0, centre.z - at.z).setLength(ex.push * k);
     dir.y = ex.push * 0.55 * k + 1;
-    applyHit(t, dmg, false, centre); // damage, alerts, score
+    applyHit(t, dmg, false, centre, undefined, stats); // damage, alerts, score
     t.impulse(dir);
   }
   if (any) {
@@ -382,7 +386,7 @@ function updateBolt(b: Body, i: number, dt: number): boolean {
           S.shotsHit++;
           addScore(POINTS_HIT);
           _push.copy(b.v).setLength(st.impactImpulse * 0.06);
-          applyHit(owner, st.damage * (head ? st.headshotMultiplier : 1), head, rh.point, _push);
+          applyHit(owner, st.damage * (head ? st.headshotMultiplier : 1), head, rh.point, _push, st);
           if (owner.alive) owner.crossbowHit(); // frozen for 2 s, loses its target for 5 s
           boltHitSound(rh.point.distanceTo(camera.position));
           return false; // the bolt is spent

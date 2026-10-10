@@ -22,7 +22,8 @@ const SLIDE_TIME = 0.85;
 
 /** Drink a health potion (H). */
 export function usePotion() {
-  if (S.dead || S.potions <= 0) return;
+  if (S.dead) return;
+  if (S.potions <= 0) return showPopup('No potions: buy them at the supply shop', '#ff9a4a');
   if (S.health >= MAX_HEALTH) return showPopup('Health already full', '#ff9a4a');
   S.potions--;
   S.health = Math.min(MAX_HEALTH, S.health + POTION.heal);
@@ -33,6 +34,7 @@ export function usePotion() {
 export function damagePlayer(amount: number) {
   if (S.dead) return;
   S.health -= amount;
+  S.stats.hurt += amount;
   S.hurtFlash = 1;
   hurtSound();
   if (S.health <= 0) {

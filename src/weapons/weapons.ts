@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildSmg, buildSniper, buildCrossbow, buildLauncher } from './procModels';
+import { buildSmg, buildSniper, buildCrossbow, buildLauncher, buildRevolver, buildDmr, buildMinigun, buildHammer } from './procModels';
 
 /**
  * Weapon stat sheet. Fields marked [future] are not used by the prototype yet
@@ -70,7 +70,9 @@ export interface WeaponStats {
   explosion?: { radius: number; damage: number; push: number; fuse: number; selfMult: number };
   silent?: boolean; // makes no noise: bystanders do not panic
   ammoLabel?: string; // what the HUD / shop call one magazine (default 'mags')
-  shot?: 'smg' | 'sniper' | 'crossbow' | 'launcher'; // synthesized sound
+  shot?: 'smg' | 'sniper' | 'crossbow' | 'launcher' | 'revolver' | 'dmr' | 'minigun'; // synthesized sound
+  /** Seconds the trigger must be held before the first shot (the minigun's barrels spin up); they spin down when released. */
+  spinUp?: number;
   // --- feel ---
   viewKick: number; // viewmodel kickback distance
   soundPitch: number; // base frequency of the synthesized shot
@@ -509,6 +511,186 @@ export const WEAPONS: WeaponStats[] = [
     tracerColor: 0xffa040,
     shot: 'launcher',
   },
+  // ------------------------------------------------------------------------------------------------
+  // Quest rewards (`questOnly`: never sold, only a finished global quest unlocks them; see game/quests.ts).
+  //  - Revolver: six heavy rounds, a sidearm that hits like a rifle; slow to fire and to reload.
+  //  - Marksman rifle: semi-auto, precise when aimed (no full scope), pierces one target; small magazine.
+  //  - Minigun: a wall of bullets, but it must spin up first, it is heavy and its belt takes ages to change.
+  //  - War hammer: one slow, crushing blow that knocks people off their feet.
+  // ------------------------------------------------------------------------------------------------
+  {
+    ...BASE,
+    id: 'revolver',
+    name: 'Revolver',
+    fireMode: 'semi',
+    rpm: 150,
+    damage: 58,
+    headshotMultiplier: 2.5,
+    range: 140,
+    falloffStart: 30,
+    falloffMinMultiplier: 0.7,
+    magSize: 6,
+    startMags: 1,
+    maxMags: 6,
+    magPrice: 250,
+    unlockPrice: 0,
+    questOnly: true, // High Noon: headshot cowboys with a sidearm
+    reloadTime: 2.3,
+    equipTime: 0.3,
+    spreadBase: 0.25,
+    spreadMoving: 1.4,
+    spreadAir: 2.5,
+    spreadPerShot: 1.1,
+    spreadRecovery: 3,
+    spreadMax: 3.5,
+    recoilPitch: 3.0,
+    recoilYaw: 0.5,
+    recoilRecovery: 9,
+    recoilBuildup: 0,
+    recoilBuildupMax: 1,
+    recoilBuildupDecay: 1,
+    recoilRoll: 0.9,
+    moveSpeedMultiplier: 1.0,
+    adsZoom: 1.35,
+    adsTime: 0.18,
+    impactImpulse: 16,
+    weight: 1.3,
+    viewKick: 0.12,
+    tracerColor: 0xffe2a0,
+    shot: 'revolver',
+  },
+  {
+    ...BASE,
+    id: 'dmr',
+    name: 'Marksman Rifle',
+    fireMode: 'semi',
+    rpm: 220,
+    damage: 46,
+    headshotMultiplier: 2.4,
+    range: 300,
+    falloffStart: 300,
+    falloffMinMultiplier: 1,
+    magSize: 12,
+    startMags: 1,
+    maxMags: 5,
+    magPrice: 450,
+    unlockPrice: 0,
+    questOnly: true, // Eagle Eye: long-range headshot kills
+    reloadTime: 2.6,
+    equipTime: 0.5,
+    spreadBase: 1.2, // loose from the hip...
+    spreadMoving: 1.6,
+    spreadAir: 3.5,
+    spreadPerShot: 0.5,
+    spreadRecovery: 3.5,
+    spreadMax: 2.5,
+    recoilPitch: 1.7,
+    recoilYaw: 0.35,
+    recoilRecovery: 8,
+    recoilBuildup: 0.08,
+    recoilBuildupMax: 1.4,
+    recoilBuildupDecay: 3,
+    recoilRoll: 0.5,
+    moveSpeedMultiplier: 0.9,
+    adsZoom: 2.6,
+    adsTime: 0.3,
+    adsSpreadMult: 0.06, // ...nearly pinpoint when aimed
+    adsMoveMult: 0.55,
+    pierce: 1,
+    impactImpulse: 22,
+    weight: 4.2,
+    viewKick: 0.07,
+    tracerColor: 0xfff0b0,
+    shot: 'dmr',
+  },
+  {
+    ...BASE,
+    id: 'minigun',
+    name: 'Minigun',
+    fireMode: 'auto',
+    rpm: 1200,
+    damage: 10,
+    headshotMultiplier: 1.5,
+    range: 150,
+    falloffStart: 30,
+    falloffMinMultiplier: 0.5,
+    magSize: 150, // one ammo belt
+    startMags: 1,
+    maxMags: 3,
+    magPrice: 900,
+    unlockPrice: 0,
+    questOnly: true, // Untouchable: finish levels without a scratch
+    reloadTime: 4.5,
+    equipTime: 0.9,
+    spreadBase: 1.3,
+    spreadMoving: 1.2,
+    spreadAir: 3.0,
+    spreadPerShot: 0.06,
+    spreadRecovery: 2.5,
+    spreadMax: 3.6,
+    recoilPitch: 0.22,
+    recoilYaw: 0.35,
+    recoilRecovery: 10,
+    recoilBuildup: 0.01,
+    recoilBuildupMax: 1.4,
+    recoilBuildupDecay: 6,
+    recoilRoll: 0.3,
+    moveSpeedMultiplier: 0.72,
+    adsZoom: 1.2,
+    adsTime: 0.4,
+    adsSpreadMult: 0.75,
+    adsMoveMult: 0.6,
+    spinUp: 0.55,
+    impactImpulse: 6,
+    weight: 14,
+    viewKick: 0.02,
+    tracerColor: 0xffc060,
+    shot: 'minigun',
+  },
+  {
+    ...BASE,
+    id: 'hammer',
+    name: 'War Hammer',
+    melee: true,
+    meleeArc: 20,
+    fireMode: 'semi',
+    rpm: 52, // a blow every 1.15 s
+    damage: 150,
+    headshotMultiplier: 1.5,
+    range: 2.8,
+    falloffStart: 2.8,
+    falloffMinMultiplier: 1,
+    magSize: 1, // unused for melee
+    startMags: 0,
+    maxMags: 0,
+    magPrice: 0,
+    unlockPrice: 0,
+    questOnly: true, // Bare Knuckle: Supermen killed with a blade
+    reloadTime: 0,
+    equipTime: 0.5,
+    spreadBase: 0,
+    spreadMoving: 0,
+    spreadAir: 0,
+    spreadPerShot: 0,
+    spreadRecovery: 1,
+    spreadMax: 0,
+    recoilPitch: 0,
+    recoilYaw: 0,
+    recoilRecovery: 1,
+    recoilBuildup: 0,
+    recoilBuildupMax: 1,
+    recoilBuildupDecay: 1,
+    recoilRoll: 0,
+    moveSpeedMultiplier: 0.95,
+    adsZoom: 1,
+    adsTime: 0,
+    muzzleVelocity: 0,
+    impactImpulse: 70, // throws the target back (and off its feet)
+    weight: 5,
+    viewKick: 0,
+    soundPitch: 0,
+    tracerColor: 0xffffff,
+  },
 ];
 
 /**
@@ -523,6 +705,7 @@ export class Weapon {
   reloadLeft = 0;
   bloom = 0;
   burst = 0; // consecutive shots, drives the growing recoil
+  spin = 0; // seconds of barrel spin (stats.spinUp weapons)
   owned = false; // weapons with an unlockPrice must be bought first
   constructor(public stats: WeaponStats) {
     this.refill();
@@ -570,6 +753,7 @@ export class Weapon {
     this.spare = Array.from({ length: this.stats.startMags }, () => this.stats.magSize);
     this.reloadLeft = 0;
     this.burst = 0;
+    this.spin = 0;
   }
 }
 
@@ -608,6 +792,14 @@ export function buildViewModel(id: string): THREE.Group {
     return finishModel(buildCrossbow());
   } else if (id === 'launcher') {
     return finishModel(buildLauncher());
+  } else if (id === 'revolver') {
+    return finishModel(buildRevolver());
+  } else if (id === 'dmr') {
+    return finishModel(buildDmr());
+  } else if (id === 'minigun') {
+    return finishModel(buildMinigun());
+  } else if (id === 'hammer') {
+    return finishModel(buildHammer());
   } else if (id === 'katana') {
     const steel = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, roughness: 0.35, metalness: 0.3, emissive: 0x2a323a });
     const lacquer = new THREE.MeshStandardMaterial({ color: 0x1a1416, roughness: 0.6 });

@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { Mannequin } from '../entities/mannequin';
 import { Wolf } from '../entities/wolf';
-import type { Weapon } from '../weapons/weapons';
+import type { Weapon, WeaponStats } from '../weapons/weapons';
 import {
   pistolShot, shotgunShot, startRifleLoop, stopRifleLoop, reloadSound, stopReloadSound, knifeSwish, synthShot, sniperShot,
 } from '../audio/audio';
-import { camera, flashLight, spawnImpact, spawnTracer, vel, viewModels, weapons, world } from './core';
+import { camera, flashLight, pos, spawnImpact, spawnTracer, vel, viewModels, weapons, world } from './core';
 import { spawnBolt, spawnCasing, spawnGrenade } from './projectiles';
 import { castRay } from './raycast';
 import { mannequins, wolves, type Target } from './actors';
@@ -28,6 +28,7 @@ export function switchWeapon(i: number) {
     return;
   }
   weapons[S.current].reloadLeft = 0;
+  weapons[S.current].spin = 0; // a minigun put away stops spinning
   stopRifleLoop();
   stopReloadSound();
   viewModels[S.current].visible = false;
@@ -96,8 +97,11 @@ function alertPack(shot: Target) {
   }
 }
 
-/** The player's shot or blade landed on a bot / wolf: damage, alerts, score, hit marker. */
-export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE.Vector3, push?: THREE.Vector3) {
+/**
+ * The player's shot or blade landed on a bot / wolf: damage, alerts, score, hit marker. `weapon` is what dealt it (not
+ * necessarily the one in hand: a grenade or bolt may land after the player switched); the quests look at it.
+ */
+export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE.Vector3, push?: THREE.Vector3, weapon?: WeaponStats) {
   alertPack(owner);
   if (push && (owner instanceof Mannequin || owner instanceof Wolf)) owner.impulse(push); // shoved by the impact (strong weapons throw people back)
   if (owner.damage(dmg)) {
@@ -112,9 +116,8 @@ export function applyHit(owner: Target, dmg: number, head: boolean, point: THREE
     S.stats.kills++;
     S.stats.byKind[owner.kind] = (S.stats.byKind[owner.kind] ?? 0) + 1;
     if (head) S.stats.headshots++;
-    const byBlade = !!weapons[S.current].stats.melee;
-    if (byBlade) S.stats.knifeKills++;
-    questKill(owner.kind, head, byBlade);
+    if (weapon?.melee) S.stats.knifeKills++;
+    questKill(owner.kind, head, weapon, Math.hypot(owner.group.position.x - pos.x, owner.group.position.z - pos.z));
     showPopup(`${head ? 'HEADSHOT · ' : ''}${name} +${gained} pts`);
     addScore(gained); // also re-checks the missions
   }
@@ -150,7 +153,9 @@ function meleeAttack(w: Weapon) {
   if (best) {
     S.shotsHit++;
     addScore(POINTS_HIT); // score only: money comes from missions
-    applyHit(best.owner, s.damage * (best.head ? s.headshotMultiplier : 1), best.head, best.point);
+    // the blow shoves the target away (the war hammer throws people off their feet)
+    const push = new THREE.Vector3(best.owner.group.position.x - tmpV.x, 0.15, best.owner.group.position.z - tmpV.z).setLength(s.impactImpulse * 0.06);
+    applyHit(best.owner, s.damage * (best.head ? s.headshotMultiplier : 1), best.head, best.point, push, s);
   }
 }
 
@@ -162,6 +167,7 @@ export function fire() {
   const s = w.stats;
   if (s.melee) return meleeAttack(w);
   if (w.reloading || S.equipLeft > 0 || w.cooldown > 0) return;
+  if (s.spinUp && w.spin < s.spinUp) return; // the barrels are still spinning up (main.ts updateWeapon)
   if (w.ammo <= 0) {
     beginReload(w);
     return;
@@ -215,7 +221,7 @@ export function fire() {
       if (head) dmg *= s.headshotMultiplier;
       landed = true;
       _pushV.copy(dir).setLength(s.impactImpulse * 0.06 * Math.pow(0.6, through));
-      applyHit(owner, dmg, head, hit.point, _pushV);
+      applyHit(owner, dmg, head, hit.point, _pushV, s);
       if (through >= (s.pierce ?? 0)) break;
       through++;
     }
@@ -242,8 +248,8 @@ export function fire() {
   S.shake = Math.max(S.shake, Math.min(0.5, s.recoilPitch * 0.08));
   S.kick = s.viewKick * (0.6 + 0.4 * mult);
   flashLight.intensity = s.silent ? 0 : 25;
-  if (s.id === 'pistol' || s.id === 'rifle' || s.id === 'smg') spawnCasing();
-  else if (s.id === 'sniper') spawnCasing(1.8);
+  if (s.id === 'pistol' || s.id === 'rifle' || s.id === 'smg' || (s.id === 'minigun' && w.ammo % 2 === 0)) spawnCasing();
+  else if (s.id === 'sniper' || s.id === 'dmr') spawnCasing(s.id === 'dmr' ? 1.4 : 1.8); // (a revolver keeps its empties)
   shotSound(w);
   if (w.ammo === 0) beginReload(w);
 }

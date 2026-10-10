@@ -5,7 +5,7 @@ import { sanitizeLoadout } from './loadout';
 import { resetQuests } from './quests';
 import { resetFlow } from './flow';
 import { clearProjectiles } from './projectiles';
-import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH } from './state';
+import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH, levelBeaten } from './state';
 
 /**
  * Back to the safe room: fresh arena, score cleared. The saved progress (level, money, weapons, ammo) is KEPT,
@@ -13,6 +13,7 @@ import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH } from './state';
  */
 export function resetGame(fresh = false) {
   S.kills = S.headshotKills = S.score = S.shotsFired = S.shotsHit = 0;
+  if (!fresh && levelBeaten()) S.level++; // died (or reloaded) after winning the level, before reaching the gate: it still counts
   if (fresh) {
     S.cash = START_CASH;
     S.level = 1;
@@ -27,7 +28,7 @@ export function resetGame(fresh = false) {
   stopRifleLoop();
   stopReloadSound();
   switchSlot(0); // back to the sidearm
-  weapons.forEach((w) => ((w.cooldown = 0), (w.bloom = 0), (w.burst = 0), (w.reloadLeft = 0)));
+  weapons.forEach((w) => ((w.cooldown = 0), (w.bloom = 0), (w.burst = 0), (w.reloadLeft = 0), (w.spin = 0)));
   S.equipLeft = 0;
   S.aiming = false;
   S.adsK = 0;

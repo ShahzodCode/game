@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="blade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f5f8"/><stop offset=".6" stop-color="#b9c1ca"/><stop offset="1" stop-color="#7d858e"/></linearGradient>
+    <linearGradient id="brass" x1="0" x2="1"><stop offset="0" stop-color="#b8892f"/><stop offset=".5" stop-color="#f6da86"/><stop offset="1" stop-color="#a97a28"/></linearGradient>
+  </defs>
+  <g transform="rotate(-35 64 64)">
+    <path d="M8 60 Q50 54 92 59 L92 67 Q50 64 14 66 Z" fill="url(#blade)" stroke="#4a5058" stroke-width="1.5"/>
+    <path d="M14 63 Q50 59 90 62" fill="none" stroke="#ffffff" stroke-width="1" opacity=".7"/>
+    <ellipse cx="94" cy="63" rx="3" ry="9" fill="url(#brass)" stroke="#5a4316" stroke-width="1.5"/>
+    <rect x="97" y="59" width="26" height="8" rx="3" fill="#1a1416" stroke="#000" stroke-width="1.5"/>
+    <path d="M100 59 L104 67 M106 59 L110 67 M112 59 L116 67" stroke="#c42b2b" stroke-width="1.6"/>
+  </g>
+</svg>

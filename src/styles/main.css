@@ -229,3 +229,4 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
 .quest.done .qp { color: var(--accent); }
 @media (max-width: 900px) { .quests { grid-template-columns: 1fr 1fr; } }
 #shopWindow:has(.quests) { width: min(1040px, 96vw); }
+#shopWindow:has(.loadout) { width: min(860px, 96vw); }

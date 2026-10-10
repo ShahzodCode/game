@@ -25,6 +25,7 @@ interface ShopDef {
 /** What the supply shop sells for a weapon, and how it describes one magazine. */
 const AMMO_NAMES: Record<string, string> = {
   shotgun: 'Shotgun shells', crossbow: 'Crossbow bolt', launcher: 'Grenade drum', sniper: 'Sniper magazine',
+  revolver: 'Revolver speedloader', minigun: 'Ammo belt',
 };
 const ammoName = (s: { id: string; name: string }) => AMMO_NAMES[s.id] ?? `${s.name} magazine`;
 const rounds = (s: { magSize: number; ammoLabel?: string }) =>
@@ -44,7 +45,7 @@ function armoryHtml() {
       .map((id) => {
         const w = weapons[weapons.findIndex((x) => x.stats.id === id)];
         const isOn = S.loadout[slot] === id;
-        const state = isOn ? 'EQUIPPED' : w.owned ? 'owned' : `locked · $${w.stats.unlockPrice}`;
+        const state = isOn ? 'EQUIPPED' : w.owned ? 'owned' : w.stats.questOnly ? 'quest reward' : `locked · $${w.stats.unlockPrice}`;
         return `<div class="lopt${isOn ? ' on' : ''}${w.owned ? '' : ' locked'}"><img src="${slotIcon(id)}" alt="" /><span class="n">${w.stats.name}</span><em>${state}</em></div>`;
       })
       .join('');

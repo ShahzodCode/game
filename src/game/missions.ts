@@ -17,8 +17,9 @@ export interface LevelStats {
   headshots: number; // headshot kills
   knifeKills: number;
   byKind: Record<string, number>; // kills per costume id, plus 'wolf'
+  hurt: number; // health the player lost in this level (the Untouchable quest wants 0)
 }
-export const emptyStats = (): LevelStats => ({ score: 0, kills: 0, headshots: 0, knifeKills: 0, byKind: {} });
+export const emptyStats = (): LevelStats => ({ score: 0, kills: 0, headshots: 0, knifeKills: 0, byKind: {}, hurt: 0 });
 
 export interface Mission {
   key: string; // unique within a level (avoids duplicates)

@@ -443,9 +443,20 @@ function tone(type: OscillatorType, f0: number, f1: number, peak: number, dur: n
 }
 
 /** Gunshots of the newer weapons. */
-export function synthShot(kind: 'smg' | 'sniper' | 'crossbow' | 'launcher') {
+export function synthShot(kind: 'smg' | 'sniper' | 'crossbow' | 'launcher' | 'revolver' | 'dmr' | 'minigun') {
   if (!ctx || !master) return;
-  if (kind === 'smg') {
+  if (kind === 'revolver') {
+    noiseBurst('highpass', 2000, 0.8, 0.06);
+    noiseBurst('lowpass', 1500, 0.75, 0.45, 0, 0.7, 150); // heavy boom with a short tail
+    tone('sine', 140, 38, 0.85, 0.3);
+  } else if (kind === 'dmr') {
+    noiseBurst('highpass', 2300, 0.75, 0.05);
+    noiseBurst('lowpass', 1900, 0.6, 0.5, 0, 0.7, 140);
+    tone('sine', 125, 34, 0.75, 0.32);
+  } else if (kind === 'minigun') {
+    noiseBurst('highpass', 1500 + Math.random() * 500, 0.38, 0.05);
+    tone('sine', 160, 70, 0.4, 0.06);
+  } else if (kind === 'smg') {
     noiseBurst('highpass', 1800 + Math.random() * 600, 0.5, 0.07);
     noiseBurst('bandpass', 900, 0.5, 0.09, 0, 0.8);
     tone('sine', 190, 70, 0.55, 0.08);
@@ -469,6 +480,36 @@ export function synthShot(kind: 'smg' | 'sniper' | 'crossbow' | 'launcher') {
   }
 }
 
+/** The minigun's motor: a whirr that rises with the barrel spin (k = 0..1, 0 = silent). Call every frame. */
+let whirr: { o: OscillatorNode; g: GainNode } | null = null;
+export function minigunWhirr(k: number) {
+  if (!ctx || !master) return;
+  const t = ctx.currentTime;
+  if (k <= 0.01) {
+    if (whirr) {
+      const w = whirr;
+      w.g.gain.setTargetAtTime(0, t, 0.06);
+      w.o.stop(t + 0.4);
+      whirr = null;
+    }
+    return;
+  }
+  if (!whirr) {
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 900;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    o.connect(f).connect(g).connect(master);
+    o.start();
+    whirr = { o, g };
+  }
+  whirr.o.frequency.setTargetAtTime(40 + 130 * k, t, 0.05);
+  whirr.g.gain.setTargetAtTime(0.07 * k, t, 0.05);
+}
+
 /** Boom of a grenade. Quieter and duller with distance. */
 export function explosionSound(distance: number) {
   if (!ctx || !master) return;
@@ -489,6 +530,9 @@ function synthReload(id: string) {
     crossbow: [[0.2, 1200], [0.7, 2000], [1.2, 1500], [1.45, 3200]], // crank, crank, bolt placed, latch
     launcher: [[0.4, 1400], [1.0, 2200], [1.6, 1700], [2.2, 2400], [2.9, 3000]], // open, drum out, drum in, close
     shotgun: [[0.3, 2000], [0.7, 2200], [1.1, 2000], [1.5, 2200], [1.9, 2800]], // shells going in
+    revolver: [[0.25, 1600], [0.6, 900], [1.3, 2100], [1.9, 2700]], // swing out, empties drop, speedloader, click shut
+    dmr: [[0.3, 1700], [1.0, 2300], [1.6, 1500], [2.2, 3000]], // mag out, mag in, slap, charging handle
+    minigun: [[0.4, 1200], [1.2, 1600], [2.2, 1300], [3.1, 2000], [3.9, 2600]], // lid, old belt out, new belt, feed, lid shut
   };
   for (const [d, f] of plan[id] ?? []) {
     const a = noiseBurst('bandpass', f, 0.28, 0.05, d, 5);

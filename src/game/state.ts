@@ -25,6 +25,9 @@ export const START_CASH = 500;
 
 export type Phase = 'hub' | 'sealing' | 'loading' | 'airlockReady' | 'arena' | 'exitOpen' | 'returning' | 'unloading' | 'toHub';
 
+/** The current level is won but the player has not walked out yet (the level number only goes up at the gate). */
+export const levelBeaten = () => S.phase === 'exitOpen' || S.phase === 'returning' || S.phase === 'unloading';
+
 /** Held keys by KeyboardEvent.code. */
 export const keys: Record<string, boolean> = {};
 
