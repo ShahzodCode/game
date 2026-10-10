@@ -1,6 +1,10 @@
 import type { LevelStats, Mission } from './missions';
 import { emptyStats } from './missions';
 
+// ---------- story ----------
+/** The player's name. Never shown as a title: it is meant to be hinted at during play (lore: the last human, 100 000+ years old, lucky, no memory yet). */
+export const PLAYER_NAME = 'Noah';
+
 // ---------- tunables ----------
 export const STAND_HEIGHT = 1.8; // collision height standing
 export const CROUCH_HEIGHT = 1.1; // collision height crouching
