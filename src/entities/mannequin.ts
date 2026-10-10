@@ -92,7 +92,7 @@ const SUPERMAN_PUNCH: MeleeStats = { aggroRange: 0, speed: 6.4, attackRange: 2.1
 const ZOMBIE_CLAW: MeleeStats = { aggroRange: 200, speed: 3.3, attackRange: 1.5, damage: 7, interval: 1.0, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0 };
 /** The boss only swats at you when you crowd it (weak): its danger is the zombies it calls. */
 const BOSS_SWAT: MeleeStats = { aggroRange: 0, speed: 2.6, attackRange: 4.6, damage: 15, interval: 1.3, giveUp: 9999, giveUpTime: 9999, calmCooldown: 0, windup: 1 };
-const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, closeDist: 5, summonNear: 10, pant: 3.2, pantCd: 9, fleeSpeed: 4.4, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 8, maxRage: 10, perCast: 2, perCastRage: 3, rockMin: 24, rockMax: 85, rockEvery: [4.5, 6.5], rockWind: 1.2 };
+const BOSS = { keepMin: 17, keepMax: 32, tiredDist: 6.5, closeDist: 5, summonNear: 10, pant: 3.2, pantCd: 9, fleeSpeed: 3.6, approach: 2.6, summonEvery: [6, 8.5], summonRage: [3.5, 5], maxZombies: 8, maxRage: 10, perCast: 2, perCastRage: 3, rockMin: 24, rockMax: 85, rockEvery: [4.5, 6.5], rockWind: 1.2 };
 const NINJA_STRIKER: MeleeStats = { aggroRange: 30, speed: 6, attackRange: 1.7, damage: 24, interval: 0.45, giveUp: 55, giveUpTime: 3, calmCooldown: 6 };
 
 export const COSTUMES: Costume[] = [
@@ -1127,7 +1127,7 @@ export class Mannequin {
     this.clock += dt;
     const walking = moveSpeed > 0.05;
     this.amp += ((walking ? 1 : 0) - this.amp) * (1 - Math.exp(-8 * dt));
-    this.phase += dt * moveSpeed * 3.9 * (walking ? 1 : 0.0) + dt * (walking ? 0 : 1.6);
+    this.phase += dt * moveSpeed * 3.9 * (this.costume.boss ? 0.5 : 1) * (walking ? 1 : 0.0) + dt * (walking ? 0 : 1.6);
     const s = Math.sin(this.phase) * this.amp;
     const idle = 1 - this.amp;
     const t = this.clock + this.seed;
