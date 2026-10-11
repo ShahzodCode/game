@@ -230,3 +230,9 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
 @media (max-width: 900px) { .quests { grid-template-columns: 1fr 1fr; } }
 #shopWindow:has(.quests) { width: min(1040px, 96vw); }
 #shopWindow:has(.loadout) { width: min(860px, 96vw); }
+
+/* armory buy / quest buttons (keyboard driven: the mouse is locked) */
+.lbtn { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 3px 10px; border-radius: 7px; font-size: 12px; font-weight: 800; background: rgba(76, 255, 143, .18); border: 1px solid var(--accent); color: var(--accent); }
+.lbtn kbd { margin: 0; }
+.lbtn.off { opacity: .5; border-color: var(--edge); color: var(--dim); background: rgba(255, 255, 255, .05); }
+.lbtn.quest { border-color: var(--edge); color: var(--dim); background: rgba(255, 255, 255, .05); cursor: not-allowed; }

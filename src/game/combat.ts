@@ -41,7 +41,7 @@ export function switchWeapon(i: number) {
 export function switchSlot(n: number) {
   const i = slotWeaponIndex(n);
   if (i < 0) {
-    showPopup(n === 2 ? 'No heavy weapon in your loadout - buy one at the weapon shop' : 'Nothing in that slot', '#ff9a4a');
+    showPopup(n === 2 ? 'No heavy weapon in your loadout - buy one at the armory terminal' : 'Nothing in that slot', '#ff9a4a');
     return;
   }
   switchWeapon(i);

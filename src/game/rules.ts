@@ -29,7 +29,7 @@ $('weaponTable').innerHTML =
   '<tr><th>Weapon</th><th>Damage</th><th>Magazine</th><th>Mag price</th><th>Unlock</th><th>Notes</th></tr>' +
   WEAPONS.map((s) => {
     const dmg = s.pellets > 1 ? `${s.damage} × ${s.pellets}` : `${s.damage}`;
-    const unlock = s.questOnly ? 'quest reward' : s.unlockPrice ? `<b class="gold">$${s.unlockPrice}</b> at the weapon shop` : 'owned';
+    const unlock = s.questOnly ? 'quest reward' : s.unlockPrice ? `<b class="gold">$${s.unlockPrice}</b> at the armory` : 'owned';
     const mag = s.melee ? '—' : `${s.magSize}`;
     const price = s.melee ? '—' : `$${s.magPrice}`;
     return `<tr><td>${slotLabel(s.id)} · ${s.name}</td><td>${dmg}</td><td>${mag}</td><td>${price}</td><td>${unlock}</td><td>${WEAPON_NOTES[s.id] ?? ''}</td></tr>`;

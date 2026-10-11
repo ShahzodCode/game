@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildArmoryTerminal, buildQuestBoard, buildWeaponShopProps } from './shopProps';
+import { buildArmoryTerminal, buildQuestBoard } from './shopProps';
 
 /**
  * The rooms around the arena, laid out along +z behind the arena's south wall:
@@ -111,8 +111,6 @@ export interface Rooms {
   gate1: Door; // safe room <-> airlock
   gate2: Door; // airlock <-> arena
   hubSpawn: THREE.Vector3;
-  /** Weapon shop zone inside the safe room. */
-  hubShop: { pos: THREE.Vector3; radius: number };
   /** Armory terminal zone (loadout screen) and a function that redraws its screen. */
   armory: { pos: THREE.Vector3; radius: number };
   /** Quest board on the back wall of the safe room. */
@@ -308,13 +306,6 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
     scene.add(light);
   }
 
-  // weapon shop kiosk against the left wall
-  const KX = -HX; // wall surface
-  solid(KX + 1.2, KX + 2.2, 0, 1.1, 91.5, 96.5, 0x3b6ea8); // counter
-  solid(KX, KX + 0.4, 0, 3.0, 91, 97, 0x2f3b52); // back panel
-  // awning, sign, gun racks with the real gun models, display case, lamp: see shopProps.ts
-  buildWeaponShopProps(scene, boxes, KX, makeSignBoard);
-  const hubShop = { pos: new THREE.Vector3(KX + 4.4, 0, 94), radius: 3.4 };
   // armory terminal against the right wall (a machine with a screen where the loadout is chosen)
   const setArmoryScreen = buildArmoryTerminal(scene, boxes, blockers, HX, 94, makeSignBoard);
   const armory = { pos: new THREE.Vector3(HX - 4.4, 0, 94), radius: 3.4 };
@@ -386,7 +377,6 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
     gate1,
     gate2,
     hubSpawn,
-    hubShop,
     armory,
     questBoard,
     setArmoryScreen,

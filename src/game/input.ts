@@ -167,7 +167,7 @@ document.addEventListener('pointerlockchange', () => {
         'SAFE ROOM',
         S.level > 1
           ? `Welcome back: level ${S.level} is waiting. Shop on the left, then walk through the gate.`
-          : 'Visit the weapon shop on the left, then walk through the open gate when you are ready.',
+          : 'Visit the armory on the right, then walk through the open gate when you are ready.',
         6,
       );
     }
