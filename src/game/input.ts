@@ -22,15 +22,24 @@ import { settingsEl, closeSettings } from './settingsUi';
 // Without that support: Esc -> pointerlockchange closes the shop (soft pause) or shows the pause menu.
 
 let fullscreenTried = false;
-function lockEscapeKey() {
+// Keys the game captures while playing, so that Ctrl+W / Ctrl+D / Ctrl+R / Ctrl+H / Ctrl+Shift+... reach the game
+// instead of the browser (Chromium keyboard lock, fullscreen only). F1-F12 and the Windows / Meta key are NOT in the
+// list on purpose: F11, F5, F12 and the Start menu keep working. While paused only Esc is captured (so Esc resumes).
+const PLAY_KEYS = [
+  ...Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (c) => `Key${c}`),
+  ...Array.from('0123456789', (c) => `Digit${c}`),
+  'Escape', 'Tab', 'Space', 'Enter', 'Backspace', 'Backquote', 'Minus', 'Equal', 'BracketLeft', 'BracketRight',
+  'Semicolon', 'Quote', 'Comma', 'Period', 'Slash', 'Backslash', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight', 'AltLeft', 'AltRight',
+];
+function setKeyLock(playing: boolean) {
   try {
-    // No argument = capture ALL keys, so Ctrl+W / Ctrl+T / F5 etc. reach the game instead of the browser
-    // (needs fullscreen; Chromium only). Esc is included.
-    (navigator as any).keyboard?.lock?.();
+    (navigator as any).keyboard?.lock?.(playing ? PLAY_KEYS : ['Escape']);
   } catch {
     /* unsupported: fall back to the browser's own Esc behaviour */
   }
 }
+const lockEscapeKey = () => setKeyLock(false);
 function capturePointer() {
   try {
     // returns a promise in modern browsers; it rejects if the browser refuses (e.g. right after a manual Esc)
@@ -118,18 +127,24 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') cycleWeapon(1);
 });
 addEventListener('keyup', (e) => (keys[e.code] = false));
-// Block browser shortcuts (Ctrl+S, Ctrl+F, F5, F1, Alt+..., Tab, Space scrolling, ...). Esc stays untouched (pause logic).
+// While playing, block only what would break the game: browser shortcuts (anything with Ctrl / Alt / Cmd held:
+// Ctrl+W, Ctrl+D, Ctrl+R, Ctrl+H, Ctrl+Shift+..., Alt+Left) and the keys that scroll / press buttons (Space, Tab, Enter,
+// Backspace). Plain keys, Shift, Esc, the F-keys (F5, F11, F12 ...) and the Windows key are left alone. In the menus nothing is blocked.
 addEventListener(
   'keydown',
   (e) => {
+    if (!S.locked && !S.shopOpen) return;
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
-    if (e.code !== 'Escape') e.preventDefault();
+    if (e.code === 'Escape' || /^F\d+$/.test(e.code) || /^(Control|Shift|Alt|Meta)(Left|Right)$/.test(e.code)) return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.code === 'Space' || e.code === 'Tab' || e.code === 'Enter' || e.code === 'Backspace') e.preventDefault();
   },
   { capture: true },
 );
-// Safety net for shortcuts a normal tab cannot intercept (Ctrl+W, Ctrl+T, Ctrl+N): ask before leaving.
+// Safety net for shortcuts a normal tab cannot intercept (Ctrl+W = crouch + forward!): ask before leaving, but only
+// while actually playing, so closing or reloading from the menu is never nagged.
 addEventListener('beforeunload', (e) => {
+  if (!S.locked) return;
   e.preventDefault();
   e.returnValue = '';
 });
@@ -198,6 +213,7 @@ $('btnNew').addEventListener('click', () => {
 
 document.addEventListener('pointerlockchange', () => {
   S.locked = document.pointerLockElement === renderer.domElement;
+  if (document.fullscreenElement) setKeyLock(S.locked); // playing: capture the shortcut keys; paused: only Esc
   rules.style.display = 'none';
   settingsEl.style.display = 'none';
   if (S.locked) {
