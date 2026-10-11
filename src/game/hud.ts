@@ -1,6 +1,6 @@
 import { $, weapons } from './core';
 import { MAX_HEALTH, S } from './state';
-import { slotWeaponIndex } from './loadout';
+import { gunImage } from '../shop/shopItems';
 
 // HUD elements. The DOM is only touched when a value really changed (setting innerHTML / styles every frame
 // forces the browser to re-layout every frame).
@@ -16,14 +16,15 @@ const hudCash = $('cash');
 const potionsEl = $('potions');
 const potionText = $('potionText');
 const healthBox = $('health');
-const healthFill = $('healthFill');
+const healthBlocks = Array.from($('healthBar').children) as HTMLElement[];
+const weaponIcon = $('weaponIcon') as HTMLImageElement;
+const spareEl = $('spare');
 const healthText = $('healthText');
 const hurtOverlay = $('hurt');
 const popup = $('popup');
 export const hitmarker = $('hitmarker');
 export const resumeHint = $('resumeHint');
 export const overlay = $('overlay');
-const slotsEl = $('slots');
 const bannerEl = $('banner');
 const crosshair = $('crosshair');
 
@@ -40,20 +41,7 @@ const setStyle = (el: HTMLElement, key: string, prop: 'opacity' | 'width' | 'bac
 
 export const accuracyText = () => (S.shotsFired ? `${Math.round((S.shotsHit / S.shotsFired) * 100)}%` : '--');
 
-/** The loadout strip at the bottom: 1 sidearm, 2 rifle, 3 heavy, 4 knife; the weapon in hand is highlighted. */
-function updateSlots() {
-  const html = [0, 1, 2, 3]
-    .map((n) => {
-      const i = slotWeaponIndex(n);
-      const name = i >= 0 ? weapons[i].stats.name : 'empty';
-      return `<div class="slot${i === S.current ? ' active' : ''}${i < 0 ? ' empty' : ''}"><b>${n + 1}</b>${name}</div>`;
-    })
-    .join('');
-  setHtml(slotsEl, 'slots', html);
-}
-
 export function updateHud() {
-  updateSlots();
   const w = weapons[S.current];
   const st = w.stats;
   setText(hudWeapon, 'weapon', st.name);
@@ -62,19 +50,25 @@ export function updateHud() {
     hudBox.classList.toggle('low', low);
     hudBox.classList.toggle('reloading', w.reloading);
   }
-  setHtml(
-    hudAmmo,
-    'ammo',
-    st.melee ? '<small>melee</small>' : w.reloading ? '<small>reloading...</small>' : `<span class="mag">${w.ammo}</span><small>/ ${w.spare.length} ${st.ammoLabel ?? 'mags'}</small>`,
-  );
+  const icon = gunImage(st.id);
+  if (changed('wicon', icon)) weaponIcon.src = icon;
+  setHtml(hudAmmo, 'ammo', st.melee ? '<small>MELEE</small>' : `${w.ammo}`);
+  if (changed('spare', st.melee ? '' : `${w.spare.length}/${st.maxMags}`)) {
+    // spare magazines as pips (a number when there are many)
+    spareEl.innerHTML = st.melee
+      ? ''
+      : st.maxMags > 8
+        ? `<b>${w.spare.length} ${st.ammoLabel ?? 'mags'}</b>`
+        : Array.from({ length: st.maxMags }, (_, i) => `<i${i < w.spare.length ? '' : ' class="gone"'}></i>`).join('');
+  }
   setStyle(reloadFill, 'reloadfill', 'width', w.reloading ? `${Math.round((1 - w.reloadLeft / st.reloadTime) * 100)}%` : '0%');
   setText(hudScore, 'score', String(S.score));
   setText(hudCash, 'cash', `$${S.cash}`);
   setText(hudKills, 'kills', `Kills ${S.kills}` + (S.headshotKills ? ` (${S.headshotKills} HS)` : ''));
   setText(hudAccuracy, 'acc', `Accuracy ${accuracyText()}`);
   const hp = Math.max(0, S.health) / MAX_HEALTH;
-  setStyle(healthFill, 'hpw', 'width', `${Math.round(hp * 100)}%`);
-  setStyle(healthFill, 'hpc', 'background', `hsl(${Math.round(hp * 120)}, 72%, 48%)`);
+  const lit = Math.ceil(hp * healthBlocks.length - 1e-6);
+  if (changed('hpblocks', String(lit))) healthBlocks.forEach((el, i) => el.classList.toggle('on', i < lit));
   setText(healthText, 'hpt', String(Math.ceil(Math.max(0, S.health))));
   if (changed('hplow', String(S.health < 30 && !S.dead))) healthBox.classList.toggle('low', S.health < 30 && !S.dead);
   setStyle(potionsEl, 'potdisp', 'display', S.potions > 0 ? 'flex' : 'none');

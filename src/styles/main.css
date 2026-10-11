@@ -14,7 +14,15 @@
   --radius: 12px;
   --shadow: 0 6px 24px rgba(0, 0, 0, .45);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* in-game HUD: flat plates, one teal accent, squarish numbers (Chakra Petch, self-hosted in public/fonts) */
+  --hud-font: "Chakra Petch", "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --plate: rgba(10, 16, 20, .74);
+  --teal: #5ce6d2;
+  --teal-dim: rgba(92, 230, 210, .42);
 }
+@font-face { font-family: "Chakra Petch"; font-weight: 500; font-display: swap; src: url(/fonts/chakra-petch-500.woff2) format("woff2"); }
+@font-face { font-family: "Chakra Petch"; font-weight: 600; font-display: swap; src: url(/fonts/chakra-petch-600.woff2) format("woff2"); }
+@font-face { font-family: "Chakra Petch"; font-weight: 700; font-display: swap; src: url(/fonts/chakra-petch-700.woff2) format("woff2"); }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; font-family: var(--font); color: var(--text); }
 canvas { display: block; }
 kbd { font: inherit; font-size: .8em; font-weight: 700; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .25); border-bottom-width: 2px; border-radius: 5px; padding: 0 .45em; color: var(--text); }
@@ -56,63 +64,64 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
     radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 37vh, rgba(0, 0, 0, .55) 37.5vh, #000 40vh); }
 #scope::after { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #e33; }
 
-/* score block, top left */
-#score { position: fixed; left: 20px; top: 18px; padding: 10px 16px 10px; pointer-events: none; min-width: 150px; line-height: 1.3; text-shadow: 0 1px 3px #000; }
-#score .scorerow { display: flex; align-items: baseline; gap: 8px; }
-#scoreValue { font-size: 34px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
-#score .lbl { font-size: 11px; letter-spacing: .18em; color: var(--dim); font-weight: 700; }
-#score .statrow { display: flex; gap: 14px; font-size: 13px; color: var(--dim); margin-top: 1px; }
-#cash { margin-top: 6px; font-size: 22px; font-weight: 800; color: #7dff9b; font-variant-numeric: tabular-nums; }
+/* score block, top left: a flat plate, the number is the point */
+#score, #health, #potions, #hud { font-family: var(--hud-font); background: var(--plate); border: 1px solid var(--teal-dim); pointer-events: none; position: fixed; }
+#score { left: 20px; top: 18px; padding: 8px 14px 9px; min-width: 150px; line-height: 1.2; }
+#score .lbl { font-size: 11px; letter-spacing: .24em; color: var(--teal); font-weight: 600; }
+#scoreValue { font-size: 38px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: #fff; line-height: 1.05; }
+#score .statrow { display: flex; gap: 14px; font-size: 12px; color: var(--dim); margin-top: 2px; font-weight: 500; letter-spacing: .04em; }
+#cash { margin-top: 5px; font-size: 22px; font-weight: 600; color: var(--gold); font-variant-numeric: tabular-nums; }
 
-/* health + potions, bottom left */
-#health { position: fixed; left: 20px; bottom: 18px; display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 12px; pointer-events: none; text-shadow: 0 1px 3px #000; }
-#health .heart { width: 24px; height: 24px; fill: var(--red); filter: drop-shadow(0 0 4px rgba(255, 70, 50, .6)); flex: none; }
-#healthBar { width: 210px; height: 14px; background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .35); border-radius: 8px; overflow: hidden; }
-#healthFill { height: 100%; width: 100%; background: #44dd55; border-radius: 8px; transition: width .2s; box-shadow: inset 0 -4px 6px rgba(0, 0, 0, .2), inset 0 3px 4px rgba(255, 255, 255, .25); }
-#healthText { font-size: 22px; font-weight: 800; min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+/* health: ten blocks + a percentage, bottom left. Potions sit on top of it. */
+#health { left: 20px; bottom: 18px; padding: 8px 12px 6px; }
+#healthBar { display: flex; gap: 3px; height: 30px; align-items: stretch; }
+#healthBar i { width: 9px; background: rgba(255, 255, 255, .13); transform: skewX(-8deg); transition: background .15s; }
+#healthBar i.on { background: var(--teal); }
+#health.low #healthBar i.on { background: var(--red); }
 #health.low { border-color: var(--red); animation: lowhp .9s ease-in-out infinite; }
-@keyframes lowhp { 50% { box-shadow: 0 0 22px rgba(255, 60, 40, .65); } }
-#potions { position: fixed; left: 20px; bottom: 74px; display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 8px; pointer-events: none; font-weight: 700; }
-#potions img { width: 28px; height: 28px; }
+#healthText { text-align: right; font-size: 18px; font-weight: 600; line-height: 1.1; margin-top: 3px; font-variant-numeric: tabular-nums; color: #fff; }
+#healthText::after { content: '%'; font-size: .75em; margin-left: 1px; color: var(--dim); }
+@keyframes lowhp { 50% { border-color: transparent; } }
+#potions { left: 20px; bottom: 92px; display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 6px; font-weight: 600; font-size: 15px; }
+#potions img { width: 22px; height: 22px; }
 
-/* ammo, bottom right */
-#hud { position: fixed; right: 20px; bottom: 18px; padding: 10px 18px 12px; text-align: right; pointer-events: none; min-width: 150px; text-shadow: 0 1px 3px #000; }
-#weapon { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
-#ammo { font-size: 40px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
-#ammo small { font-size: 16px; font-weight: 600; color: var(--dim); margin-left: 4px; }
-#hud.low #ammo .mag { color: var(--red); }
-#hud.low { border-color: rgba(255, 90, 74, .6); }
-#reloadBar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .12); margin-top: 6px; overflow: hidden; opacity: 0; transition: opacity .1s; }
+/* ammo, bottom right: a narrow, tall box. Gun icon, huge magazine number, spare magazines as pips, small name. */
+#hud { right: 20px; bottom: 18px; width: 92px; padding: 10px 8px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; overflow: hidden; }
+#weaponIcon { width: 76px; height: 32px; object-fit: contain; filter: brightness(0) invert(1); opacity: .9; }
+#ammo { font-size: 58px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: #fff; margin: 4px 0 2px; }
+#ammo small { font-size: 12px; font-weight: 600; letter-spacing: .18em; color: var(--teal); }
+#spare { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-height: 8px; max-width: 72px; }
+#spare i { width: 8px; height: 8px; background: var(--teal); transform: skewX(-8deg); }
+#spare i.gone { background: rgba(255, 255, 255, .14); }
+#spare b { font-size: 13px; font-weight: 600; color: var(--teal); }
+#weapon { font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-top: 5px; line-height: 1.2; }
+#hud.low #ammo { color: var(--red); }
+#hud.low { border-color: var(--red); }
+#reloadBar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .12); opacity: 0; transition: opacity .1s; }
 #hud.reloading #reloadBar { opacity: 1; }
-#reloadFill { height: 100%; width: 0; background: var(--gold); }
+#hud.reloading #ammo { opacity: .35; }
+#reloadFill { height: 100%; width: 0; background: var(--teal); }
 
-/* weapon slots, bottom centre */
-#slots { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: none; }
-#slots .slot { min-width: 96px; text-align: center; padding: 7px 12px; border-radius: 10px; background: var(--glass); border: 1px solid var(--edge); color: var(--dim); font-size: 13px; font-weight: 600; backdrop-filter: blur(6px); transition: transform .12s, background .12s, border-color .12s; }
-#slots .slot b { color: var(--gold); margin-right: 6px; }
-#slots .slot.active { background: rgba(76, 255, 143, .2); border-color: var(--accent); color: #fff; transform: translateY(-3px); box-shadow: 0 0 16px rgba(76, 255, 143, .25); }
-#slots .slot.empty { opacity: .4; }
-
-/* missions panel, top right */
-#missions { position: fixed; right: 20px; top: 18px; width: 310px; padding: 12px 14px 8px; pointer-events: none; display: none; font-size: 14px; line-height: 1.35; text-shadow: 0 1px 3px #000; }
-#missions h4 { margin: 0 0 2px; font-size: 13px; letter-spacing: .2em; color: var(--accent); }
-#missions .sub { color: var(--dim); font-size: 12px; margin-bottom: 8px; }
-#missions .m { display: grid; grid-template-columns: 22px 1fr auto; gap: 0 8px; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, .09); align-items: center; }
-#missions .m .n { width: 20px; height: 20px; border-radius: 50%; background: rgba(255, 255, 255, .12); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+/* missions, top right: plain text on a thin plate, no cards */
+#missions { position: fixed; right: 20px; top: 18px; width: 300px; padding: 10px 14px 6px; pointer-events: none; display: none; font-family: var(--hud-font); font-size: 14px; line-height: 1.3; background: var(--plate); border: 1px solid var(--teal-dim); font-weight: 500; }
+#missions h4 { margin: 0 0 1px; font-size: 12px; letter-spacing: .26em; color: var(--teal); font-weight: 600; }
+#missions .sub { color: var(--dim); font-size: 12px; margin-bottom: 6px; }
+#missions .m { display: grid; grid-template-columns: 20px 1fr auto; gap: 0 8px; padding: 5px 0; border-top: 1px solid rgba(255, 255, 255, .1); align-items: center; }
+#missions .m .n { width: 18px; height: 18px; background: rgba(255, 255, 255, .14); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; transform: skewX(-8deg); }
 #missions .m .p { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 13px; }
-#missions .m .r { grid-column: 2 / 4; color: #7dff9b; font-size: 12px; font-weight: 700; }
-#missions .m .bar { grid-column: 2 / 4; height: 3px; background: rgba(255, 255, 255, .12); border-radius: 2px; overflow: hidden; margin: 3px 0 1px; }
-#missions .m .bar i { display: block; height: 100%; background: var(--accent); }
-#missions .m.done { opacity: .6; }
+#missions .m .r { grid-column: 2 / 4; color: var(--gold); font-size: 12px; font-weight: 600; }
+#missions .m .bar { grid-column: 2 / 4; height: 3px; background: rgba(255, 255, 255, .13); overflow: hidden; margin: 3px 0 1px; }
+#missions .m .bar i { display: block; height: 100%; background: var(--teal); }
+#missions .m.done { opacity: .55; }
 #missions .m.done .t { text-decoration: line-through; }
-#missions .m.done .n { background: var(--accent-dark); }
+#missions .m.done .n { background: var(--teal); color: #06201c; }
 
 /* banners and popups */
-#banner { position: fixed; left: 50%; top: 13%; transform: translateX(-50%); z-index: 7; text-align: center; font-size: clamp(22px, 3.4vw, 36px); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-shadow: 0 3px 14px #000; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .4s; }
-#banner::after { content: ''; display: block; width: 90px; height: 3px; border-radius: 2px; background: var(--accent); margin: 8px auto 0; box-shadow: 0 0 12px var(--accent); }
+#banner { font-family: var(--hud-font); position: fixed; left: 50%; top: 13%; transform: translateX(-50%); z-index: 7; text-align: center; font-size: clamp(22px, 3.4vw, 36px); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; text-shadow: 0 2px 10px #000; opacity: 0; pointer-events: none; white-space: nowrap; transition: opacity .4s; }
+#banner::after { content: ''; display: block; width: 90px; height: 3px; background: var(--teal); margin: 8px auto 0; transform: skewX(-20deg); }
 #banner small { display: block; font-size: 15px; font-weight: 500; letter-spacing: .02em; text-transform: none; color: #dce4ec; margin-top: 6px; white-space: normal; max-width: 70vw; margin-left: auto; margin-right: auto; }
-#popup { z-index: 6; position: fixed; left: 50%; top: 24%; transform: translateX(-50%); color: var(--gold); font-size: 22px; font-weight: 800; text-shadow: 0 2px 8px #000; opacity: 0; pointer-events: none; white-space: nowrap; background: rgba(0, 0, 0, .4); padding: 4px 16px; border-radius: 999px; }
-#nametag { position: fixed; left: 50%; top: calc(50% + 28px); transform: translateX(-50%); font-size: 15px; font-weight: 700; text-shadow: 0 1px 4px #000; opacity: 0; pointer-events: none; white-space: nowrap; background: rgba(0, 0, 0, .45); padding: 3px 12px; border-radius: 999px; border: 1px solid var(--edge); transition: opacity .1s; }
+#popup { font-family: var(--hud-font); z-index: 6; position: fixed; left: 50%; top: 24%; transform: translateX(-50%); color: var(--gold); font-size: 22px; font-weight: 700; letter-spacing: .04em; opacity: 0; pointer-events: none; white-space: nowrap; background: var(--plate); padding: 4px 16px; border: 1px solid var(--teal-dim); }
+#nametag { font-family: var(--hud-font); position: fixed; left: 50%; top: calc(50% + 28px); transform: translateX(-50%); font-size: 15px; font-weight: 600; letter-spacing: .04em; opacity: 0; pointer-events: none; white-space: nowrap; background: var(--plate); padding: 3px 12px; border: 1px solid var(--teal-dim); transition: opacity .1s; }
 #nametag.hostile { color: #ff8a6a; border-color: rgba(255, 90, 74, .5); }
 #nametag small { font-weight: 500; color: var(--dim); margin-left: 8px; }
 #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(180, 0, 0, 0) 45%, rgba(200, 0, 0, .75) 100%); }
@@ -210,10 +219,10 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 50%; backgr
 }
 
 /* boss health bar (level 21) */
-#bossBar { position: fixed; left: 50%; top: 22px; transform: translateX(-50%); width: min(560px, 46vw); display: none; pointer-events: none; text-align: center; }
-#bossBar .bossName { font-size: 13px; letter-spacing: .32em; font-weight: 700; color: #ffb4b4; text-shadow: 0 1px 4px #000; margin-bottom: 6px; }
-#bossBar .bossTrack { height: 14px; border-radius: 8px; background: rgba(12, 8, 14, .78); border: 1px solid rgba(255, 120, 120, .45); box-shadow: 0 2px 14px rgba(0, 0, 0, .55); overflow: hidden; }
-#bossFill { height: 100%; width: 100%; background: linear-gradient(90deg, #8e1f2c, #ff4a4a); transition: width .15s linear; }
+#bossBar { font-family: var(--hud-font); position: fixed; left: 50%; top: 22px; transform: translateX(-50%); width: min(560px, 46vw); display: none; pointer-events: none; text-align: center; }
+#bossBar .bossName { font-size: 13px; letter-spacing: .32em; font-weight: 700; color: #fff; margin-bottom: 5px; }
+#bossBar .bossTrack { height: 12px; background: var(--plate); border: 1px solid rgba(255, 90, 74, .6); overflow: hidden; }
+#bossFill { height: 100%; width: 100%; background: var(--red); transition: width .15s linear; }
 
 /* global quests (quest board in the safe room) */
 .quests { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; text-align: left; }
