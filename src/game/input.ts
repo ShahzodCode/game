@@ -5,7 +5,7 @@ import { beginReload, cycleWeapon, switchSlot } from './combat';
 import { resumeHint, overlay, showBanner, updateSummary } from './hud';
 import { usePotion } from './player';
 import { rules, closeRules } from './rules';
-import { buyItem, pickLevel, shopWantsMouse, updateShop } from './shops';
+import { buyItem, pickLevel, shopEnter, shopNavigate, shopWantsMouse, updateShop } from './shops';
 import { clearSave, saveProgress } from './save';
 import { resetGame } from './session';
 import { MOUSE_SENS, S, keys } from './state';
@@ -111,6 +111,16 @@ addEventListener('keydown', (e) => {
     return;
   }
   if (S.shopOpen) {
+    // armory: arrow keys move the cursor, Enter buys / equips
+    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.code as 'ArrowLeft'];
+    if (dir) {
+      shopNavigate(dir[0], dir[1]);
+      return;
+    }
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
+      shopEnter();
+      return;
+    }
     // number keys buy while the shop window is open
     const m = /^Digit([1-9])$/.exec(e.code);
     if (m) {
@@ -198,7 +208,10 @@ try {
   applyMute(false);
 }
 btnMute.addEventListener('click', () => applyMute(!isMuted()));
-$('btnResume').addEventListener('click', startPlaying);
+$('btnResume').addEventListener('click', () => {
+  if (S.dead) resetGame(); // the death screen's Play: back to the safe room with the saved progress
+  startPlaying();
+});
 $('btnReload').addEventListener('click', () => {
   resetGame(); // keeps your saved progress
   startPlaying();
@@ -256,8 +269,8 @@ document.addEventListener('pointerlockchange', () => {
   overlay.classList.toggle('dead', S.dead);
   document.querySelector('#overlay .kicker')!.textContent = S.dead ? 'YOUR RUN ENDED' : S.started ? 'GAME PAUSED' : 'FIRST-PERSON ARENA SHOOTER';
   $('title').textContent = S.dead ? 'You died' : S.started ? 'Paused' : 'Bot Shooter';
-  $('btnResume').style.display = S.dead ? 'none' : '';
-  $('btnResume').querySelector('span')!.textContent = S.started ? 'Resume' : 'Play';
-  $('btnReload').querySelector('span')!.textContent = S.dead ? 'Play again' : 'Reload map';
+  // the death screen only offers Play and New game
+  $('btnResume').querySelector('span')!.textContent = S.dead || !S.started ? 'Play' : 'Resume';
+  for (const el of document.querySelectorAll<HTMLElement>('#btnReload, #overlay .menurow, #overlay .hintbar')) el.style.display = S.dead ? 'none' : '';
   updateSummary();
 });

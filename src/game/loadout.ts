@@ -58,6 +58,14 @@ export function cycleSlot(slot: Slot): string | null {
   return weapons[weaponIndex(next)].stats.name;
 }
 
+/** Put a specific owned weapon into its slot. Returns false if it is not owned. */
+export function equipWeapon(slot: Slot, id: string): boolean {
+  if (!SLOT_OPTIONS[slot].includes(id) || !owned(id)) return false;
+  S.loadout[slot] = id;
+  refreshArmoryScreen();
+  return true;
+}
+
 /** Hook set by world setup: redraws the terminal's screen. */
 let screen: ((lines: string[]) => void) | null = null;
 export function bindArmoryScreen(fn: (lines: string[]) => void) {
