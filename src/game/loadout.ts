@@ -9,10 +9,10 @@ export const SLOTS: Slot[] = ['side', 'rifle', 'heavy', 'melee'];
 export const SLOT_NAMES: Record<Slot, string> = { side: 'SIDEARM', rifle: 'RIFLE', heavy: 'HEAVY', melee: 'MELEE' };
 /** Which weapons may go in each slot. */
 export const SLOT_OPTIONS: Record<Slot, string[]> = {
-  side: ['pistol', 'smg'],
-  rifle: ['rifle', 'sniper', 'crossbow'],
-  heavy: ['shotgun', 'launcher'],
-  melee: ['knife', 'katana'], // the katana is a quest reward
+  side: ['pistol', 'smg', 'revolver'],
+  rifle: ['rifle', 'sniper', 'crossbow', 'dmr'],
+  heavy: ['shotgun', 'launcher', 'minigun'],
+  melee: ['knife', 'katana', 'hammer'], // katana, revolver, marksman rifle, minigun and hammer are quest rewards
 };
 
 const weaponIndex = (id: string) => weapons.findIndex((w) => w.stats.id === id);

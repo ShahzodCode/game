@@ -113,3 +113,86 @@ export function buildLauncher(): THREE.Group {
   b.box(RED, 0.02, 0.02, 0.02, { p: [0, 0.05, -0.43] }); // front sight
   return finish(b, -0.5, 0.0, 0.55, 0.35);
 }
+
+// ---- quest rewards ----
+
+export function buildRevolver(): THREE.Group {
+  const b = new MeshBuilder();
+  const NICKEL = 0xc4cad2;
+  b.cyl(NICKEL, 0.016, 0.016, 0.2, { p: [0, 0.012, -0.17], r: [Math.PI / 2, 0, 0] }, 10); // barrel
+  b.box(NICKEL, 0.018, 0.016, 0.19, { p: [0, -0.008, -0.165] }); // ejector rod housing
+  b.box(BLACK, 0.008, 0.02, 0.012, { p: [0, 0.032, -0.26] }); // front sight blade
+  b.cyl(MID, 0.034, 0.034, 0.058, { p: [0, 0.004, -0.04], r: [Math.PI / 2, 0, 0] }, 6); // cylinder (six flutes)
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    b.cyl(BRASS, 0.008, 0.008, 0.06, { p: [Math.cos(a) * 0.022, 0.004 + Math.sin(a) * 0.022, -0.04], r: [Math.PI / 2, 0, 0] }, 6); // cartridge rims
+  }
+  b.box(NICKEL, 0.03, 0.07, 0.11, { p: [0, 0.0, 0.03] }); // frame
+  b.box(NICKEL, 0.026, 0.02, 0.08, { p: [0, 0.035, -0.02] }); // top strap
+  b.box(DARK, 0.012, 0.03, 0.03, { p: [0, 0.04, 0.085], r: [-0.6, 0, 0] }); // hammer spur
+  b.box(WOOD, 0.034, 0.12, 0.05, { p: [0, -0.075, 0.1], r: [0.45, 0, 0] }); // grip
+  b.box(WOOD_D, 0.036, 0.02, 0.05, { p: [0, -0.125, 0.125], r: [0.45, 0, 0] }); // grip butt
+  b.box(DARK, 0.006, 0.03, 0.03, { p: [0, -0.045, 0.03] }); // trigger
+  return finish(b, -0.28, 0.012, 0.3, 0.75);
+}
+
+export function buildDmr(): THREE.Group {
+  const b = new MeshBuilder();
+  const TAN = 0xa48c5c;
+  b.box(DARK, 0.056, 0.075, 0.3, { p: [0, 0, -0.02] }); // receiver
+  b.box(TAN, 0.06, 0.06, 0.26, { p: [0, -0.005, -0.3] }); // handguard
+  b.cyl(STEEL, 0.013, 0.015, 0.36, { p: [0, 0.008, -0.55], r: [Math.PI / 2, 0, 0] }, 10); // barrel
+  b.cyl(DARK, 0.02, 0.02, 0.05, { p: [0, 0.008, -0.74], r: [Math.PI / 2, 0, 0] }, 10); // flash hider
+  // short magnified optic (aims without a full-screen scope)
+  b.cyl(DARK, 0.022, 0.022, 0.18, { p: [0, 0.075, -0.03], r: [Math.PI / 2, 0, 0] }, 12);
+  b.cyl(BLACK, 0.028, 0.022, 0.04, { p: [0, 0.075, -0.13], r: [Math.PI / 2, 0, 0] }, 12);
+  b.cyl(GLASS, 0.024, 0.024, 0.005, { p: [0, 0.075, -0.152], r: [Math.PI / 2, 0, 0] }, 12);
+  b.box(MID, 0.018, 0.03, 0.025, { p: [0, 0.048, -0.08] });
+  b.box(MID, 0.018, 0.03, 0.025, { p: [0, 0.048, 0.03] });
+  b.box(DARK, 0.04, 0.12, 0.05, { p: [0, -0.1, -0.06], r: [-0.1, 0, 0] }); // magazine
+  b.box(DARK, 0.036, 0.1, 0.055, { p: [0, -0.085, 0.09], r: [0.3, 0, 0] }); // pistol grip
+  b.box(TAN, 0.05, 0.07, 0.2, { p: [0, -0.01, 0.23] }); // stock
+  b.box(TAN, 0.052, 0.04, 0.12, { p: [0, 0.035, 0.24] }); // cheek rest
+  b.box(BLACK, 0.054, 0.09, 0.02, { p: [0, -0.015, 0.34] }); // butt pad
+  return finish(b, -0.77, 0.008);
+}
+
+export function buildMinigun(): THREE.Group {
+  const b = new MeshBuilder();
+  b.box(DARK, 0.11, 0.11, 0.26, { p: [0, -0.01, 0.06] }); // motor housing
+  b.cyl(MID, 0.055, 0.055, 0.04, { p: [0, 0, -0.1], r: [Math.PI / 2, 0, 0] }, 14); // front bearing
+  b.box(OLIVE, 0.09, 0.11, 0.12, { p: [-0.1, -0.06, 0.06] }); // ammo box
+  for (let i = 0; i < 5; i++) b.box(BRASS, 0.012, 0.03, 0.018, { p: [-0.05, -0.0 + i * 0.012, 0.0 + i * 0.02], r: [0, 0, 0.4] }); // belt
+  b.box(DARK, 0.04, 0.1, 0.06, { p: [0, -0.1, 0.12], r: [0.3, 0, 0] }); // rear grip
+  b.box(MID, 0.03, 0.03, 0.12, { p: [0, 0.08, 0.04] }); // carry handle
+  b.box(MID, 0.02, 0.04, 0.02, { p: [0, 0.06, -0.01] });
+  b.box(MID, 0.02, 0.04, 0.02, { p: [0, 0.06, 0.09] });
+  const g = finish(b, -0.62, 0, 0.5, 0.5);
+  // the barrel cluster is a separate mesh that spins (main.ts turns it while the minigun spins up)
+  const c = new MeshBuilder();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    c.cyl(STEEL, 0.011, 0.011, 0.5, { p: [Math.cos(a) * 0.03, Math.sin(a) * 0.03, -0.35], r: [Math.PI / 2, 0, 0] }, 8);
+  }
+  c.cyl(DARK, 0.048, 0.048, 0.025, { p: [0, 0, -0.2], r: [Math.PI / 2, 0, 0] }, 12); // clamps
+  c.cyl(DARK, 0.048, 0.048, 0.025, { p: [0, 0, -0.55], r: [Math.PI / 2, 0, 0] }, 12);
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.6 });
+  mat.envMap = getWeaponEnvironment();
+  mat.envMapIntensity = 0.8;
+  const barrels = new THREE.Mesh(c.build(), mat);
+  barrels.name = 'barrels';
+  g.add(barrels);
+  return g;
+}
+
+export function buildHammer(): THREE.Group {
+  const b = new MeshBuilder();
+  b.cyl(WOOD, 0.017, 0.019, 0.55, { p: [0, 0, -0.1], r: [Math.PI / 2, 0, 0] }, 8); // haft
+  b.cyl(BLACK, 0.021, 0.021, 0.12, { p: [0, 0, 0.12], r: [Math.PI / 2, 0, 0] }, 8); // leather grip
+  b.box(STEEL, 0.06, 0.24, 0.1, { p: [0, 0.02, -0.38] }); // head
+  b.box(MID, 0.068, 0.04, 0.108, { p: [0, 0.14, -0.38] }); // striking faces
+  b.box(MID, 0.068, 0.04, 0.108, { p: [0, -0.1, -0.38] });
+  b.box(DARK, 0.065, 0.05, 0.11, { p: [0, 0.02, -0.38] }); // collar
+  b.cone(STEEL, 0.02, 0.06, { p: [0, 0.02, -0.46], r: [-Math.PI / 2, 0, 0] }, 4); // spike on top
+  return finish(b, -0.45, 0, 0.45, 0.6);
+}

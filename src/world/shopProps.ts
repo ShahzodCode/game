@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MeshBuilder } from '../entities/meshBuilder';
-import { makeDisplayGun } from '../weapons/models';
+import { buildBot } from '../entities/botModel';
 
 // Detailed decoration for the two shops. Everything static is merged into a few vertex-coloured meshes
 // (MeshBuilder), so the extra detail costs almost nothing. Pieces only touch, they never share a flat face
@@ -171,126 +171,15 @@ export function buildSupplyShopProps(
   g = place(10.9, 53.5, 0.8, 0.8, 0.8);
   crate(side, 10.9, g, 53.5, 0.8, 0.5);
   addMesh(scene, side, blockers);
-}
 
-// =============================================================================================
-// WEAPON SHOP (safe room, left wall x = -13). Back panel x -13..-12.6, z 91..97, 3 m high;
-// counter x -11.8..-10.8, z 91.5..96.5, 1.1 m high. Customers stand at x > -10.8 and look toward -x.
-// =============================================================================================
-export function buildWeaponShopProps(
-  scene: THREE.Scene,
-  boxes: THREE.Box3[],
-  KX: number,
-  makeSign: (text: string, w: number, h: number) => THREE.Object3D,
-) {
-  const b = new MeshBuilder();
-  const px = KX + 0.4; // front face of the back panel
-
-  // pegboard frame, header and two gun rails on the panel
-  b.box(WOOD_DARK, 0.06, 0.14, 6.0, { p: [px + 0.03, 2.93, 94] }); // header
-  b.box(WOOD_DARK, 0.06, 0.12, 6.0, { p: [px + 0.03, 0.08, 94] }); // skirting
-  for (const z of [91.07, 96.93]) b.box(WOOD_DARK, 0.06, 3.0, 0.14, { p: [px + 0.03, 1.5, z] });
-  for (const z of [92.5, 94, 95.5]) b.box(WOOD_DARK, 0.04, 2.6, 0.06, { p: [px + 0.02, 1.5, z] }); // slats
-  for (const ry of [1.5, 2.3]) {
-    b.box(WOOD, 0.14, 0.06, 5.8, { p: [px + 0.07, ry, 94] }); // rail
-    for (const z of [91.5, 94, 96.5]) b.box(METAL, 0.2, 0.05, 0.1, { p: [px + 0.1, ry - 0.06, z] }); // brackets
-  }
-  // shell and cartridge boxes on the lower rail
-  for (const [z, col] of [[94.7, RED], [95.15, 0x2f6fb5], [95.6, RED], [96.05, 0x2f6fb5], [96.5, RED]] as [number, number][]) {
-    b.box(col, 0.14, 0.17, 0.4, { p: [px + 0.17, 1.53 + 0.085, z] });
-    b.box(CREAM, 0.145, 0.06, 0.3, { p: [px + 0.17, 1.53 + 0.1, z] });
-  }
-  // upper-rail knife-like tags are drawn by the signs below; price tags hang under each gun
-  const tag = (z: number, y: number, col: number) => b.box(col, 0.015, 0.2, 0.34, { p: [px + 0.075, y, z] });
-  tag(92.5, 2.15, CREAM);
-  tag(95.2, 2.15, CREAM);
-
-  // counter: wooden top with overhang, metal rim, hazard kick plate, front rail
-  const cx = KX + 1.7; // counter centre x (counter spans KX+1.2 .. KX+2.2)
-  b.box(WOOD, 1.34, 0.07, 5.34, { p: [cx, 1.135, 94] });
-  b.box(METAL, 1.38, 0.03, 5.38, { p: [cx, 1.185, 94] });
-  for (let i = 0; i < 10; i++) b.box(i % 2 ? BLACK : YELLOW, 0.03, 0.16, 0.5, { p: [KX + 2.215, 0.14, 91.75 + i * 0.5] });
-  b.box(BRASS, 0.03, 0.04, 5.0, { p: [KX + 2.215, 1.0, 94] });
-  // cash register and ammo crates at the ends of the counter
-  b.box(0x3a3d44, 0.34, 0.22, 0.42, { p: [cx, 1.31, 95.9] });
-  b.box(0x2a2d33, 0.08, 0.16, 0.3, { p: [cx + 0.1, 1.5, 95.9], r: [0, 0, -0.45] });
-  b.box(0x66e08a, 0.01, 0.08, 0.22, { p: [cx + 0.105, 1.5, 95.9], r: [0, 0, -0.45] });
-  ammoBox(b, cx, 1.22, 92.0, OLIVE, 0.4, 0.26, 0.5);
-  ammoBox(b, cx, 1.48, 92.0, 0x4a5530, 0.36, 0.22, 0.46);
-  b.cyl(BRASS, 0.01, 0.06, 0.07, { p: [cx - 0.3, 1.255, 95.4] }, 10);
-
-  // glass display case on the counter
-  const caseZ = 93.9;
-  b.box(METAL, 1.0, 0.06, 1.7, { p: [cx, 1.25, caseZ] });
-  b.box(0x7a1f2a, 0.9, 0.02, 1.6, { p: [cx, 1.29, caseZ] }); // red velvet
-  for (const [x, y, z] of [[-0.48, 0, -0.83], [0.48, 0, -0.83], [-0.48, 0, 0.83], [0.48, 0, 0.83]] as const)
-    b.box(METAL, 0.04, 0.5, 0.04, { p: [cx + x, 1.5, caseZ + z + y] });
-  b.box(METAL, 1.0, 0.04, 1.7, { p: [cx, 1.77, caseZ] });
-
-  // pendant lamp over the counter
-  b.cyl(BLACK, 0.01, 0.01, 0.7, { p: [cx, 3.2, 94.6] }, 4);
-  b.box(METAL, 0.05, 0.04, 0.05, { p: [cx, 3.57, 94.6] });
-  addMesh(scene, b);
-
-  // glass of the case (transparent, so it is its own mesh) and the lamp shade glow
-  const glass = new THREE.Mesh(
-    new THREE.BoxGeometry(0.94, 0.46, 1.64),
-    new THREE.MeshStandardMaterial({ color: 0xbfe6f5, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0.1, depthWrite: false }),
-  );
-  glass.position.set(cx, 1.52, caseZ);
-  scene.add(glass);
-  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.26, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe2a8, side: THREE.DoubleSide }));
-  shade.position.set(cx, 3.35, 94.6);
-  scene.add(shade);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff6d8 }));
-  bulb.position.set(cx, 3.28, 94.6);
-  scene.add(bulb);
-  const warm = new THREE.PointLight(0xffd9a0, 55, 9, 2);
-  warm.position.set(cx + 0.4, 3.1, 94.6);
-  scene.add(warm);
-
-  // real gun models: two long guns on the upper rail, pistols on the lower rail, pistols in the case
-  const hang = (id: string, length: number, y: number, z: number, x = px + 0.2, yaw = 0) => {
-    const g = makeDisplayGun(id, length);
-    g.position.set(x, y, z);
-    g.rotation.y = yaw;
-    scene.add(g);
-  };
-  hang('shotgun', 1.9, 2.36, 92.55);
-  hang('rifle', 1.7, 2.36, 95.25);
-  hang('pistol', 0.55, 1.56, 91.85);
-  hang('pistol', 0.55, 1.56, 92.6);
-  hang('pistol', 0.55, 1.56, 93.35);
-  hang('pistol', 0.45, 1.3, caseZ - 0.4, cx + 0.05, 0.4);
-  hang('pistol', 0.45, 1.3, caseZ + 0.4, cx + 0.05, -0.3);
-
-  // striped canopy over the counter, sloping down towards the customers, held up by two posts
-  const aw = new MeshBuilder();
-  awning(aw, KX + 1.8, 3.05, 94, 3.2, 6.2, -0.12, 'z');
-  for (const z of [91.2, 96.8]) {
-    aw.cyl(WOOD, 0.07, 0.08, 2.85, { p: [KX + 3.25, 1.425, z] }, 10);
-    aw.box(WOOD_DARK, 0.2, 0.08, 0.2, { p: [KX + 3.25, 0.04, z] });
-    boxes.push(new THREE.Box3(new THREE.Vector3(KX + 3.13, 0, z - 0.12), new THREE.Vector3(KX + 3.37, 2.85, z + 0.12)));
-  }
-  addMesh(scene, aw);
-
-  // sign with glowing neon bars; the board itself faces into the room (+x)
-  const sign = makeSign('WEAPON SHOP', 3.4, 0.85);
-  sign.position.set(KX + 0.55, 4.7, 94);
-  sign.rotation.y = Math.PI / 2;
-  scene.add(sign);
-  const neon = new THREE.MeshBasicMaterial({ color: 0xffd84a });
-  for (const y of [5.28, 4.12]) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 3.6), neon);
-    bar.position.set(KX + 0.55, y, 94);
-    scene.add(bar);
-  }
-  // floor mat in front of the counter (a different colour from the floor and the rug, touching only)
-  const mat = new MeshBuilder();
-  mat.box(0x3b3f4a, 2.2, 0.02, 5.4, { p: [KX + 3.4, 0.01, 94] });
-  mat.box(BRASS, 2.2, 0.021, 0.08, { p: [KX + 3.4, 0.0105, 91.34] });
-  mat.box(BRASS, 2.2, 0.021, 0.08, { p: [KX + 3.4, 0.0105, 96.66] });
-  addMesh(scene, mat);
+  // the shopkeeper: a procedural human standing behind the counter, facing the customers (-z). Not a blocker:
+  // the counter already keeps the player out, and bullets should not be eaten by a decoration.
+  const keeper = buildBot({}, { id: 'regular', name: 'Shopkeeper', points: 0, health: 1, weight: 0, shirt: 0x3f7a4a, pants: 0x4a3a2a, accent: 0xf2ecdc, note: '' });
+  keeper.root.position.set(X + 0.35, y0, 54.85);
+  keeper.root.rotation.y = Math.PI;
+  keeper.head.rotation.y = 0.25;
+  keeper.setExpression?.('neutral');
+  scene.add(keeper.root);
 }
 
 // =============================================================================================
@@ -408,4 +297,127 @@ export function buildQuestBoard(
   sign.position.set(X, 3.15, fz - 0.05);
   sign.rotation.y = Math.PI;
   scene.add(sign);
+}
+
+// =============================================================================================
+// WORLD MAP (safe room, left wall x = -13, where the weapon shop used to be): a big wall map that only SHOWS the progress
+// (levels beaten, the current one, the rest greyed out). Press E next to it to open the level-select window (game/shops.ts).
+// =============================================================================================
+export const MAP_LEVELS = 30;
+const MAP_COLS = 10;
+/** Position of level n (1-based) on the 1024 x 512 map canvas: a snake path from the bottom left to the top. */
+export function mapNode(n: number): [number, number] {
+  const row = Math.floor((n - 1) / MAP_COLS), i = (n - 1) % MAP_COLS;
+  const col = row % 2 ? MAP_COLS - 1 - i : i;
+  return [90 + col * 94 + Math.sin(n * 1.7) * 14, 420 - row * 150 + Math.cos(n * 2.3) * 16];
+}
+export function buildWorldMap(
+  scene: THREE.Scene,
+  boxes: THREE.Box3[],
+  WX: number, // inner surface of the left wall
+  Z: number,
+  makeSign: (text: string, w: number, h: number) => THREE.Object3D,
+): (best: number, current: number) => void {
+  const b = new MeshBuilder();
+  const fx = WX + 0.16; // front face of the frame
+  b.box(WOOD_DARK, 0.16, 2.84, 5.44, { p: [WX + 0.08, 1.85, Z] }); // frame
+  b.box(0x2a2f3a, 0.45, 0.1, 5.6, { p: [WX + 0.3, 0.38, Z] }); // ledge below
+  for (const s of [-1, 1]) b.box(WOOD_DARK, 0.14, 0.38, 0.14, { p: [WX + 0.3, 0.19, Z + s * 2.7] });
+  // floor mat
+  b.box(0x3b3f4a, 2.2, 0.02, 5.4, { p: [WX + 3.4, 0.01, Z] });
+  b.box(BRASS, 2.2, 0.021, 0.08, { p: [WX + 3.4, 0.0105, Z - 2.66] });
+  b.box(BRASS, 2.2, 0.021, 0.08, { p: [WX + 3.4, 0.0105, Z + 2.66] });
+  addMesh(scene, b);
+  boxes.push(new THREE.Box3(new THREE.Vector3(WX, 0, Z - 2.8), new THREE.Vector3(WX + 0.6, 3.3, Z + 2.8)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const draw = (best: number, current: number) => {
+    const g = canvas.getContext('2d')!;
+    g.fillStyle = '#d9c699';
+    g.fillRect(0, 0, 1024, 512);
+    const grd = g.createRadialGradient(512, 256, 120, 512, 256, 620);
+    grd.addColorStop(0, 'rgba(255,240,200,0)');
+    grd.addColorStop(1, 'rgba(90,60,20,.45)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 1024, 512);
+    // the path: walked part solid, unexplored part dashed
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    for (let n = 1; n < MAP_LEVELS; n++) {
+      const [x0, y0] = mapNode(n), [x1, y1] = mapNode(n + 1);
+      const walked = n < best;
+      g.strokeStyle = walked ? '#3a7a45' : 'rgba(80,60,30,.55)';
+      g.lineWidth = walked ? 9 : 5;
+      g.setLineDash(walked ? [] : [4, 14]);
+      g.beginPath();
+      g.moveTo(x0, y0);
+      const my = (y0 + y1) / 2 + (x1 > x0 ? -14 : 14);
+      g.quadraticCurveTo((x0 + x1) / 2, my, x1, y1);
+      g.stroke();
+    }
+    g.setLineDash([]);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (let n = 1; n <= MAP_LEVELS; n++) {
+      const [x, y] = mapNode(n);
+      const boss = n === 21, done = n < best, here = n === Math.min(current, MAP_LEVELS), open = n <= best;
+      const r = boss ? 31 : 25;
+      if (here) {
+        g.fillStyle = 'rgba(255,200,40,.45)';
+        g.beginPath();
+        g.arc(x, y, r + 12, 0, 7);
+        g.fill();
+      }
+      g.fillStyle = done ? '#3e9a52' : open ? '#e8b830' : '#8a8576';
+      if (boss && open) g.fillStyle = done ? '#a03030' : '#d04040';
+      g.strokeStyle = '#3a2a14';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.arc(x, y, r, 0, 7);
+      g.fill();
+      g.stroke();
+      g.fillStyle = open ? '#fff' : '#d8d3c4';
+      g.font = `bold ${boss ? 30 : 26}px system-ui, sans-serif`;
+      g.fillText(done ? '✓' : String(n), x, y + 1);
+      if (!done && !open) {
+        g.fillStyle = 'rgba(60,50,35,.7)';
+        g.font = 'bold 22px system-ui, sans-serif';
+        g.fillText(String(n), x, y + 1);
+      }
+      if (here) {
+        g.fillStyle = '#3a2a14';
+        g.font = 'bold 20px system-ui, sans-serif';
+        g.fillText('YOU', x, y - r - 22);
+      }
+      if (boss) {
+        g.fillStyle = '#5a1414';
+        g.font = 'bold 17px system-ui, sans-serif';
+        g.fillText('COLOSSUS', x, y + r + 16);
+      }
+    }
+    g.fillStyle = '#3a2a14';
+    g.font = 'bold 20px system-ui, sans-serif';
+    g.textAlign = 'left';
+    g.fillText('HORDE', 28, 56);
+    g.textAlign = 'right';
+    g.fillText(`levels beaten: ${Math.max(0, best - 1)} / ${MAP_LEVELS}`, 996, 480);
+    g.textAlign = 'left';
+    g.fillText('START', 28, 480);
+    tex.needsUpdate = true;
+  };
+  draw(1, 1);
+  const map = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshBasicMaterial({ map: tex }));
+  map.position.set(fx + 0.005, 1.85, Z);
+  map.rotation.y = Math.PI / 2;
+  scene.add(map);
+  const sign = makeSign('WORLD MAP', 2.6, 0.65);
+  sign.position.set(fx + 0.03, 3.6, Z);
+  sign.rotation.y = Math.PI / 2;
+  scene.add(sign);
+  return draw;
 }

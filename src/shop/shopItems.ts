@@ -15,6 +15,13 @@ export const SHOP_IMAGES = {
   crossbowBolts: '/images/shop/crossbow-bolts.svg',
   launcher: '/images/shop/launcher.svg',
   launcherGrenades: '/images/shop/launcher-grenades.svg',
+  // quest rewards (never sold): the armory shows them, the supply shop uses them for their ammo
+  katana: '/images/shop/katana.svg',
+  revolver: '/images/shop/revolver.svg',
+  dmr: '/images/shop/dmr.svg',
+  minigun: '/images/shop/minigun.svg',
+  hammer: '/images/shop/hammer.svg',
+  knife: '/images/shop/knife.svg',
 } as const;
 
 /** The picture for a weapon's shop entry: the gun itself until it is bought, then its ammo. */
@@ -34,6 +41,10 @@ export function weaponShopImage(weaponId: string, owned: boolean): string {
       return owned ? SHOP_IMAGES.crossbowBolts : SHOP_IMAGES.crossbow;
     case 'launcher':
       return owned ? SHOP_IMAGES.launcherGrenades : SHOP_IMAGES.launcher;
+    case 'revolver':
+    case 'dmr':
+    case 'minigun':
+      return SHOP_IMAGES[weaponId];
     default:
       return SHOP_IMAGES.pistolMagazine;
   }
@@ -57,6 +68,12 @@ export function gunImage(weaponId: string): string {
     case 'sniper': return SHOP_IMAGES.sniper;
     case 'crossbow': return SHOP_IMAGES.crossbow;
     case 'launcher': return SHOP_IMAGES.launcher;
+    case 'katana': return SHOP_IMAGES.katana;
+    case 'revolver': return SHOP_IMAGES.revolver;
+    case 'dmr': return SHOP_IMAGES.dmr;
+    case 'minigun': return SHOP_IMAGES.minigun;
+    case 'hammer': return SHOP_IMAGES.hammer;
+    case 'knife': return SHOP_IMAGES.knife;
     default: return SHOP_IMAGES.pistol;
   }
 }

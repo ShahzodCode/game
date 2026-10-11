@@ -13,9 +13,9 @@ interface Checkpoint {
 }
 let checkpoint: Checkpoint | null = null;
 
-/** True from the moment the doors seal until the level has been left: spending in here is provisional. */
+/** True from the moment the doors seal until the level is won: spending in here is provisional (a beaten level counts). */
 export function inLevel() {
-  return S.phase === 'loading' || S.phase === 'airlockReady' || S.phase === 'arena' || S.phase === 'exitOpen';
+  return S.phase === 'loading' || S.phase === 'airlockReady' || S.phase === 'arena';
 }
 
 /** What is spent in the current level counts from now on (called when a level starts, and outside levels). */

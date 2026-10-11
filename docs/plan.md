@@ -16,7 +16,6 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 
 ## Known caveats
 - Nothing has been hand-played by the author. It was checked with simulated tests and screenshots, so gameplay feel (balance, difficulty) is untested.
-- The pause menu button `+$100000 (test)` (`#btnCash` in index.html + its handler in src/game/input.ts) is TEST ONLY. Delete it before release.
 - Esc-to-resume relies on Chromium fullscreen/keyboard lock.
 - Save is per browser and origin.
 
@@ -35,7 +34,7 @@ Three.js + TypeScript (strict) + Vite. Procedural 3D (no model files). Run `npm 
 2. ~~Split `src/main.ts` into modules.~~ Done: see `src/game/*` and the layout in `CLAUDE.md`.
 3. More weapons (done: SMG, sniper, crossbow, launcher; they use procedural models, upload .glb files to replace them like the pistol/rifle/shotgun). Pistol/rifle/shotgun now use real .glb models (done); the knife and the characters/wolves are still procedural. Licences of the uploaded models are unknown: add credits if they need them.
 4. More enemy types for later levels, possibly bosses.
-5. Remove the test cash button.
+5. ~~Remove the test cash button.~~ Done: all DEV cheat buttons are gone.
 6. Settings (mouse sensitivity, volume), a proper title screen.
 
 ## Conventions to keep

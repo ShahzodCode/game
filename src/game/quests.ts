@@ -1,5 +1,6 @@
 import { weapons } from './core';
-import { sanitizeLoadout } from './loadout';
+import { SLOT_OPTIONS, sanitizeLoadout } from './loadout';
+import type { WeaponStats } from '../weapons/weapons';
 import { showBanner } from './hud';
 import { missionSound } from '../audio/audio';
 import { S } from './state';
@@ -13,7 +14,8 @@ export type QuestStat =
   | { kind: 'kills'; id: string } // kills of one character ('wolf', 'ninja', ... or 'zombie' = every zombie type)
   | { kind: 'headshots' }
   | { kind: 'melee' } // kills with the knife / katana
-  | { kind: 'level' }; // levels completed (the highest level finished)
+  | { kind: 'level' } // levels completed (the highest level finished)
+  | { kind: 'feat'; key: string }; // a specific, hard feat counted in questKill / questLevelDone (see FEAT_*)
 
 export interface QuestDef {
   id: string;
@@ -24,6 +26,9 @@ export interface QuestDef {
   cash: number;
   weapon?: string; // weapon id unlocked as a reward
 }
+
+const LONG_SHOT = 50; // m: what counts as a long-range kill (Eagle Eye)
+const FLAWLESS_FROM = 8; // Untouchable only counts levels from here on (the early levels are too easy)
 
 export const QUESTS: QuestDef[] = [
   { id: 'ninjas', title: 'Blade of the Night', text: 'Kill 15 ninjas', target: 15, stat: { kind: 'kills', id: 'ninja' }, cash: 4000, weapon: 'katana' },
@@ -39,10 +44,15 @@ export const QUESTS: QuestDef[] = [
   { id: 'colossus', title: 'Colossus Slayer', text: 'Defeat the Colossus', target: 1, stat: { kind: 'kills', id: 'boss' }, cash: 10000, weapon: 'launcher' },
   { id: 'horde', title: 'Plague Doctor', text: 'Kill 200 zombies', target: 200, stat: { kind: 'kills', id: 'zombie' }, cash: 12000 },
   { id: 'last', title: 'The Last Human', text: 'Finish level 30', target: 30, stat: { kind: 'level' }, cash: 30000 },
+  // feats: each one asks for something specific, and each pays with a weapon that cannot be bought
+  { id: 'highnoon', title: 'High Noon', text: 'Kill 12 cowboys with a headshot from a sidearm', target: 12, stat: { kind: 'feat', key: 'duel' }, cash: 3000, weapon: 'revolver' },
+  { id: 'eagle', title: 'Eagle Eye', text: `Get 25 headshot kills from more than ${LONG_SHOT} m away`, target: 25, stat: { kind: 'feat', key: 'longHead' }, cash: 3500, weapon: 'dmr' },
+  { id: 'knuckle', title: 'Bare Knuckle', text: 'Kill 5 Supermen with a melee weapon', target: 5, stat: { kind: 'feat', key: 'meleeSuperman' }, cash: 4000, weapon: 'hammer' },
+  { id: 'untouchable', title: 'Untouchable', text: `Finish 3 levels (level ${FLAWLESS_FROM} or later) without losing any health`, target: 3, stat: { kind: 'feat', key: 'flawless' }, cash: 6000, weapon: 'minigun' },
 ];
 
 const progressOf = (q: QuestDef) => Math.min(q.target, S.quests.progress[progressKey(q.stat)] ?? 0);
-export const progressKey = (s: QuestStat) => (s.kind === 'kills' ? `kills:${s.id}` : s.kind);
+export const progressKey = (s: QuestStat) => (s.kind === 'kills' ? `kills:${s.id}` : s.kind === 'feat' ? `feat:${s.key}` : s.kind);
 export const questDone = (q: QuestDef) => S.quests.done.includes(q.id);
 
 function complete(q: QuestDef) {
@@ -66,16 +76,22 @@ function bump(key: string, n = 1, absolute = false) {
   for (const q of QUESTS) if (!questDone(q) && progressKey(q.stat) === key && progressOf(q) >= q.target) complete(q);
 }
 
-/** The player killed something (`kind` = costume id, 'wolf'...). */
-export function questKill(kind: string, head: boolean, melee: boolean) {
-  bump(`kills:${kind}`);
-  if (kind.startsWith('zombie')) bump('kills:zombie');
+/** The player killed something (`kind` = costume id, 'wolf'...) with `weapon`, `dist` metres away. */
+export function questKill(kind: string, head: boolean, weapon: WeaponStats | undefined, dist: number) {
+  const melee = !!weapon?.melee;
+  if (kind.startsWith('zombie')) bump('kills:zombie'); // every zombie type counts as 'zombie' (the plain one only once)
+  if (kind !== 'zombie') bump(`kills:${kind}`);
   if (head) bump('headshots');
   if (melee) bump('melee');
+  // feats
+  if (kind === 'cowboy' && head && weapon && SLOT_OPTIONS.side.includes(weapon.id)) bump('feat:duel');
+  if (head && dist > LONG_SHOT) bump('feat:longHead');
+  if (kind === 'superman' && melee) bump('feat:meleeSuperman');
 }
-/** A level was finished. */
-export function questLevelDone(level: number) {
+/** A level was finished; `unhurt` = the player did not lose a single point of health in it. */
+export function questLevelDone(level: number, unhurt: boolean) {
   bump('level', level, true);
+  if (unhurt && level >= FLAWLESS_FROM) bump('feat:flawless');
 }
 
 /** The quest board window. */

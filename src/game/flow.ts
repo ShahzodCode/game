@@ -68,19 +68,6 @@ export function renderMissions() {
   }
 }
 
-/** TEST ONLY (pause-menu DEV button): count every mission as done, which opens the exit gate. */
-export function devSkipLevel() {
-  if (S.phase !== 'arena') return;
-  for (const m of S.missions) {
-    if (m.done) continue;
-    m.done = true;
-    m.progress = m.target;
-    S.missionsDone++;
-  }
-  levelComplete();
-  renderMissions();
-}
-
 /** Re-measure every mission against the level stats; pay out and announce the ones that just completed. */
 export function checkMissions() {
   for (const m of S.missions) {
@@ -104,7 +91,7 @@ export function checkMissions() {
 }
 
 function levelComplete() {
-  questLevelDone(S.level);
+  questLevelDone(S.level, S.stats.hurt === 0);
   rooms.gate2.setOpen(true);
   rooms.setExitLight(true);
   S.phase = 'exitOpen';
@@ -153,7 +140,7 @@ function updateHorde(dt: number) {
   // a spot 22-50 m from the player (the zombies come from all around)
   let at = world.randomFreePoint(pos, 22);
   for (let i = 0; i < 6 && Math.hypot(at.x - pos.x, at.z - pos.z) > 50; i++) at = world.randomFreePoint(pos, 22);
-  if (spawnZombie(pickKind(h.cfg), at, h.cfg.cap + 4)) h.spawned++;
+  if (spawnZombie(pickKind(h.cfg), at, h.cfg.cap + 4, false)) h.spawned++;
   h.t = h.cfg.every * (0.6 + Math.random() * 0.8);
 }
 
@@ -238,6 +225,7 @@ function enterPhase(p: Phase) {
 
 export function updateFlow(dt: number) {
   S.phaseT += dt;
+  S.best = Math.max(S.best, S.level);
   updateHorde(dt);
   const centred = Math.abs(pos.x) < 7;
   switch (S.phase) {

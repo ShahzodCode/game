@@ -60,13 +60,6 @@
       </div>
       <div class="hintbar"><span><kbd>WASD</kbd> move</span><span><kbd>Mouse</kbd> look / shoot</span><span><kbd>Right mouse</kbd> aim</span><span><kbd>E</kbd> shop</span><span><kbd>Esc</kbd> pause</span></div>
     </div>
-    <!-- test helper, kept well away from the real menu; delete before release (and #btnCash handler in game/input.ts) -->
-    <div class="devbar">
-      <button id="btnCash" class="devbtn" title="Test only: free money for trying out the shops">DEV &middot; +$100,000</button>
-      <button id="btnSkip" class="devbtn" title="Test only: finish the current level (the exit gate opens)">DEV &middot; skip level</button>
-      <button id="btnBoss" class="devbtn" title="Test only: jump to level 20 so the next level is the boss">DEV &middot; next = boss</button>
-      <button id="btnHorde" class="devbtn" title="Test only: jump to level 21 so the next level is the first zombie horde">DEV &middot; next = horde</button>
-    </div>
   </div>
 
   <!-- ---------- settings ---------- -->
@@ -101,8 +94,8 @@
         <span>W A S D</span><span>Move</span>
         <span>Mouse</span><span>Look around / left button shoots / right button aims (zoom, tighter spread, slower; sniper gets a scope)</span>
         <span>Space</span><span>Jump (hold longer to jump higher; small ledges are stepped onto automatically)</span>
-        <span>Ctrl (hold)</span><span>Run faster</span>
-        <span>Shift (hold)</span><span>Crouch: slower, lower, smaller target. Sprint (Ctrl) then press Shift to slide</span>
+        <span>Shift (hold)</span><span>Run faster</span>
+        <span>Ctrl (hold)</span><span>Crouch: slower, lower, smaller target. Sprint (Shift) then press Ctrl to slide</span>
         <span>1 / 2 / 3 / 4</span><span>Sidearm / Rifle slot / Heavy slot / Knife. You carry ONE weapon per slot into the arena, chosen at the armory terminal in the safe room (E)</span>
         <span>Q or mouse wheel</span><span>Next weapon in your loadout</span>
         <span>R</span><span>Reload</span>
@@ -118,7 +111,7 @@
         <li>You have <b>100 health</b> (bar at the bottom left). <b>It does not heal by itself:</b> buy <b>health potions</b> at the shop (carry up to 3) and press <kbd>H</kbd> to drink one. At zero health you die; use <b>Play again</b> in the menu.</li>
         <li>Most bots are harmless, but not all. <b>Cowboys</b> shoot back once you shoot one (and so do cowboys near him): get behind cover, they need a clear line of sight. <b>Criminals</b> usually patrol near the outer walls and attack with a knife as soon as you come close; they give up if you get far enough away. <b>Ninjas</b> appear from level 14 and attack on sight: very fast, with quick and lethal strikes, but they have little health. <b>Sporty</b> and <b>Superman</b> bots walk faster than the others. New dangers arrive one at a time: wolves from level 3, criminals from level 4, cowboys from level 5, soldiers from level 7, Superman from level 10 and ninjas from level 14. Missions start easy and get harder up to level 20, and the arena itself grows from a small yard to the whole map. After level 20 waits a boss: <b>the Colossus</b>, a giant that calls zombies next to you and hurls boulders from far away (a hit hurts a lot, sidestep them). Up close it punches, but it also gets winded for a few seconds when you rush it.</li>
         <li>The <b>knife</b> is always in your pack: no ammo, short reach, silent. Great for finishing bots, risky against anything that bites or shoots.</li>
-        <li><b>Wolves</b> are rare and calm until you shoot one. Then it hunts you and bites, and wolves close to it join in. They run faster than you walk, so sprint (Ctrl), break line of sight, or kill them: they lose interest if you get far enough away.</li>
+        <li><b>Wolves</b> are rare and calm until you shoot one. Then it hunts you and bites, and wolves close to it join in. They run faster than you walk, so sprint (Shift), break line of sight, or kill them: they lose interest if you get far enough away.</li>
         <li>Shooting and killing give <b>score</b>: 10 for every landed shot, the target's own points for a kill, and +50 for a headshot kill. They do <b>not</b> give money. <b class="gold">Money only comes from completing missions</b>, and the later missions pay more. Aim the crosshair at a character to see its name tag.</li>
         <li>Ammo comes in magazines. You carry up to <b>6 spare magazines</b> per weapon. Reloading loads a fresh magazine and <b>throws the old one away</b>, whatever is left in it: reload early and you waste bullets, so make every shot count.</li>
         <li>There are two shops. The <b>weapon shop</b> in the safe room sells every gun (each comes loaded with one spare magazine). The <b>armory terminal</b> next to it lets you choose what you carry: one weapon per slot (sidearm, rifle, heavy) plus the knife. The <b>supply shop</b> beside the arena gate sells magazines for the guns in your loadout and health potions. Step into a shop's green circle, press <kbd>E</kbd>, then press the number shown on an item to buy it.</li>

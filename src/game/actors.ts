@@ -34,11 +34,16 @@ export const botHooks: BotHooks = {
 };
 /** How many summoned zombies the boss may have out at once (the horde levels use the whole pool). */
 export const zombieLimit = { n: 8 };
-/** Puts a zombie of this kind at a spot (clamped to the arena). When `limit` are already out, the one farthest from the player vanishes. */
-export function spawnZombie(id: string, at: THREE.Vector3, limit = zombies.length) {
+/**
+ * Puts a zombie of this kind at a spot (clamped to the arena). When `limit` are already out, a body lying on the ground is
+ * reused first; only if `evictAlive` (the boss's summons) does the living zombie farthest from the player vanish. The horde
+ * never evicts a living one: it has to be killed, or the "kill the whole horde" mission could never be finished.
+ */
+export function spawnZombie(id: string, at: THREE.Vector3, limit = zombies.length, evictAlive = true) {
   const out = zombies.filter((q) => !q.disabled);
   let z = out.length < Math.min(limit, zombies.length) ? zombies.find((q) => q.disabled) : undefined;
-  if (!z) {
+  if (!z) z = out.find((q) => !q.alive);
+  if (!z && evictAlive) {
     let far = -1;
     for (const q of out) {
       const d = Math.hypot(q.group.position.x - pos.x, q.group.position.z - pos.z);
@@ -47,8 +52,8 @@ export function spawnZombie(id: string, at: THREE.Vector3, limit = zombies.lengt
         z = q;
       }
     }
-    z?.disable();
   }
+  z?.disable();
   if (!z) return false;
   const r = world.region;
   z.spawnAs(id, new THREE.Vector3(THREE.MathUtils.clamp(at.x, r.x0 + 2, r.x1 - 2), 0, THREE.MathUtils.clamp(at.z, r.z0 + 2, r.z1 - 2)));
