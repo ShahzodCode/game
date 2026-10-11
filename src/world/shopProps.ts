@@ -298,3 +298,126 @@ export function buildQuestBoard(
   sign.rotation.y = Math.PI;
   scene.add(sign);
 }
+
+// =============================================================================================
+// WORLD MAP (safe room, left wall x = -13, where the weapon shop used to be): a big wall map that only SHOWS the progress
+// (levels beaten, the current one, the rest greyed out). Press E next to it to open the level-select window (game/shops.ts).
+// =============================================================================================
+export const MAP_LEVELS = 30;
+const MAP_COLS = 10;
+/** Position of level n (1-based) on the 1024 x 512 map canvas: a snake path from the bottom left to the top. */
+export function mapNode(n: number): [number, number] {
+  const row = Math.floor((n - 1) / MAP_COLS), i = (n - 1) % MAP_COLS;
+  const col = row % 2 ? MAP_COLS - 1 - i : i;
+  return [90 + col * 94 + Math.sin(n * 1.7) * 14, 420 - row * 150 + Math.cos(n * 2.3) * 16];
+}
+export function buildWorldMap(
+  scene: THREE.Scene,
+  boxes: THREE.Box3[],
+  WX: number, // inner surface of the left wall
+  Z: number,
+  makeSign: (text: string, w: number, h: number) => THREE.Object3D,
+): (best: number, current: number) => void {
+  const b = new MeshBuilder();
+  const fx = WX + 0.16; // front face of the frame
+  b.box(WOOD_DARK, 0.16, 2.84, 5.44, { p: [WX + 0.08, 1.85, Z] }); // frame
+  b.box(0x2a2f3a, 0.45, 0.1, 5.6, { p: [WX + 0.3, 0.38, Z] }); // ledge below
+  for (const s of [-1, 1]) b.box(WOOD_DARK, 0.14, 0.38, 0.14, { p: [WX + 0.3, 0.19, Z + s * 2.7] });
+  // floor mat
+  b.box(0x3b3f4a, 2.2, 0.02, 5.4, { p: [WX + 3.4, 0.01, Z] });
+  b.box(BRASS, 2.2, 0.021, 0.08, { p: [WX + 3.4, 0.0105, Z - 2.66] });
+  b.box(BRASS, 2.2, 0.021, 0.08, { p: [WX + 3.4, 0.0105, Z + 2.66] });
+  addMesh(scene, b);
+  boxes.push(new THREE.Box3(new THREE.Vector3(WX, 0, Z - 2.8), new THREE.Vector3(WX + 0.6, 3.3, Z + 2.8)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const draw = (best: number, current: number) => {
+    const g = canvas.getContext('2d')!;
+    g.fillStyle = '#d9c699';
+    g.fillRect(0, 0, 1024, 512);
+    const grd = g.createRadialGradient(512, 256, 120, 512, 256, 620);
+    grd.addColorStop(0, 'rgba(255,240,200,0)');
+    grd.addColorStop(1, 'rgba(90,60,20,.45)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 1024, 512);
+    // the path: walked part solid, unexplored part dashed
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    for (let n = 1; n < MAP_LEVELS; n++) {
+      const [x0, y0] = mapNode(n), [x1, y1] = mapNode(n + 1);
+      const walked = n < best;
+      g.strokeStyle = walked ? '#3a7a45' : 'rgba(80,60,30,.55)';
+      g.lineWidth = walked ? 9 : 5;
+      g.setLineDash(walked ? [] : [4, 14]);
+      g.beginPath();
+      g.moveTo(x0, y0);
+      const my = (y0 + y1) / 2 + (x1 > x0 ? -14 : 14);
+      g.quadraticCurveTo((x0 + x1) / 2, my, x1, y1);
+      g.stroke();
+    }
+    g.setLineDash([]);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    for (let n = 1; n <= MAP_LEVELS; n++) {
+      const [x, y] = mapNode(n);
+      const boss = n === 21, done = n < best, here = n === Math.min(current, MAP_LEVELS), open = n <= best;
+      const r = boss ? 31 : 25;
+      if (here) {
+        g.fillStyle = 'rgba(255,200,40,.45)';
+        g.beginPath();
+        g.arc(x, y, r + 12, 0, 7);
+        g.fill();
+      }
+      g.fillStyle = done ? '#3e9a52' : open ? '#e8b830' : '#8a8576';
+      if (boss && open) g.fillStyle = done ? '#a03030' : '#d04040';
+      g.strokeStyle = '#3a2a14';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.arc(x, y, r, 0, 7);
+      g.fill();
+      g.stroke();
+      g.fillStyle = open ? '#fff' : '#d8d3c4';
+      g.font = `bold ${boss ? 30 : 26}px system-ui, sans-serif`;
+      g.fillText(done ? '✓' : String(n), x, y + 1);
+      if (!done && !open) {
+        g.fillStyle = 'rgba(60,50,35,.7)';
+        g.font = 'bold 22px system-ui, sans-serif';
+        g.fillText(String(n), x, y + 1);
+      }
+      if (here) {
+        g.fillStyle = '#3a2a14';
+        g.font = 'bold 20px system-ui, sans-serif';
+        g.fillText('YOU', x, y - r - 22);
+      }
+      if (boss) {
+        g.fillStyle = '#5a1414';
+        g.font = 'bold 17px system-ui, sans-serif';
+        g.fillText('COLOSSUS', x, y + r + 16);
+      }
+    }
+    g.fillStyle = '#3a2a14';
+    g.font = 'bold 20px system-ui, sans-serif';
+    g.textAlign = 'left';
+    g.fillText('HORDE', 28, 56);
+    g.textAlign = 'right';
+    g.fillText(`levels beaten: ${Math.max(0, best - 1)} / ${MAP_LEVELS}`, 996, 480);
+    g.textAlign = 'left';
+    g.fillText('START', 28, 480);
+    tex.needsUpdate = true;
+  };
+  draw(1, 1);
+  const map = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.6), new THREE.MeshBasicMaterial({ map: tex }));
+  map.position.set(fx + 0.005, 1.85, Z);
+  map.rotation.y = Math.PI / 2;
+  scene.add(map);
+  const sign = makeSign('WORLD MAP', 2.6, 0.65);
+  sign.position.set(fx + 0.03, 3.6, Z);
+  sign.rotation.y = Math.PI / 2;
+  scene.add(sign);
+  return draw;
+}

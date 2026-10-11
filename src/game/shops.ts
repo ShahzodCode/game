@@ -6,6 +6,7 @@ import { SLOTS, SLOT_NAMES, SLOT_OPTIONS, bindArmoryScreen, cycleSlot, isEquippe
 import { rooms } from './flow';
 import { showPopup } from './hud';
 import { QUESTS, questsHtml } from './quests';
+import { levelConfig, LAST_HORDE_LEVEL } from './missions';
 import { S } from './state';
 
 // Two shops: the ARMORY terminal in the safe room (loadout + buying guns) and the SUPPLY shop next to the arena gate
@@ -20,6 +21,8 @@ interface ShopDef {
   buy: (i: number) => void;
   /** Custom window content instead of the card grid (the armory terminal). */
   html?: () => string;
+  /** The window needs the mouse (its buttons are clicked): the pointer lock is released while it is open. */
+  mouse?: boolean;
   foot?: string;
 }
 /** What the supply shop sells for a weapon, and how it describes one magazine. */
@@ -81,7 +84,45 @@ function buyWeapon(wi: number) {
   showPopup(`${name} unlocked  -$${unlockPrice}` + (equipped ? ' (equipped)' : ' - press its slot number to equip it'), '#7dff9b');
 }
 
+/** The world map window: a grid of levels. Levels up to the highest one reached can be clicked (only while in the safe room). */
+function mapHtml() {
+  const can = S.phase === 'hub' && !S.dead;
+  const nodes = Array.from({ length: LAST_HORDE_LEVEL }, (_, i) => {
+    const n = i + 1;
+    const cfg = levelConfig(n);
+    const open = n <= S.best;
+    const cls = ['mnode', n < S.best ? 'done' : open ? 'open' : 'locked', n === S.level ? 'here' : '', cfg.boss ? 'boss' : cfg.horde ? 'horde' : ''].join(' ');
+    return `<button class="${cls}" data-level="${n}"${open && can ? '' : ' disabled'} title="${open ? cfg.note.replace(/"/g, '') : 'Not reached yet'}">${n < S.best ? '&#10003;' : n}<small>${cfg.boss ? 'BOSS' : cfg.horde ? 'HORDE' : n === S.level ? 'HERE' : ''}</small></button>`;
+  }).join('');
+  return `<h3>WORLD MAP</h3><div class="cashline">Level ${S.level} selected · highest reached ${S.best}</div><div class="worldmap">${nodes}</div>` +
+    `<div class="foot">${can ? 'Click a level to go back to it, then walk through the gate' : 'You can only pick a level in the safe room'} · E or Esc to close</div>`;
+}
+/** Go back to (or pick) a level from the map. */
+export function pickLevel(n: number): boolean {
+  if (S.phase !== 'hub' || S.dead || n < 1 || n > S.best) return false;
+  S.level = n;
+  showPopup(`Level ${n} selected - walk through the gate`, '#7dff9b');
+  return true;
+}
+export const shopWantsMouse = () => !!activeShop?.mouse;
+let lastMapKey = '';
+function refreshMapScreen() {
+  const key = `${S.best}/${S.level}`;
+  if (key === lastMapKey) return;
+  lastMapKey = key;
+  rooms.setMapScreen(S.best, S.level);
+}
+
 const shops: ShopDef[] = [
+  {
+    title: 'WORLD MAP',
+    pos: rooms.worldMap.pos,
+    radius: rooms.worldMap.radius,
+    cards: () => [],
+    html: mapHtml,
+    mouse: true,
+    buy: () => {},
+  },
   {
     title: 'QUEST BOARD',
     pos: rooms.questBoard.pos,
@@ -149,6 +190,7 @@ let shopHtml = '';
 bindArmoryScreen((lines) => rooms.setArmoryScreen(lines));
 
 export function updateShop() {
+  refreshMapScreen();
   activeShop = null;
   for (const s of shops) {
     const dx = pos.x - s.pos.x, dz = pos.z - s.pos.z;

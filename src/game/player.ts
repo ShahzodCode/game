@@ -100,8 +100,8 @@ export function movePlayer(dt: number) {
   campfireBurn(dt);
   const w = weapons[S.current].stats;
   const horiz0 = Math.hypot(vel.x, vel.z);
-  const shift = !!(keys['ShiftLeft'] || keys['ShiftRight']);
-  const ctrl = !!(keys['ControlLeft'] || keys['ControlRight']);
+  const shift = !!(keys['ControlLeft'] || keys['ControlRight']); // crouch (Ctrl)
+  const ctrl = !!(keys['ShiftLeft'] || keys['ShiftRight']); // run (Shift)
   S.slideCd = Math.max(0, S.slideCd - dt);
 
   // ---- crouch, and the crouch-slide (sprint, then press crouch) ----

@@ -11,8 +11,8 @@ export const CROUCH_HEIGHT = 1.1; // collision height crouching
 export const EYE_OFFSET = 0.1; // eyes sit this far below the top of the player
 export const PLAYER_RADIUS = 0.4;
 export const WALK_SPEED = 6;
-export const SPRINT_SPEED = 9; // hold Ctrl
-export const CROUCH_SPEED = 3; // hold Shift
+export const SPRINT_SPEED = 9; // hold Shift
+export const CROUCH_SPEED = 3; // hold Ctrl
 export const CROUCH_LERP = 12; // how fast height changes
 export const JUMP_SPEED = 7;
 export const GRAVITY = 20;
@@ -63,6 +63,10 @@ export const S = {
   triggerPressed: false, // edge, for semi-auto
   softPaused: false, // shop was closed with Esc: any key / click picks the game back up
   started: false,
+  /** The world-map window is open and the mouse is free so its levels can be clicked. */
+  mapOpen: false,
+  /** Highest level reached so far (the map lets you go back to any level up to it). */
+  best: 1,
 
   // weapons
   /** What is carried into the arena (one per slot; null = nothing owned for that slot yet). Chosen at the armory terminal. */

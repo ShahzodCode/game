@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildArmoryTerminal, buildQuestBoard } from './shopProps';
+import { buildArmoryTerminal, buildQuestBoard, buildWorldMap } from './shopProps';
 
 /**
  * The rooms around the arena, laid out along +z behind the arena's south wall:
@@ -115,6 +115,9 @@ export interface Rooms {
   armory: { pos: THREE.Vector3; radius: number };
   /** Quest board on the back wall of the safe room. */
   questBoard: { pos: THREE.Vector3; radius: number };
+  /** World map zone (left wall) and a function that redraws it: (highest level reached, current level). */
+  worldMap: { pos: THREE.Vector3; radius: number };
+  setMapScreen: (best: number, current: number) => void;
   setArmoryScreen: (lines: string[]) => void;
   /** Bright light around the arena gate (shown once the level can be left). */
   setExitLight: (on: boolean) => void;
@@ -309,6 +312,9 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
   // armory terminal against the right wall (a machine with a screen where the loadout is chosen)
   const setArmoryScreen = buildArmoryTerminal(scene, boxes, blockers, HX, 94, makeSignBoard);
   const armory = { pos: new THREE.Vector3(HX - 4.4, 0, 94), radius: 3.4 };
+  // world map on the left wall, where the weapon shop used to be (shows the progress; E opens the level select)
+  const setMapScreen = buildWorldMap(scene, boxes, -HX, 94, makeSignBoard);
+  const worldMap = { pos: new THREE.Vector3(-HX + 4.4, 0, 94), radius: 3.4 };
   buildQuestBoard(scene, boxes, HZ1, 0, makeSignBoard);
   const questBoard = { pos: new THREE.Vector3(0, 0, HZ1 - 3.2), radius: 3.4 };
   const hubSpawn = new THREE.Vector3(0, 0, 98);
@@ -379,6 +385,8 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
     hubSpawn,
     armory,
     questBoard,
+    worldMap,
+    setMapScreen,
     setArmoryScreen,
     setExitLight: (on) => {
       exit.visible = on;

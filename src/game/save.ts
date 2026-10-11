@@ -9,15 +9,17 @@ import { S, START_CASH, levelBeaten } from './state';
 // If you change the save shape, bump `v` and handle the old version in loadProgress().
 export const SAVE_KEY = 'botshooter.save.v1'; // the key keeps its name; the data inside carries its own version
 interface SaveData {
-  v: 1 | 2 | 3; // 2 added the loadout, 3 the quests (and the melee slot)
+  v: 1 | 2 | 3 | 4; // 2 added the loadout, 3 the quests (and the melee slot), 4 the highest level reached (world map)
   quests?: { progress?: Record<string, number>; done?: string[] };
   level: number;
+  best?: number;
   cash: number;
   loadout?: { side?: string | null; rifle?: string | null; heavy?: string | null; melee?: string | null };
   weapons: { id: string; owned: boolean; ammo: number; spare: number[] }[];
 }
 const snapshot = (): SaveData => ({
-  v: 3,
+  v: 4,
+  best: Math.max(S.best, S.level + (levelBeaten() ? 1 : 0)),
   quests: questsToSave(),
   level: S.level + (levelBeaten() ? 1 : 0), // a won level counts even if the page closes before the player walks out
   cash: Math.round(S.cash),
@@ -49,10 +51,11 @@ export function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const d = JSON.parse(raw) as Partial<SaveData>;
-    if (d.v !== 1 && d.v !== 2 && d.v !== 3) return;
+    if (d.v !== 1 && d.v !== 2 && d.v !== 3 && d.v !== 4) return;
     const int = (n: unknown, min: number, max: number, fallback: number) =>
       typeof n === 'number' && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.floor(n))) : fallback;
     S.level = int(d.level, 1, 999, 1);
+    S.best = Math.max(S.level, int(d.best, 1, 999, 1));
     S.cash = int(d.cash, 0, 100_000_000, START_CASH);
     for (const sw of Array.isArray(d.weapons) ? d.weapons : []) {
       const w = weapons.find((x) => x.stats.id === sw?.id); // weapons that no longer exist are skipped

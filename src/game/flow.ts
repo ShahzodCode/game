@@ -223,6 +223,7 @@ function enterPhase(p: Phase) {
 
 export function updateFlow(dt: number) {
   S.phaseT += dt;
+  S.best = Math.max(S.best, S.level);
   updateHorde(dt);
   const centred = Math.abs(pos.x) < 7;
   switch (S.phase) {

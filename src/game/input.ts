@@ -5,7 +5,7 @@ import { beginReload, cycleWeapon, switchSlot } from './combat';
 import { resumeHint, overlay, showBanner, updateSummary } from './hud';
 import { usePotion } from './player';
 import { rules, closeRules } from './rules';
-import { buyItem, updateShop } from './shops';
+import { buyItem, pickLevel, shopWantsMouse, updateShop } from './shops';
 import { clearSave, saveProgress } from './save';
 import { resetGame } from './session';
 import { MOUSE_SENS, S, keys } from './state';
@@ -24,7 +24,9 @@ import { settingsEl, closeSettings } from './settingsUi';
 let fullscreenTried = false;
 function lockEscapeKey() {
   try {
-    (navigator as any).keyboard?.lock?.(['Escape']); // delivers Esc to the page (needs fullscreen; Chromium only)
+    // No argument = capture ALL keys, so Ctrl+W / Ctrl+T / F5 etc. reach the game instead of the browser
+    // (needs fullscreen; Chromium only). Esc is included.
+    (navigator as any).keyboard?.lock?.();
   } catch {
     /* unsupported: fall back to the browser's own Esc behaviour */
   }
@@ -50,7 +52,25 @@ function startPlaying() {
   capturePointer();
 }
 
+/** Close the world map: the mouse goes back to the game. */
+function closeMap() {
+  S.mapOpen = false;
+  S.shopOpen = false;
+  updateShop();
+  S.softPaused = true;
+  resumeHint.style.display = 'block';
+  startPlaying();
+}
+$('shopWindow').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-level]') as HTMLButtonElement | null;
+  if (b && S.mapOpen && pickLevel(Number(b.dataset.level))) closeMap();
+});
+
 addEventListener('keydown', (e) => {
+  if (S.mapOpen && !S.locked && (e.code === 'Escape' || e.code === 'KeyE') && !e.repeat) {
+    closeMap();
+    return;
+  }
   if (e.code === 'Escape' && S.locked) {
     // only reached when the page really receives Esc (keyboard lock active)
     e.preventDefault();
@@ -75,6 +95,10 @@ addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.code === 'KeyE' && S.inShop && !e.repeat) {
     S.shopOpen = !S.shopOpen;
+    if (S.shopOpen && shopWantsMouse()) {
+      S.mapOpen = true;
+      document.exitPointerLock(); // free the mouse so the levels can be clicked
+    }
     return;
   }
   if (S.shopOpen) {
@@ -94,6 +118,21 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyQ') cycleWeapon(1);
 });
 addEventListener('keyup', (e) => (keys[e.code] = false));
+// Block browser shortcuts (Ctrl+S, Ctrl+F, F5, F1, Alt+..., Tab, Space scrolling, ...). Esc stays untouched (pause logic).
+addEventListener(
+  'keydown',
+  (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    if (e.code !== 'Escape') e.preventDefault();
+  },
+  { capture: true },
+);
+// Safety net for shortcuts a normal tab cannot intercept (Ctrl+W, Ctrl+T, Ctrl+N): ask before leaving.
+addEventListener('beforeunload', (e) => {
+  e.preventDefault();
+  e.returnValue = '';
+});
 addEventListener('mousedown', (e) => {
   if (!S.locked) {
     if (S.softPaused) startPlaying();
@@ -162,11 +201,12 @@ document.addEventListener('pointerlockchange', () => {
   rules.style.display = 'none';
   settingsEl.style.display = 'none';
   if (S.locked) {
+    S.mapOpen = false;
     if (!S.started) {
       showBanner(
         'SAFE ROOM',
         S.level > 1
-          ? `Welcome back: level ${S.level} is waiting. Shop on the left, then walk through the gate.`
+          ? `Welcome back: level ${S.level} is waiting. Pick a level on the map or walk through the gate.`
           : 'Visit the armory on the right, then walk through the open gate when you are ready.',
         6,
       );
@@ -182,6 +222,7 @@ document.addEventListener('pointerlockchange', () => {
   stopRifleLoop();
   stopReloadSound();
   for (const k in keys) keys[k] = false;
+  if (S.mapOpen) return; // the world map is open: no pause menu, the window stays and the mouse is free
   const closedShopWithEsc = S.shopOpen && !S.dead;
   S.shopOpen = false;
   updateShop(); // hide the shop window straight away

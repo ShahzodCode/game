@@ -14,9 +14,11 @@ import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH, levelBeaten } from './state';
 export function resetGame(fresh = false) {
   S.kills = S.headshotKills = S.score = S.shotsFired = S.shotsHit = 0;
   if (!fresh && levelBeaten()) S.level++; // died (or reloaded) after winning the level, before reaching the gate: it still counts
+  S.best = Math.max(S.best, S.level);
   if (fresh) {
     S.cash = START_CASH;
     S.level = 1;
+    S.best = 1;
     for (const w of weapons) w.refill();
     S.loadout.side = 'pistol';
     S.loadout.rifle = 'rifle';
