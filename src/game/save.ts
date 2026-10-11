@@ -2,28 +2,34 @@ import { weapons } from './core';
 import { sanitizeLoadout } from './loadout';
 import { questsFromSave, questsToSave } from './quests';
 import { S, START_CASH } from './state';
+import { clampPotions, commitStock, stockForSave } from './stock';
 
 // Saved progress (browser localStorage).
 // Only the long-term progress is stored: the level the player is on, his money, and his weapons with their ammo.
-// (Health, potions, score and the arena itself start fresh every visit.)
+// Ammo and potions are saved as the level-start checkpoint (stock.ts). Health, score and the arena start fresh every visit.
 // If you change the save shape, bump `v` and handle the old version in loadProgress().
 export const SAVE_KEY = 'botshooter.save.v1'; // the key keeps its name; the data inside carries its own version
 interface SaveData {
-  v: 1 | 2 | 3; // 2 added the loadout, 3 the quests (and the melee slot)
+  v: 1 | 2 | 3 | 4; // 2 added the loadout, 3 the quests (and the melee slot), 4 the potions
   quests?: { progress?: Record<string, number>; done?: string[] };
   level: number;
   cash: number;
+  potions?: number;
   loadout?: { side?: string | null; rifle?: string | null; heavy?: string | null; melee?: string | null };
   weapons: { id: string; owned: boolean; ammo: number; spare: number[] }[];
 }
-const snapshot = (): SaveData => ({
-  v: 3,
-  quests: questsToSave(),
-  level: S.level,
-  cash: Math.round(S.cash),
-  loadout: { ...S.loadout },
-  weapons: weapons.map((w) => ({ id: w.stats.id, owned: w.owned, ammo: w.ammo, spare: [...w.spare] })),
-});
+const snapshot = (): SaveData => {
+  const stock = stockForSave();
+  return {
+    v: 4,
+    quests: questsToSave(),
+    level: S.level,
+    cash: Math.round(S.cash),
+    potions: stock.potions,
+    loadout: { ...S.loadout },
+    weapons: weapons.map((w, i) => ({ id: w.stats.id, owned: w.owned, ammo: stock.weapons[i].ammo, spare: [...stock.weapons[i].spare] })),
+  };
+};
 let lastSaved = '';
 export function saveProgress() {
   try {
@@ -49,7 +55,7 @@ export function loadProgress() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return;
     const d = JSON.parse(raw) as Partial<SaveData>;
-    if (d.v !== 1 && d.v !== 2 && d.v !== 3) return;
+    if (d.v !== 1 && d.v !== 2 && d.v !== 3 && d.v !== 4) return;
     const int = (n: unknown, min: number, max: number, fallback: number) =>
       typeof n === 'number' && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.floor(n))) : fallback;
     S.level = int(d.level, 1, 999, 1);
@@ -70,8 +76,10 @@ export function loadProgress() {
       S.loadout.heavy = typeof l.heavy === 'string' ? l.heavy : null;
       S.loadout.melee = typeof l.melee === 'string' ? l.melee : 'knife';
     }
+    S.potions = clampPotions(d.potions);
     questsFromSave(d.quests);
     sanitizeLoadout(); // only owned weapons in the right slots (also fills the heavy slot for an old save that owns the shotgun)
+    commitStock();
     lastSaved = JSON.stringify(snapshot());
   } catch {
     /* corrupt save: start fresh */

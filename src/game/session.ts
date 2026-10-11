@@ -5,6 +5,7 @@ import { sanitizeLoadout } from './loadout';
 import { resetQuests } from './quests';
 import { resetFlow } from './flow';
 import { clearProjectiles } from './projectiles';
+import { commitStock, inLevel, restoreStock } from './stock';
 import { MAX_HEALTH, S, STAND_HEIGHT, START_CASH } from './state';
 
 /**
@@ -22,7 +23,10 @@ export function resetGame(fresh = false) {
     S.loadout.heavy = null;
     S.loadout.melee = 'knife';
     resetQuests();
-  }
+    S.potions = 0;
+    commitStock();
+  } else if (inLevel()) restoreStock(); // died or reloaded mid-level: back to the ammo and potions the level started with
+  else commitStock(); // between levels: what is in the pockets now (shop purchases) is what you keep
   sanitizeLoadout();
   stopRifleLoop();
   stopReloadSound();
@@ -44,7 +48,6 @@ export function resetGame(fresh = false) {
   S.yaw = 0; // facing the airlock gate
   resetFlow(); // safe room, doors reset, fresh arena
   S.health = MAX_HEALTH;
-  S.potions = 0;
   S.hurtFlash = 0;
   S.dead = false;
   S.popupTimer = 0;

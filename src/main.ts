@@ -45,7 +45,7 @@ if (import.meta.env.DEV) {
     updateFlow, startLevel: () => { startLevel(); runLevelWork(Infinity); }, checkMissions, setLevel: (n: number) => (S.level = n), arenaActive, updateNametag: () => updateNametag(0.1, true),
     tick: (secs: number, dt = 1 / 30) => { for (let t = 0; t < secs; t += dt) { rooms.update(dt, t); updateFlow(dt); if (arenaActive()) { for (const m of mannequins) m.update(dt); for (const w of wolves) w.update(dt); } } },
     rooms, setLocked: (b: boolean) => (S.locked = b),
-    resetFull: () => resetGame(true), saveProgress, loadProgress, clearSave, SAVE_KEY,
+    resetFull: () => resetGame(true), resetSoft: () => resetGame(), saveProgress, loadProgress, clearSave, SAVE_KEY,
     simWolves: (secs: number) => { for (let i = 0; i < secs * 60; i++) wolves.forEach((w) => w.update(1 / 60)); },
     pointerChange: () => document.dispatchEvent(new Event('pointerlockchange')),
     look: (y: number, p: number) => ((S.yaw = y), (S.pitch = p)),

@@ -11,6 +11,7 @@ import { boss, regulars, spawnZombie, wolves, zombieLimit, zombies } from './act
 import { showBanner } from './hud';
 import { questLevelDone } from './quests';
 import { S, type Phase } from './state';
+import { commitStock } from './stock';
 
 // Levels, missions and the gate flow.
 // safe room --gate 1--> airlock --gate 2--> arena. Walking into the airlock seals gate 1; the level loads while
@@ -158,6 +159,7 @@ function updateHorde(dt: number) {
 
 /** Queue everything the level needs. */
 export function startLevel() {
+  commitStock(); // the checkpoint: ammo and potions are only spent for good once this level is survived
   const cfg = levelConfig(S.level);
   setSpawnRule(cfg.allowed);
   S.stats = emptyStats();
