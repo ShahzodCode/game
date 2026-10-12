@@ -341,6 +341,7 @@ export function buildPond(ctx: Ctx, rocks: Rocks) {
   );
   water.rotation.x = -Math.PI / 2;
   water.position.set(POND.x, POND.level, POND.z);
+  water.userData.dynamic = true; // moves every frame: not frozen (world.ts)
   ctx.scene.add(water);
   // rocks and reeds around the shore
   const reeds = new MeshBuilder();
@@ -400,6 +401,7 @@ export function buildCamp(ctx: Ctx, rocks: Rocks) {
   const flames = [0, 1, 2].map((i) => {
     const m = new THREE.Mesh(new THREE.ConeGeometry(0.42 - i * 0.1, 1.0 - i * 0.2, 7), flameMat[i]);
     m.position.set(CAMP.x, y + 0.55 + (1 - i * 0.2) * 0.3, CAMP.z);
+    m.userData.dynamic = true; // flickers every frame: not frozen (world.ts)
     scene.add(m);
     return m;
   });

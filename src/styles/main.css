@@ -208,7 +208,7 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 0; backgrou
 .setting output { color: var(--accent); font-variant-numeric: tabular-nums; }
 .setting input[type=range] { width: 100%; accent-color: var(--accent); height: 22px; cursor: pointer; }
 .setting .note { margin: 8px 0 0; font-size: 13px; color: var(--dim); }
-.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .segmented button { padding: 10px; background: rgba(255, 255, 255, .07); border-color: var(--edge); }
 .segmented button.on { background: rgba(92, 230, 210, .22); border-color: var(--accent); color: #fff; }
 

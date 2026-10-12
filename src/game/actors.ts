@@ -64,6 +64,7 @@ setSpawnRule(levelConfig(1).allowed); // level 1 has no criminals
 export const regulars = world.spawnPoints.map((p) => {
   const m = new Mannequin(world, p, pos, botHooks);
   scene.add(m.group);
+  m.home = scene;
   return m;
 });
 loadCharacterModels(); // the knight (boss) and the zombie models load in the background; procedural ones show until then
@@ -77,6 +78,7 @@ export const zombies = Array.from({ length: ZOMBIE_POOL }, () => {
 });
 for (const m of [boss, ...zombies]) {
   scene.add(m.group);
+  m.home = scene;
   m.disable();
 }
 /** Everything that can be shot like a bot. */
@@ -89,8 +91,9 @@ export const wolves = Array.from({ length: MAX_WOLVES }, () => {
     hurtPlayer: (d) => damagePlayer(d),
     onAggro: () => wolfGrowl(),
   });
-  w.deactivate();
   scene.add(w.group);
+  w.home = scene;
+  w.deactivate(); // switched off: taken out of the scene again until a level needs it
   return w;
 });
 /** Anything the player can shoot (same interface on bots and wolves). */

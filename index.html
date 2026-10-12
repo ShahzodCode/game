@@ -77,11 +77,11 @@
         <input id="optVol" type="range" min="0" max="1" step="0.05" />
       </div>
       <div class="setting">
-        <label>Graphics quality</label>
+        <label>Graphics quality <output id="outQuality"></output></label>
         <div class="segmented" id="optQuality">
-          <button data-q="high">High</button><button data-q="medium">Medium</button><button data-q="low">Low</button>
+          <button data-q="auto">Auto</button><button data-q="high">High</button><button data-q="medium">Medium</button><button data-q="low">Low</button>
         </div>
-        <p class="note">High: sharp, full shadows. Medium: lighter shadows and resolution. Low: no shadows, lowest resolution; use it on slower computers.</p>
+        <p class="note" id="noteQuality"></p>
       </div>
       <button id="btnSettingsBack" class="back secondary">Back</button>
     </div>
