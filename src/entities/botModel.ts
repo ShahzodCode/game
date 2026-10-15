@@ -90,6 +90,9 @@ function slice(y0: number, y1: number, k: number): [number, number][] {
   return pts;
 }
 
+/** Shared material of the invisible hit shapes (never drawn). */
+const HIDDEN_HIT = new THREE.MeshBasicMaterial({ visible: false });
+
 export function buildBot(owner: object, c: Costume): BotRig {
   if (c.boss || c.zombie) {
     const glb = buildGlbRig(owner, c.boss ? 'boss' : 'zombie', c.prop); // the knight / the PolyArt zombies, once they have loaded
@@ -452,6 +455,16 @@ export function buildBot(owner: object, c: Costume): BotRig {
   headPivot.position.set(0, 1.53, 0);
   if (id === 'boss') for (const s of [-1, 1]) h.cone(0x241a2c, 0.034, 0.22, { p: [s * 0.075, 0.3, -0.01], r: [0, 0, -s * 0.45] }, 6); // horns
   headPivot.add(mk(h, true, (y) => 0.8 + 0.28 * THREE.MathUtils.smoothstep(y, 0.0, 0.3)));
+  // Headshots are meant to be forgiving: an invisible sphere about 1.6x the skull (the ray tests ignore `visible`)
+  // counts as the head too, so shots that just miss the face still land.
+  const headHit = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 9), HIDDEN_HIT);
+  geos.push(headHit.geometry);
+  headHit.visible = false;
+  headHit.position.set(0, 0.15, 0);
+  headHit.userData.owner = owner;
+  headHit.userData.head = true;
+  hitMeshes.push(headHit);
+  headPivot.add(headHit);
   for (const f of Object.values(faces)) headPivot.add(f);
   headPivot.scale.setScalar(1.14); // bigger head: toy-like proportions that read from far away
   root.add(headPivot);

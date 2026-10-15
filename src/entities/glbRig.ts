@@ -152,7 +152,7 @@ export function buildGlbRig(owner: object, kind: 'boss' | 'zombie', prop?: 'knif
     addBox(a.bone, a.restW, mid, [Math.max(Math.abs(pb.x - pa.x), w), Math.abs(pb.y - pa.y) + extraEnd, Math.max(Math.abs(pb.z - pa.z), w)]);
   };
   const ph = pos(headJ);
-  addBox(headJ.bone, headJ.restW, ph.clone().add(new THREE.Vector3(0, 0.065 * H, 0.005 * H)), [0.16 * H, 0.17 * H, 0.18 * H], true);
+  addBox(headJ.bone, headJ.restW, ph.clone().add(new THREE.Vector3(0, 0.065 * H, 0.005 * H)), [0.23 * H, 0.25 * H, 0.26 * H], true); // about 1.45x the real head: forgiving headshots
   for (let i = 0; i < 2; i++) {
     seg(upper[i]!, fore[i]!, 0.075 * H);
     seg(fore[i]!, hand[i]!, 0.07 * H, 0.04 * H);

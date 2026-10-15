@@ -229,12 +229,36 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
   solid(-AX - 1, AX + 1, ROOM_HEIGHT, ROOM_HEIGHT + 0.5, ARENA_GATE_Z, GATE1_Z, 0x25231f, false); // ceiling
   // worn runner down the middle
   solid(-1.6, 1.6, 0, 0.02, ARENA_GATE_Z + 1, GATE1_Z - 1, 0x4a2020, false, 1);
-  // candles on stone pedestals along both walls, plus a few real light sources that flicker
+  // candles on stone pedestals along both walls (all glow equally), plus a few real light sources that flicker
   const wax = new THREE.MeshStandardMaterial({ color: 0xf0e6c8, roughness: 0.8 });
   const flameMat = new THREE.MeshBasicMaterial({ color: 0xffb347 });
   const stone = new THREE.MeshStandardMaterial({ color: 0x57524b, roughness: 0.95 });
   const flames: THREE.Mesh[] = [];
   const candleLights: THREE.PointLight[] = [];
+  // Every candle glows, on every graphics tier: a soft halo around the flame + a pool of light on the wall behind it, both
+  // additive and cheap. Only some candles also carry a real point light (they cost every lit pixel, see quality.ts).
+  const glowTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,180,90,1)');
+    gr.addColorStop(0.3, 'rgba(255,140,55,0.5)');
+    gr.addColorStop(1, 'rgba(255,120,40,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const haloMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0.6 });
+  const wallGlowMat = new THREE.MeshBasicMaterial({ map: glowTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, fog: false, opacity: 0.4 });
+  const halo = (x: number, y: number, z: number, size: number) => {
+    const sp = new THREE.Sprite(haloMat);
+    sp.position.set(x, y, z);
+    sp.scale.set(size, size, 1);
+    scene.add(sp);
+  };
   for (let i = 0; i < 5; i++) {
     const z = ARENA_GATE_Z + 3.5 + i * 3.7;
     for (const s of [-1, 1]) {
@@ -252,12 +276,12 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
         scene.add(flame);
         flames.push(flame);
       }
-      if ((i + (s > 0 ? 1 : 0)) % 2 === 0) {
-        const light = new THREE.PointLight(0xff9a45, 30, 15, 2);
-        light.position.set(x, 1.8, z);
-        scene.add(light);
-        candleLights.push(light);
-      }
+      halo(x + 0.02, 1.5, z + 0.02, 0.95);
+      const wallGlow = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), wallGlowMat);
+      wallGlow.position.set(s * (AX - 0.03), 1.7, z);
+      wallGlow.rotation.y = -s * Math.PI / 2; // facing into the room
+      wallGlow.renderOrder = 2;
+      scene.add(wallGlow);
     }
   }
   // a big iron candelabra in the middle of the room
@@ -277,6 +301,14 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
     flames.push(f);
   }
   boxes.push(new THREE.Box3(new THREE.Vector3(-0.15, 0, ARENA_GATE_Z + 9.85), new THREE.Vector3(0.15, 2.2, ARENA_GATE_Z + 10.15)));
+  halo(0, 2.75, ARENA_GATE_Z + 10, 1.6); // the candelabra
+  // the real light sources sit on the centre line (not on single candles), so every candle looks equally lit
+  for (const dz of [4, 16]) {
+    const aisle = new THREE.PointLight(0xff9a45, 30, 15, 2);
+    aisle.position.set(0, 2.4, ARENA_GATE_Z + dz);
+    scene.add(aisle);
+    candleLights.push(aisle);
+  }
   const centerLight = new THREE.PointLight(0xff9a45, 40, 16, 2);
   centerLight.position.set(0, 2.9, ARENA_GATE_Z + 10);
   scene.add(centerLight);
@@ -399,6 +431,8 @@ export function buildRooms(scene: THREE.Scene, boxes: THREE.Box3[], blockers: TH
         const k = 1 + Math.sin(time * 9 + i * 1.7) * 0.18 + Math.sin(time * 23 + i) * 0.1;
         f.scale.set(1 / Math.sqrt(k), k, 1 / Math.sqrt(k));
       });
+      haloMat.opacity = 0.55 + Math.sin(time * 7) * 0.05 + Math.sin(time * 19) * 0.04; // all candles breathe together
+      wallGlowMat.opacity = 0.37 + Math.sin(time * 7 + 1) * 0.04;
       candleLights.forEach((l, i) => {
         l.intensity = (i === candleLights.length - 1 ? 40 : 30) * (0.88 + Math.sin(time * 7 + i * 2.3) * 0.08 + Math.sin(time * 19 + i) * 0.05);
       });
