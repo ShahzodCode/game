@@ -1,4 +1,4 @@
-# Bot Shooter: plan and progress
+# Lethe Protocol: plan and progress
 
 Read `CLAUDE.md` first: it has the file layout, conventions and design notes. This file is the hand-off: what is done and what is next.
 

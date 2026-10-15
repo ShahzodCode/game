@@ -1,4 +1,4 @@
-# Bot Shooter
+# Lethe Protocol
 
 Simple 3D first-person shooter prototype. Three.js + TypeScript + Vite. Claude is in charge of the project; the user directs it step by step.
 

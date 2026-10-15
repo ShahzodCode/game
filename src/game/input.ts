@@ -268,7 +268,7 @@ document.addEventListener('pointerlockchange', () => {
   overlay.style.display = 'flex';
   overlay.classList.toggle('dead', S.dead);
   document.querySelector('#overlay .kicker')!.textContent = S.dead ? 'YOUR RUN ENDED' : S.started ? 'GAME PAUSED' : 'FIRST-PERSON ARENA SHOOTER';
-  $('title').textContent = S.dead ? 'You died' : S.started ? 'Paused' : 'Bot Shooter';
+  $('title').textContent = S.dead ? 'You died' : S.started ? 'Paused' : 'Lethe Protocol';
   // the death screen only offers Play and New game
   $('btnResume').querySelector('span')!.textContent = S.dead || !S.started ? 'Play' : 'Resume';
   for (const el of document.querySelectorAll<HTMLElement>('#btnReload, #overlay .menurow, #overlay .hintbar')) el.style.display = S.dead ? 'none' : '';
