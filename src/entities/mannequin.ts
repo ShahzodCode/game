@@ -358,15 +358,20 @@ export class Mannequin {
   /** Fresh bot: random costume, face and build, full health, somewhere new if `relocate`. */
   /** Switched off for this level (small arenas have fewer people): invisible, not hittable, not simulated until reset(). */
   disabled = false;
+  /** Where this character lives in the scene (set by actors.ts): a switched-off one is taken out of it, so three.js does not update its ~20 objects every frame. */
+  home: THREE.Object3D | null = null;
   disable() {
     this.disabled = true;
     this.alive = false;
     this.group.visible = false;
+    this.home ??= this.group.parent;
+    this.group.removeFromParent();
     this.updateBar();
   }
 
   reset(relocate = false, forced?: Costume) {
     this.disabled = false;
+    if (!this.group.parent) this.home?.add(this.group);
     if (relocate) this.group.position.copy(this.nav.randomFreePoint(this.player, 20));
     this.alive = true;
     this.deadTime = 0;

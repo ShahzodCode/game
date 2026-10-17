@@ -156,7 +156,10 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 0; backgrou
 .lopt img { grid-row: span 2; width: 48px; height: 48px; object-fit: contain; }
 .lopt .n { font-weight: 650; font-size: 14px; }
 .lopt em { font-style: normal; font-size: 12px; color: var(--dim); }
-.lopt.on { border-color: var(--accent); background: rgba(92, 230, 210, .12); opacity: 1; }
+/* equipped: a teal bar on the left; the cursor (.sel): a cyan outline with a faint glow, colours unchanged */
+.lopt.on { background: rgba(92, 230, 210, .1); box-shadow: inset 3px 0 0 var(--teal); opacity: 1; }
+.lopt.sel { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal), 0 0 12px rgba(92, 230, 210, .35); }
+.lopt.on.sel { box-shadow: inset 3px 0 0 var(--teal), 0 0 0 1px var(--teal), 0 0 12px rgba(92, 230, 210, .35); }
 .lopt.on em { color: var(--accent); font-weight: 800; }
 .lopt.locked img, .lopt.locked .n { opacity: .5; }
 
@@ -205,7 +208,7 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 0; backgrou
 .setting output { color: var(--accent); font-variant-numeric: tabular-nums; }
 .setting input[type=range] { width: 100%; accent-color: var(--accent); height: 22px; cursor: pointer; }
 .setting .note { margin: 8px 0 0; font-size: 13px; color: var(--dim); }
-.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.segmented { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .segmented button { padding: 10px; background: rgba(255, 255, 255, .07); border-color: var(--edge); }
 .segmented button.on { background: rgba(92, 230, 210, .22); border-color: var(--accent); color: #fff; }
 
@@ -242,6 +245,8 @@ button.round { padding: 0; width: 46px; height: 46px; border-radius: 0; backgrou
 /* armory buy / quest buttons (keyboard driven: the mouse is locked) */
 .lbtn { white-space: nowrap; line-height: 1.3; display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 3px 10px; border-radius: 0; font-size: 12px; font-weight: 800; background: rgba(92, 230, 210, .18); border: 1px solid var(--accent); color: var(--accent); }
 .lbtn kbd { margin: 0; }
+.lbtn.go { background: var(--teal); color: #06201c; border-color: var(--teal); box-shadow: 0 0 14px rgba(92, 230, 210, .55); }
+.lbtn.go kbd { background: #06201c; color: var(--teal); border-color: #06201c; padding: 0 .4em; }
 .lbtn.off { opacity: .5; border-color: var(--edge); color: var(--dim); background: rgba(255, 255, 255, .05); }
 .lbtn.quest { border-color: var(--edge); color: var(--dim); background: rgba(255, 255, 255, .05); cursor: not-allowed; }
 

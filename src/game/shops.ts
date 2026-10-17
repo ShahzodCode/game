@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SHOP_IMAGES, POTION, gunImage, weaponShopImage } from '../shop/shopItems';
 import { $, pos, weapons, world } from './core';
 import { beginReload, switchSlot } from './combat';
-import { SLOTS, SLOT_NAMES, SLOT_OPTIONS, bindArmoryScreen, cycleSlot, isEquipped, sanitizeLoadout } from './loadout';
+import { SLOTS, SLOT_NAMES, SLOT_OPTIONS, bindArmoryScreen, equipWeapon, isEquipped, sanitizeLoadout } from './loadout';
 import { rooms } from './flow';
 import { showPopup } from './hud';
 import { QUESTS, questsHtml } from './quests';
@@ -40,35 +40,77 @@ const shopWindow = $('shopWindow');
 const ownedGuns = () => weapons.map((_, i) => i).filter((i) => !weapons[i].stats.melee && weapons[i].owned && isEquipped(i));
 
 const slotIcon = (s: string) => gunImage(s);
-/** Weapons that can be bought here, in a fixed order: they get the keys 5-9 (the mouse is locked, so buttons are keyboard driven). */
-const BUY_KEY_FROM = 4;
-const buyable = () => SLOTS.flatMap((slot) => SLOT_OPTIONS[slot]).map((id) => weapons.findIndex((x) => x.stats.id === id)).filter((i) => weapons[i].stats.unlockPrice > 0 && !weapons[i].stats.questOnly);
-/** The armory window: every slot with its weapons. Equipped one marked; locked ones have a buy button, or the (disabled) quest that unlocks them. */
+/** The armory cursor: a column (slot) and a row (weapon). Arrow keys move it, Enter buys / equips what it points at. */
+const armSel = { col: 0, row: 0 };
+const armId = (col: number, row: number) => SLOT_OPTIONS[SLOTS[col]][row];
+function clampSel() {
+  armSel.col = Math.max(0, Math.min(SLOTS.length - 1, armSel.col));
+  armSel.row = Math.max(0, Math.min(SLOT_OPTIONS[SLOTS[armSel.col]].length - 1, armSel.row));
+}
+/** The armory window: every slot with its weapons. The cursor weapon is outlined; Enter buys it (locked) or equips it (owned). */
 function armoryHtml() {
-  const keys = buyable();
+  clampSel();
   const cols = SLOTS.map((slot, n) => {
     const rows = SLOT_OPTIONS[slot]
-      .map((id) => {
+      .map((id, r) => {
         const wi = weapons.findIndex((x) => x.stats.id === id);
         const w = weapons[wi];
         const isOn = S.loadout[slot] === id;
+        const sel = armSel.col === n && armSel.row === r;
         let state: string;
         if (isOn) state = '<em>EQUIPPED</em>';
-        else if (w.owned) state = '<em>owned</em>';
+        else if (w.owned) state = sel ? '<span class="lbtn go"><kbd>Enter</kbd>Equip</span>' : '<em>owned</em>';
         else if (w.stats.questOnly) {
           const q = QUESTS.find((x) => x.weapon === id);
           state = `<span class="lbtn quest">${q?.title ?? 'Quest reward'}</span>`;
         } else {
-          const k = keys.indexOf(wi) + BUY_KEY_FROM + 1;
-          state = `<span class="lbtn${S.cash < w.stats.unlockPrice ? ' off' : ''}"><kbd>${k}</kbd>Buy $${w.stats.unlockPrice}</span>`;
+          const poor = S.cash < w.stats.unlockPrice;
+          state = `<span class="lbtn${poor ? ' off' : ''}${sel && !poor ? ' go' : ''}">${sel && !poor ? '<kbd>Enter</kbd>' : ''}Buy $${w.stats.unlockPrice}</span>`;
         }
-        return `<div class="lopt${isOn ? ' on' : ''}${w.owned ? '' : ' locked'}"><img src="${slotIcon(id)}" alt="" /><span class="n">${w.stats.name}</span>${state}</div>`;
+        return `<div class="lopt${isOn ? ' on' : ''}${w.owned ? '' : ' locked'}${sel ? ' sel' : ''}"><img src="${slotIcon(id)}" alt="" /><span class="n">${w.stats.name}</span>${state}</div>`;
       })
       .join('');
     return `<div class="lslot"><div class="lhead"><kbd>${n + 1}</kbd>${SLOT_NAMES[slot]}</div>${rows}</div>`;
   }).join('');
   return `<h3>ARMORY</h3><div class="cashline">Cash $${S.cash} · pick one weapon per slot</div><div class="loadout">${cols}</div>` +
-    `<div class="foot">1 / 2 / 3 / 4 switch the weapon in that slot · 5-9 buy a locked weapon · E to close · you can only change this in the safe room</div>`;
+    `<div class="foot"><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> choose · <kbd>Enter</kbd> buy or equip · <kbd>E</kbd> close · you can only change this in the safe room</div>`;
+}
+
+/** Arrow keys inside the armory window. Returns true if the key was used. */
+export function shopNavigate(dx: number, dy: number): boolean {
+  if (!S.shopOpen || activeShop?.title !== 'ARMORY') return false;
+  if (dx) {
+    const row = armSel.row;
+    armSel.col = (armSel.col + dx + SLOTS.length) % SLOTS.length;
+    armSel.row = row;
+  }
+  if (dy) armSel.row += dy;
+  clampSel();
+  updateShop();
+  return true;
+}
+/** Enter inside the armory window: buy the weapon under the cursor, equip it if owned, or show the quest that unlocks it. */
+export function shopEnter(): boolean {
+  if (!S.shopOpen || activeShop?.title !== 'ARMORY') return false;
+  clampSel();
+  const slot = SLOTS[armSel.col];
+  const id = armId(armSel.col, armSel.row);
+  const wi = weapons.findIndex((x) => x.stats.id === id);
+  const w = weapons[wi];
+  if (S.loadout[slot] === id) showPopup(`${w.stats.name} is already equipped`, '#ff9a4a');
+  else if (w.owned) {
+    equipWeapon(slot, id);
+    showPopup(`${w.stats.name} equipped`, '#7dff9b');
+    if (!isEquipped(S.current)) switchSlot(0); // the weapon in hand was swapped out
+  } else if (w.stats.questOnly) {
+    const q = QUESTS.find((x) => x.weapon === id);
+    showPopup(q ? `Quest reward: ${q.title}` : 'Quest reward', '#ff9a4a');
+  } else {
+    buyWeapon(wi);
+    if (w.owned) equipWeapon(slot, id); // buying a weapon puts it straight into its slot
+  }
+  updateShop();
+  return true;
 }
 
 function buyWeapon(wi: number) {
@@ -137,18 +179,7 @@ const shops: ShopDef[] = [
     radius: rooms.armory.radius,
     cards: () => [],
     html: armoryHtml,
-    buy: (n) => {
-      if (n >= BUY_KEY_FROM) {
-        const wi = buyable()[n - BUY_KEY_FROM];
-        if (wi !== undefined) buyWeapon(wi);
-        return;
-      }
-      if (n < 0) return;
-      const name = cycleSlot(SLOTS[n]);
-      if (name) showPopup(`${name} equipped`, '#7dff9b');
-      else showPopup('No other weapon owned for that slot: buy one here with 5-9', '#ff9a4a');
-      if (!isEquipped(S.current)) switchSlot(0); // the weapon in hand was swapped out
-    },
+    buy: () => {}, // the armory is driven with the arrow keys and Enter (shopNavigate / shopEnter)
   },
   {
     title: 'SUPPLY SHOP',

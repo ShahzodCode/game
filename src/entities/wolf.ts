@@ -47,6 +47,8 @@ export class Wolf {
   readonly hostile = true;
   /** Switched off for this level: invisible, not simulated, cannot be shot. */
   disabled = false;
+  /** Where this wolf lives in the scene (set by actors.ts); a switched-off wolf is taken out of it so it costs nothing per frame. */
+  home: THREE.Object3D | null = null;
 
   /** Remove this wolf from the level (e.g. level 1 has no wolves). */
   deactivate() {
@@ -54,10 +56,13 @@ export class Wolf {
     this.alive = false;
     this.aggravated = false;
     this.group.visible = false;
+    this.home ??= this.group.parent;
+    this.group.removeFromParent();
   }
   /** Bring this wolf into the level, far from the player. */
   activate() {
     this.disabled = false;
+    if (!this.group.parent) this.home?.add(this.group);
     this.reset(true);
   }
 

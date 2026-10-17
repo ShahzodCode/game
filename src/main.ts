@@ -8,7 +8,8 @@ import { boss, botHooks, mannequins, wolves } from './game/actors';
 import { applyHit, currentSpread, fire, switchWeapon } from './game/combat';
 import { arenaActive, checkMissions, rooms, runLevelWork, startLevel, updateFlow } from './game/flow';
 import { setCrosshair, setCrosshairVisible, updateHud, updateHudTimers, updateSummary } from './game/hud';
-import { applyQuality, shadowPeriod, tuneResolution } from './game/settings';
+import { applyQuality, onQualityChange, shadowPeriod, tier, tuneResolution } from './game/settings';
+import type { Tier } from './game/quality';
 import './game/settingsUi';
 import './game/input';
 import { updateNametag } from './game/nametag';
@@ -172,7 +173,8 @@ function updateShadows(dt: number) {
   shadowClock -= dt;
   if (shadowClock > 0) return;
   shadowClock = 0.4;
-  for (const m of mannequins) m.setShadows(m.alive && Math.hypot(m.group.position.x - pos.x, m.group.position.z - pos.z) < 50);
+  const reach = tier().botShadow; // 0 = no shadows at all (Low)
+  for (const m of mannequins) m.setShadows(reach > 0 && m.alive && Math.hypot(m.group.position.x - pos.x, m.group.position.z - pos.z) < reach);
 }
 
 /** Safety net: whatever the terrain does, the player can never leave the arena over the walls. */
@@ -208,27 +210,46 @@ function updateBossBar() {
 // Every point light costs every lit pixel, whether it is near or not. The rooms' candles/lamps and the arena's camp/house
 // lamps are never needed together, so only the lights of the zone the player is in (plus the strip around the gate) are on.
 // The shader variants for each combination are compiled once at startup so switching never hitches.
-const roomLights: THREE.Light[] = [], arenaLights: THREE.Light[] = [];
+const roomAll: THREE.PointLight[] = [], arenaAll: THREE.PointLight[] = [];
+let exitLight: THREE.PointLight | null = null; // the bright light at the gate that shows the way out of a finished level
 scene.traverse((o) => {
   const l = o as THREE.PointLight;
   if (!l.isPointLight || l === flashLight || l.intensity === 0) return;
-  if (l.position.z >= 62) roomLights.push(l);
-  else if (l.position.z < 50) arenaLights.push(l);
+  if (l.position.z >= 62) roomAll.push(l);
+  else if (l.position.z < 50) arenaAll.push(l);
+  else exitLight = l;
 });
+if (exitLight) (exitLight as THREE.PointLight).visible = false; // only lit once a level is won (rooms.setExitLight)
+let roomLights: THREE.PointLight[] = [], arenaLights: THREE.PointLight[] = [];
 function updateZoneLights() {
   const z = pos.z;
   const rooms_ = z > 50, arena_ = z < 64;
   for (const l of roomLights) l.visible = rooms_;
   for (const l of arenaLights) l.visible = arena_;
 }
-{
-  for (const [r, a] of [[false, true], [true, true], [true, false]]) {
-    roomLights.forEach((l) => (l.visible = r));
-    arenaLights.forEach((l) => (l.visible = a));
-    renderer.compile(scene, camera);
+/** The graphics tier decides how many of the lights are used at all (the strongest room lights, the campfire first outdoors). */
+function setLightTier(t: Tier) {
+  const rooms_ = [...roomAll].sort((a, b) => b.intensity - a.intensity);
+  const arena_ = [...arenaAll].sort((a, b) => a.intensity - b.intensity); // the (dim) campfire first
+  roomLights = rooms_.slice(0, t.roomLights);
+  arenaLights = arena_.slice(0, t.arenaLights);
+  for (const l of [...rooms_.slice(t.roomLights), ...arena_.slice(t.arenaLights)]) l.visible = false;
+  // compile every shader variant (zone x exit light) now so that walking through a door or winning a level never hitches
+  const exit = exitLight as THREE.PointLight | null;
+  const exitWas = exit?.visible ?? false;
+  for (const e of [false, true]) {
+    for (const [r, a] of [[false, true], [true, true], [true, false]]) {
+      roomLights.forEach((l) => (l.visible = r));
+      arenaLights.forEach((l) => (l.visible = a));
+      if (exit) exit.visible = e;
+      renderer.compile(scene, camera);
+    }
   }
+  if (exit) exit.visible = exitWas;
   updateZoneLights();
 }
+setLightTier(tier());
+onQualityChange(setLightTier);
 
 // ---------- main loop ----------
 const clock = new THREE.Clock();

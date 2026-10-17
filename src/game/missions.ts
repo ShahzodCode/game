@@ -159,7 +159,7 @@ export function generateMissions(cfg: LevelConfig): Mission[] {
   const pool5: (() => Mission)[] = [() => mission('score2', `Earn ${round50(1000 * sc)} points`, round50(1000 * sc), 1100 * f, (s) => s.score)];
   if (has('soldier')) pool5.push(() => killsOf('soldier', Math.min(1 + Math.floor((L - 7) / 5), 4), 1100 * f));
   if (has('superman')) pool5.push(() => killsOf('superman', Math.min(1 + Math.floor((L - 10) / 8), 3), 1100 * f));
-  if (has('ninja')) pool5.push(() => killsOf('ninja', Math.min(1 + Math.floor((L - 15) / 4), 4), 1200 * f));
+  if (has('ninja')) pool5.push(() => killsOf('ninja', Math.min(1 + Math.floor((L - 14) / 4), 4), 1200 * f));
   if (cfg.wolves > 0) pool5.push(() => killsOf('wolf', Math.min(1 + Math.floor(L / 4), cfg.wolves), 1200 * f));
   const m5 = take(pool5);
 

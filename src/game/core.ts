@@ -2,12 +2,15 @@ import * as THREE from 'three';
 import { Weapon, WEAPONS, buildViewModel } from '../weapons/weapons';
 import { initWeaponEnvironment, upgradeViewModel } from '../weapons/models';
 import { buildWorld } from '../world/world';
+import { TIERS, readSavedQuality } from './quality';
 
 // Scene, camera, world and the player's body/weapons: created once, shared by every module.
 
 export const $ = (id: string) => document.getElementById(id)!;
 
-export const renderer = new THREE.WebGLRenderer({ antialias: true });
+// MSAA only on the High tier (it is fixed at creation; switching across it reloads the page, see settingsUi.ts).
+// 'high-performance' asks laptops with two graphics chips for the strong one.
+export const renderer = new THREE.WebGLRenderer({ antialias: TIERS[readSavedQuality().quality].aa, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;

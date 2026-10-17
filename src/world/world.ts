@@ -42,8 +42,10 @@ export interface World {
   boxesNear: (x: number, z: number, r: number) => THREE.Box3[];
   /** The sun's shadow box follows the player (snapped to shadow texels so edges do not shimmer). */
   followSun: (x: number, z: number) => void;
-  /** Quality knob: sun shadow resolution (0 = shadows off). */
-  setShadowQuality: (mapSize: number) => void;
+  /** Quality knob: sun shadow resolution (0 = shadows off) and the half-width (m) of the shadowed area around the player. */
+  setShadowQuality: (mapSize: number, radius: number) => void;
+  /** Quality knob: grass draw distance and the fog range (everything past the fog is not drawn). */
+  setViewRange: (cover: number, fogNear: number, fogFar: number) => void;
   /** Per-frame life: doors that open, campfire, water, clouds. */
   update: (dt: number, time: number, player: THREE.Vector3) => void;
 }
@@ -107,9 +109,9 @@ export function buildWorld(scene: THREE.Scene): World {
   sun.shadow.bias = -0.0004; // steadier shadows: no acne / flicker on flat walls
   sun.shadow.normalBias = 0.04;
   const s = sun.shadow.camera;
-  const SHADOW_R = 42; // the shadow box covers 84 m around the player: sharper shadows and far fewer casters than the whole arena
-  s.left = s.bottom = -SHADOW_R;
-  s.right = s.top = SHADOW_R;
+  let shadowR = 42; // the shadow box covers 2 x shadowR m around the player: sharper shadows and far fewer casters than the whole arena
+  s.left = s.bottom = -shadowR;
+  s.right = s.top = shadowR;
   s.far = 220;
   scene.add(sun, sun.target);
   const sunOffset = new THREE.Vector3(50, 80, 30);
@@ -117,7 +119,7 @@ export function buildWorld(scene: THREE.Scene): World {
   const lightRight = new THREE.Vector3(0, 1, 0).cross(lightDir).normalize();
   const lightUp = lightDir.clone().cross(lightRight).normalize();
   const followSun = (x: number, z: number) => {
-    const texel = (SHADOW_R * 2) / sun.shadow.mapSize.x;
+    const texel = (shadowR * 2) / sun.shadow.mapSize.x;
     const p = new THREE.Vector3(x, 0, z);
     const r = p.dot(lightRight), u = p.dot(lightUp);
     p.addScaledVector(lightRight, Math.round(r / texel) * texel - r).addScaledVector(lightUp, Math.round(u / texel) * texel - u);
@@ -223,6 +225,7 @@ export function buildWorld(scene: THREE.Scene): World {
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const terrain = new THREE.Mesh(geo, terrainMat);
   terrain.receiveShadow = true;
+  terrain.matrixAutoUpdate = false; // the ground never moves (identity matrix: the vertices are already in place)
   scene.add(terrain); // render only: gameplay rays use terrainRay (it is not in `blockers`)
   }
   const terrainProxy = new THREE.Object3D();
@@ -396,15 +399,17 @@ export function buildWorld(scene: THREE.Scene): World {
   const skyColor = new THREE.Color(0x9ec9e8);
   const indoorColor = new THREE.Color(0x0a0908);
   const fog = scene.fog as THREE.Fog;
+  const baseFog = { near: 60, far: 190 }; // outdoor fog range, set by the graphics quality
   const setIndoor = (k: number) => {
     sun.intensity = 2.2 * (1 - k);
     hemi.intensity = 0.8 * (1 - k) + 0.28 * k;
     (scene.background as THREE.Color).copy(skyColor).lerp(indoorColor, k);
     fog.color.copy(skyColor).lerp(indoorColor, k);
-    fog.near = 60 + (14 - 60) * k;
-    fog.far = 190 + (70 - 190) * k;
+    fog.near = baseFog.near + (14 - baseFog.near) * k;
+    fog.far = baseFog.far + (70 - baseFog.far) * k;
   };
 
+  let coverRange = 62;
   const update = (dt: number, time: number, player: THREE.Vector3) => {
     for (const h of houseHandles) h.update(dt, player);
     updateCamp(time);
@@ -412,18 +417,29 @@ export function buildWorld(scene: THREE.Scene): World {
     updateClouds(dt);
     for (const m of cover) { // grass, bushes and flowers: only the cells near the player are drawn
       const bs = m.geometry.boundingSphere!;
-      m.visible = Math.hypot(bs.center.x - player.x, bs.center.z - player.z) < 62 + bs.radius;
+      m.visible = Math.hypot(bs.center.x - player.x, bs.center.z - player.z) < coverRange + bs.radius;
     }
   };
 
   let boxGrid = new BoxGrid(boxes); // rebuilt when the walls move
-  const setShadowQuality = (mapSize: number) => {
+  const setShadowQuality = (mapSize: number, radius: number) => {
     sun.castShadow = mapSize > 0;
     if (mapSize > 0 && sun.shadow.mapSize.x !== mapSize) {
       sun.shadow.map?.dispose();
       sun.shadow.map = null;
       sun.shadow.mapSize.set(mapSize, mapSize);
     }
+    if (radius !== shadowR) {
+      shadowR = radius;
+      s.left = s.bottom = -radius;
+      s.right = s.top = radius;
+      s.updateProjectionMatrix();
+    }
+  };
+  const setViewRange = (cover: number, fogNear: number, fogFar: number) => {
+    coverRange = cover;
+    baseFog.near = fogNear;
+    baseFog.far = fogFar; // picked up by setIndoor, which main.ts calls every frame
   };
 
   let stageNow = -1;
@@ -440,8 +456,12 @@ export function buildWorld(scene: THREE.Scene): World {
   };
   setStage(0);
 
+  // Static scenery never moves: freeze its matrices so three.js does not recompute a thousand of them every frame
+  // (the pond water and the campfire flames carry `userData.dynamic` and keep updating).
+  for (const g of stageGroups) g.traverse((o) => { if (!o.userData.dynamic) { o.updateMatrix(); o.matrixAutoUpdate = false; } });
+
   return {
     region, setStage, boxes, blockers, spawnPoints, half, heightAt, randomFreePoint, randomEdgePoint, playerStart, arenaEntry, rooms, setIndoor, shop, update,
-    terrainRay, terrainProxy, boxesNear: (x, z, r) => boxGrid.near(x, z, r), setShadowQuality, followSun,
+    terrainRay, terrainProxy, boxesNear: (x, z, r) => boxGrid.near(x, z, r), setShadowQuality, setViewRange, followSun,
   };
 }
