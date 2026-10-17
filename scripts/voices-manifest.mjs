@@ -3,7 +3,7 @@ import { readdirSync, writeFileSync } from 'node:fs';
 const dir = new URL('../public/audio/voices/', import.meta.url);
 const out = {};
 for (const f of readdirSync(dir).sort()) {
-  const m = /^([a-z]+)-(hit|death|casual|summon|throw|pant)-(\d+)\.mp3$/.exec(f);
+  const m = /^([a-z_]+)-(hit|death|casual|summon|throw|pant)-(\d+)\.(?:mp3|wav)$/.exec(f);
   if (!m) continue;
   ((out[m[1]] ??= {})[m[2]] ??= []).push(f);
 }

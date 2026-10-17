@@ -1,4 +1,25 @@
 {
+ "boss": {
+  "death": [
+   "boss-death-1.wav"
+  ],
+  "hit": [
+   "boss-hit-1.wav",
+   "boss-hit-2.wav"
+  ],
+  "pant": [
+   "boss-pant-1.wav",
+   "boss-pant-2.wav"
+  ],
+  "summon": [
+   "boss-summon-1.wav",
+   "boss-summon-2.wav"
+  ],
+  "throw": [
+   "boss-throw-1.wav",
+   "boss-throw-2.wav"
+  ]
+ },
  "builder": {
   "casual": [
    "builder-casual-1.mp3",
@@ -11,6 +32,70 @@
    "builder-hit-1.mp3",
    "builder-hit-2.mp3",
    "builder-hit-3.mp3"
+  ]
+ },
+ "chef": {
+  "casual": [
+   "chef-casual-1.wav",
+   "chef-casual-2.wav",
+   "chef-casual-3.wav"
+  ],
+  "death": [
+   "chef-death-1.wav",
+   "chef-death-2.wav"
+  ],
+  "hit": [
+   "chef-hit-1.wav",
+   "chef-hit-2.wav",
+   "chef-hit-3.wav"
+  ]
+ },
+ "cowboy": {
+  "casual": [
+   "cowboy-casual-1.wav",
+   "cowboy-casual-2.wav",
+   "cowboy-casual-3.wav"
+  ],
+  "death": [
+   "cowboy-death-1.wav",
+   "cowboy-death-2.wav"
+  ],
+  "hit": [
+   "cowboy-hit-1.wav",
+   "cowboy-hit-2.wav",
+   "cowboy-hit-3.wav"
+  ]
+ },
+ "criminal": {
+  "casual": [
+   "criminal-casual-1.wav",
+   "criminal-casual-2.wav",
+   "criminal-casual-3.wav"
+  ],
+  "death": [
+   "criminal-death-1.wav",
+   "criminal-death-2.wav"
+  ],
+  "hit": [
+   "criminal-hit-1.wav",
+   "criminal-hit-2.wav",
+   "criminal-hit-3.wav"
+  ]
+ },
+ "ninja": {
+  "casual": [
+   "ninja-casual-1.wav",
+   "ninja-casual-2.wav",
+   "ninja-casual-3.wav"
+  ],
+  "death": [
+   "ninja-death-1.wav",
+   "ninja-death-2.wav"
+  ],
+  "hit": [
+   "ninja-hit-1.wav",
+   "ninja-hit-2.wav",
+   "ninja-hit-3.wav"
   ]
  },
  "regular": {
@@ -28,6 +113,38 @@
    "regular-hit-2.mp3"
   ]
  },
+ "rich": {
+  "casual": [
+   "rich-casual-1.wav",
+   "rich-casual-2.wav",
+   "rich-casual-3.wav"
+  ],
+  "death": [
+   "rich-death-1.wav",
+   "rich-death-2.wav"
+  ],
+  "hit": [
+   "rich-hit-1.wav",
+   "rich-hit-2.wav",
+   "rich-hit-3.wav"
+  ]
+ },
+ "soldier": {
+  "casual": [
+   "soldier-casual-1.wav",
+   "soldier-casual-2.wav",
+   "soldier-casual-3.wav"
+  ],
+  "death": [
+   "soldier-death-1.wav",
+   "soldier-death-2.wav"
+  ],
+  "hit": [
+   "soldier-hit-1.wav",
+   "soldier-hit-2.wav",
+   "soldier-hit-3.wav"
+  ]
+ },
  "sporty": {
   "casual": [
    "sporty-casual-1.mp3",
@@ -40,6 +157,22 @@
   "hit": [
    "sporty-hit-1.mp3",
    "sporty-hit-2.mp3"
+  ]
+ },
+ "superman": {
+  "casual": [
+   "superman-casual-1.wav",
+   "superman-casual-2.wav",
+   "superman-casual-3.wav"
+  ],
+  "death": [
+   "superman-death-1.wav",
+   "superman-death-2.wav"
+  ],
+  "hit": [
+   "superman-hit-1.wav",
+   "superman-hit-2.wav",
+   "superman-hit-3.wav"
   ]
  },
  "winter": {
@@ -55,6 +188,27 @@
   "hit": [
    "winter-hit-1.mp3",
    "winter-hit-2.mp3"
+  ]
+ },
+ "zombie": {
+  "death": [
+   "zombie-death-1.wav",
+   "zombie-death-2.wav"
+  ],
+  "hit": [
+   "zombie-hit-1.wav",
+   "zombie-hit-2.wav",
+   "zombie-hit-3.wav"
+  ]
+ },
+ "zombie_brute": {
+  "death": [
+   "zombie_brute-death-1.wav",
+   "zombie_brute-death-2.wav"
+  ],
+  "hit": [
+   "zombie_brute-hit-1.wav",
+   "zombie_brute-hit-2.wav"
   ]
  }
 }

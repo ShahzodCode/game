@@ -636,7 +636,8 @@ function cutVoicesOf(owner: object) {
 export function voiceLine(id: string, kind: VoiceKind, distance: number, owner?: object): boolean {
   if (!ctx || !master) return false;
   if (kind === 'death' && owner) cutVoicesOf(owner); // a dying character stops its hit / small-talk line and says its death line instead
-  const list = voiceManifest[id]?.[kind];
+  // zombie_runner / zombie_stabber / ... share the plain zombie's groans unless they have recordings of their own
+  const list = (voiceManifest[id] ?? voiceManifest[id.split('_')[0]])?.[kind];
   if (!list?.length) return false;
   const vol = Math.pow(Math.max(0, 1 - distance / 40), 1.3);
   if (vol < 0.04) return false;
